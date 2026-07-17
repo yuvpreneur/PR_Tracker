@@ -1,0 +1,3 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/prove_it_backend/prove_it_backend/.venv/Scripts/python.exe"
+}

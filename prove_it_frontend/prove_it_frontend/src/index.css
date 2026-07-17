@@ -1,0 +1,51 @@
+/* Tailwind, split so Preflight (the base reset) is left out — the legacy Replica
+   shell owns its own reset/typography in global.css and Preflight would fight it.
+   New React components style with Tailwind utilities only.
+
+   Layer order matters here: unlayered CSS always beats layered CSS in the cascade,
+   regardless of specificity or source order. global.css's own `* { margin:0;
+   padding:0 }` reset is otherwise unlayered, which would silently null out every
+   Tailwind spacing utility (p-5, mb-2, gap-4, ...) sitewide. Putting the legacy
+   stylesheets in their own layer, ordered before `utilities`, fixes that while
+   leaving their own specific rules (.stat-card, .section-header, ...) still
+   winning over Tailwind on the legacy pages that don't use Tailwind classes at all. */
+@layer theme, legacy, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+@import './styles/variables.css' layer(legacy);
+@import './styles/global.css' layer(legacy);
+@import './styles/themes.css' layer(legacy);
+@import './styles/animations.css' layer(legacy);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* Design tokens, bridged from the legacy CSS variables above so new Tailwind
+   utilities (bg-brand, text-slate, shadow-card, ...) and legacy var(--brand)
+   usage stay driven by the same single source of truth. */
+@theme {
+  --color-brand: var(--brand);
+  --color-brand-2: var(--brand-2);
+  --color-brand-3: var(--brand-3);
+  --color-navy: var(--navy);
+  --color-deep: var(--deep);
+  --color-ink: var(--ink);
+  --color-slate: var(--slate);
+  --color-muted: var(--muted);
+  --color-page: var(--page);
+  --color-card: var(--card);
+  --color-soft: var(--soft);
+  --color-line: var(--line);
+  --color-green: var(--green);
+  --color-amber: var(--amber);
+  --color-red: var(--red);
+  --color-violet: var(--violet);
+  --color-accent: var(--accent);
+  --color-surface: var(--surface);
+  --color-surface-high: var(--surface-high);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-text2: var(--text2);
+  --color-text3: var(--text3);
+
+  --shadow-card: var(--shadow);
+  --shadow-soft-card: var(--shadow-soft);
+}

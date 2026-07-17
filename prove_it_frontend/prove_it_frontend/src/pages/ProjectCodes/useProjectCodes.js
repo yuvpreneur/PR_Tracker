@@ -1,0 +1,33 @@
+import { useCallback, useEffect, useState } from 'react';
+import { get } from '../../bridge/core/http.js';
+import { state } from '../../bridge/core/state.js';
+
+// Same pattern as useProjects.js/useCompanies.js. Project codes only carry a
+// project_id foreign key, so this also fetches /api/projects (same as the legacy
+// loadProjectCodes()'s reliance on state.projects) to join in the project name.
+export default function useProjectCodes() {
+  const [pcodes, setPcodes] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    const [codes, projs] = await Promise.all([
+      get('/api/project-codes').catch(() => []),
+      get('/api/projects').catch(() => []),
+    ]);
+    setPcodes(codes || []);
+    setProjects(projs || []);
+    // Keeps the legacy `.bridge-edit`/`.bridge-delete` delegation's row lookup
+    // (bridge/index.js, reads state.pcodes) in sync with what's actually on screen.
+    state.pcodes = codes || [];
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    refresh();
+    document.addEventListener('project-codes:changed', refresh);
+    return () => document.removeEventListener('project-codes:changed', refresh);
+  }, [refresh]);
+
+  return { pcodes, projects, loading, refresh };
+}
