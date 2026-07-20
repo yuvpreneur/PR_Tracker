@@ -2,7 +2,7 @@
 import { get, post, patch, del } from './core/http.js';
 import { state } from './core/state.js';
 import { refreshCaches, username } from './core/cache.js';
-import { login as devLogin } from '../services/authService.js';
+import { viewAs } from '../services/authService.js';
 import { toast } from './shared/ui.js';
 import { canViewPage, canCreateOnPage, canExportOnPage } from './shared/permissions.js';
 import { wireBtn, closeModal, startCreate, startEdit, editId, openModal, set, val } from './shared/modals.js';
@@ -496,32 +496,48 @@ export function initApiBridge() {
       setEl('active-user-role', state.currentUser.role || '');
     }
 
-    // TESTING ONLY — quick role switcher (topbar). Logs straight into one of the 5 seeded
-    // demo accounts (password is always "{username}123", per app/core/seed.py) so QA can
-    // compare how each role actually behaves without typing credentials each time. Gated on
-    // import.meta.env.DEV (Vite's built-in flag, false in any `vite build` output) rather than
-    // a custom env var — can't be forgotten or misconfigured in a production build.
+    // Admin-only "View as role" (topbar). Mints a short-lived token for a real account
+    // of the chosen role via POST /api/auth/view-as — server enforces the Admin check
+    // and audit-logs it (see app/routers/auth.py), no password needed. Works the same
+    // in production as in dev; not gated on import.meta.env.DEV.
     const roleSwitcher = document.getElementById('role-switcher');
-    if (roleSwitcher && import.meta.env.DEV) {
-      if (state.currentUser?.username) roleSwitcher.value = state.currentUser.username;
-      // Starts disabled (see appMarkup.js) so a click during this async init window — before
-      // this listener exists — can't silently no-op. Only enable once it's actually wired.
-      roleSwitcher.disabled = false;
-      roleSwitcher.addEventListener('change', async () => {
-        const uname = roleSwitcher.value;
-        const prev = state.currentUser?.username;
-        roleSwitcher.disabled = true; // block re-entry until the reload lands or this fails
-        try {
-          await devLogin(uname, `${uname}123`);
+    const viewAsExitBtn = document.getElementById('view-as-exit');
+    const realToken = localStorage.getItem('real_token');
+    if (roleSwitcher && viewAsExitBtn) {
+      if (realToken) {
+        // Currently previewing another role — offer Exit instead of the picker. The
+        // Admin's own token is still sitting in real_token, so exiting is a local
+        // restore + reload, no backend round trip needed.
+        roleSwitcher.style.display = 'none';
+        viewAsExitBtn.style.display = '';
+        viewAsExitBtn.textContent = `Viewing as ${state.currentUser?.role || '…'} — Exit view`;
+        viewAsExitBtn.addEventListener('click', () => {
+          localStorage.setItem('token', realToken);
+          localStorage.removeItem('real_token');
           location.reload();
-        } catch (e) {
-          toast(`Could not switch to "${uname}": ${e.message}`, 'error');
-          if (prev) roleSwitcher.value = prev;
-          roleSwitcher.disabled = false;
-        }
-      });
-    } else if (roleSwitcher) {
-      roleSwitcher.style.display = 'none';
+        });
+      } else if (state.currentUser?.role === 'Admin') {
+        // Starts disabled (see appMarkup.js) so a click during this async init window —
+        // before this listener exists — can't silently no-op. Only enable once wired.
+        roleSwitcher.disabled = false;
+        roleSwitcher.addEventListener('change', async () => {
+          const role = roleSwitcher.value;
+          if (!role) return;
+          roleSwitcher.disabled = true;
+          const adminToken = localStorage.getItem('token');
+          try {
+            await viewAs(role);
+            localStorage.setItem('real_token', adminToken);
+            location.reload();
+          } catch (e) {
+            toast(`Could not switch to "${role}": ${e.message}`, 'error');
+            roleSwitcher.value = '';
+            roleSwitcher.disabled = false;
+          }
+        });
+      } else {
+        roleSwitcher.style.display = 'none';
+      }
     }
 
     document.getElementById('dash-period')?.addEventListener('change', () => loadDashboard());
