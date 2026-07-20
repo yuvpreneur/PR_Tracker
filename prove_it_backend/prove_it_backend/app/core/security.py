@@ -58,7 +58,9 @@ def get_current_user(
     user = db[collections.USERS].find_one({"username": username})
     if user is None:
         raise credentials_exception
-    return SimpleNamespace(**user)
+    # Set only on a token minted by POST /auth/view-as — the username of the Admin who
+    # is previewing this account, so /me can surface a "viewing as" banner to them.
+    return SimpleNamespace(**user, view_as_actor=payload.get("actor"))
 
 
 def require_role(*roles: str):
