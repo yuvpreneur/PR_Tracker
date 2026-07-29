@@ -22,9 +22,6 @@ from app.routers import (
     timesheets,
     expenses,
     receivables,
-    attendance,
-    leads,
-    lead_notes,
     leave,
     tickets,
     approvals,
@@ -33,6 +30,7 @@ from app.routers import (
     reports,
     audit_log,
     settings,
+    notifications,
 )
 
 @asynccontextmanager
@@ -73,9 +71,6 @@ app.include_router(hourly_costs.router,   prefix="/api/hourly-costs",   tags=["H
 app.include_router(timesheets.router,     prefix="/api/timesheets",     tags=["Timesheets"])
 app.include_router(expenses.router,       prefix="/api/expenses",       tags=["Expenses"])
 app.include_router(receivables.router,    prefix="/api/receivables",    tags=["Receivables"])
-app.include_router(attendance.router,     prefix="/api/attendance",     tags=["Attendance"])
-app.include_router(leads.router,          prefix="/api/leads",          tags=["Leads"])
-app.include_router(lead_notes.router,     prefix="/api/leads",          tags=["Lead Notes"])
 app.include_router(leave.router,          prefix="/api/leave",          tags=["Leave"])
 app.include_router(tickets.router,        prefix="/api/tickets",        tags=["Service Desk"])
 app.include_router(approvals.router,      prefix="/api/approvals",      tags=["Approvals"])
@@ -84,6 +79,7 @@ app.include_router(role_permissions.router, prefix="/api/role-permissions", tags
 app.include_router(reports.router,        prefix="/api/reports",        tags=["Reports"])
 app.include_router(audit_log.router,      prefix="/api/audit-log",      tags=["Audit Log"])
 app.include_router(settings.router,       prefix="/api/settings",       tags=["Settings"])
+app.include_router(notifications.router,  prefix="/api/notifications",  tags=["Notifications"])
 
 
 @app.get("/", tags=["Health"])

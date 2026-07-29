@@ -37,7 +37,7 @@ def _log_out(l: dict):
     }
 
 
-@router.get("/", dependencies=[Depends(require_role("Admin"))])
+@router.get("/", dependencies=[Depends(require_role("Admin", "Manager"))])
 def list_audit_log(
     module:    Optional[str]  = Query(None),
     action:    Optional[str]  = Query(None),
@@ -74,7 +74,7 @@ def list_audit_log(
     }
 
 
-@router.post("/", dependencies=[Depends(require_role("Admin"))])
+@router.post("/", dependencies=[Depends(require_role("Admin", "Manager"))])
 def create_audit_log(payload: AuditLogCreate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
     entry_id = next_id(db, collections.AUDIT_LOG)
     doc = {
@@ -93,7 +93,7 @@ def create_audit_log(payload: AuditLogCreate, db: Database = Depends(get_db), cu
     return _log_out(doc)
 
 
-@router.patch("/{log_id}", dependencies=[Depends(require_role("Admin"))])
+@router.patch("/{log_id}", dependencies=[Depends(require_role("Admin", "Manager"))])
 def update_audit_log(log_id: int, payload: AuditLogUpdate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
     l = db[collections.AUDIT_LOG].find_one({"_id": log_id})
     if not l:
@@ -107,7 +107,7 @@ def update_audit_log(log_id: int, payload: AuditLogUpdate, db: Database = Depend
     return _log_out(l)
 
 
-@router.delete("/{log_id}", dependencies=[Depends(require_role("Admin"))])
+@router.delete("/{log_id}", dependencies=[Depends(require_role("Admin", "Manager"))])
 def delete_audit_log(log_id: int, db: Database = Depends(get_db), cu=Depends(get_current_user)):
     l = db[collections.AUDIT_LOG].find_one({"_id": log_id})
     if not l:

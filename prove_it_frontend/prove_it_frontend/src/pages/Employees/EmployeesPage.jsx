@@ -3,8 +3,8 @@ import useEmployees from './useEmployees.js';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
-import { can, canCreateOnPage } from '../../bridge/shared/permissions.js';
-import { openModal, startCreate } from '../../bridge/shared/modals.js';
+import { openModal, startCreate, resetFields } from '../../bridge/shared/modals.js';
+import usePermissions from '../../hooks/usePermissions.js';
 
 const COLUMNS = [
   { key: 'emp_id', header: 'ID', render: r => <strong>{r.emp_id}</strong> },
@@ -17,6 +17,7 @@ const COLUMNS = [
 ];
 
 export default function EmployeesPage() {
+  const { can, canCreateOnPage } = usePermissions();
   const { employees, loading } = useEmployees();
   const [dept, setDept] = useState('');
   const [status, setStatus] = useState('');
@@ -35,6 +36,7 @@ export default function EmployeesPage() {
   }, [employees, dept, status, search]);
 
   const handleNew = () => {
+    resetFields('modal-emp');
     startCreate('page-employees');
     openModal('modal-emp');
   };

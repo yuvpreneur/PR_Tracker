@@ -14,6 +14,19 @@ function tsRowGuard(row) {
   };
 }
 
+// A project code belongs to exactly one project — only ever offer the codes that
+// actually belong to the selected project. Exported so bridge/index.js's Edit prefill
+// can refresh this list for the row's project before selecting its value.
+export function populateTsProjectCodeSelect(projectId, keepValue) {
+  const pcSel = field('modal-timesheet', 'project code');
+  if (!pcSel || pcSel.tagName !== 'SELECT') return;
+  const codes = projectId ? state.pcodes.filter(c => c.project_id === projectId) : [];
+  const prev = keepValue !== undefined ? keepValue : pcSel.value;
+  pcSel.innerHTML = '<option value="">Select Project Code</option>' +
+    codes.map(c => `<option value="${c.code}">${c.code}</option>`).join('');
+  pcSel.value = codes.some(c => c.code === prev) ? prev : '';
+}
+
 function populateTimesheetModalDropdowns() {
   const projSel = field('modal-timesheet', 'project');
   if (projSel && projSel.tagName === 'SELECT') {
@@ -21,7 +34,15 @@ function populateTimesheetModalDropdowns() {
     projSel.innerHTML = '<option value="">Select Project</option>' +
       state.projects.map(p => `<option value="${p.id}">${p.id} - ${p.name}</option>`).join('');
     if (prev) projSel.value = prev;
+
+    // Re-filter (and drop any now-mismatched selection) whenever the project changes.
+    if (!projSel._tsWired) {
+      projSel._tsWired = true;
+      projSel.addEventListener('change', () => populateTsProjectCodeSelect(projSel.value));
+    }
   }
+  populateTsProjectCodeSelect(projSel?.value);
+
   const bcSel = field('modal-timesheet', 'billing code');
   if (bcSel && bcSel.tagName === 'SELECT') {
     const prev = bcSel.value;

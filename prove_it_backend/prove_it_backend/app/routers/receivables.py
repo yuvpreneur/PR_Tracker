@@ -86,6 +86,12 @@ def summary(db: Database = Depends(get_db), cu=Depends(get_current_user)):
 def create(payload: RecvCreate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
     if db[collections.RECEIVABLES].find_one({"invoice_no": payload.invoice_no}):
         raise HTTPException(400, "Invoice number already exists")
+    if payload.billing_code_id:
+        bcode = db[collections.BILLING_CODES].find_one({"_id": payload.billing_code_id})
+        if not bcode:
+            raise HTTPException(404, "Billing code not found")
+        if bcode["project_id"] != payload.project_id:
+            raise HTTPException(400, "That billing code does not belong to the selected project")
     rid = next_id(db, collections.RECEIVABLES)
     doc = {"_id": rid, "id": rid, **payload.dict()}
     doc["invoice_date"] = doc["invoice_date"].isoformat()

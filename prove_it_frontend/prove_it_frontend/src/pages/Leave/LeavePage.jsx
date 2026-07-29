@@ -3,9 +3,9 @@ import StatCard from '../../components/ui/StatCard.jsx';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
-import { date } from '../../bridge/shared/ui.js';
-import { can, canCreateOnPage, isMine } from '../../bridge/shared/permissions.js';
+import { date } from '../../utils/format.js';
 import { openModal } from '../../bridge/shared/modals.js';
+import usePermissions from '../../hooks/usePermissions.js';
 
 const COLUMNS = [
   { key: 'name', header: 'Employee' },
@@ -13,10 +13,13 @@ const COLUMNS = [
   { key: 'from_date', header: 'From', render: r => date(r.from_date) },
   { key: 'to_date', header: 'To', render: r => date(r.to_date) },
   { key: 'days', header: 'Days' },
+  { key: 'active_projects', header: 'Active Projects', render: r => (r.active_projects?.length ? r.active_projects.join(', ') : '—') },
   { key: 'status', header: 'Status', render: r => <Badge status={r.status} /> },
+  { key: 'decision_reason', header: 'Reason', render: r => (r.status === 'Rejected' ? (r.decision_reason || '—') : '—') },
 ];
 
 export default function LeavePage() {
+  const { can, canCreateOnPage, isMine, noActionsColumn } = usePermissions();
   const { leave, summary, loading } = useLeave();
 
   const renderExtraActions = row => {
@@ -54,6 +57,7 @@ export default function LeavePage() {
           canEdit={false}
           canDelete={false}
           renderExtraActions={renderExtraActions}
+          hideActionsColumn={noActionsColumn('leave')}
           emptyMessage={loading ? 'Loading…' : 'No records found'}
         />
       </div>

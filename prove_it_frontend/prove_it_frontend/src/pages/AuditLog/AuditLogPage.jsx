@@ -3,15 +3,14 @@ import useAuditLog from './useAuditLog.js';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
-import { get } from '../../bridge/core/http.js';
-import { state } from '../../bridge/core/state.js';
-import { date } from '../../bridge/shared/ui.js';
-import { canCreateOnPage, canExportOnPage, noActionsColumn } from '../../bridge/shared/permissions.js';
-import { openModal, startCreate } from '../../bridge/shared/modals.js';
+import { get } from '../../services/httpClient.js';
+import { date } from '../../utils/format.js';
+import usePermissions from '../../hooks/usePermissions.js';
+import { openModal, startCreate, resetFields } from '../../bridge/shared/modals.js';
 
 // Static list — mirrors the legacy markup's hardcoded <option> list exactly
 // (this page has no module-discovery endpoint of its own).
-const MODULES = ['Users', 'Projects', 'Employees', 'Timesheets', 'Expenses', 'Receivables', 'Attendance', 'Access Control'];
+const MODULES = ['Users', 'Projects', 'Employees', 'Timesheets', 'Expenses', 'Receivables', 'Access Control'];
 
 const COLUMNS = [
   { key: 'timestamp', header: 'Date & Time', render: r => date(r.timestamp || r.created_at) },
@@ -22,6 +21,7 @@ const COLUMNS = [
 ];
 
 export default function AuditLogPage() {
+  const { canCreateOnPage, canExportOnPage, noActionsColumn, role } = usePermissions();
   const [module, setModule] = useState('');
   const [user, setUser] = useState('');
   const [period, setPeriod] = useState('today');
@@ -34,9 +34,11 @@ export default function AuditLogPage() {
 
   const { rows, loading } = useAuditLog({ module, user, period, search });
 
-  const isAdmin = state.currentUser?.role === 'Admin';
+  // Manager has Admin-equivalent access here too (app/routers/audit_log.py allows both).
+  const isAdmin = ['Admin', 'Manager'].includes(role);
 
   const handleNew = () => {
+    resetFields('modal-audit');
     startCreate('page-audit');
     openModal('modal-audit');
   };

@@ -14,7 +14,12 @@ function AuthGate() {
     );
   }
 
-  return user ? <ReplicaPage /> : <Login />;
+  // A password-reset link may be opened in a browser that still has a session for a
+  // different account — always show the reset form in that case instead of the
+  // authenticated app, otherwise the token would be silently dropped.
+  const hasResetToken = new URLSearchParams(window.location.search).has('token');
+
+  return (user && !hasResetToken) ? <ReplicaPage /> : <Login />;
 }
 
 export default function AppRoutes() {

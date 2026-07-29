@@ -1,17 +1,17 @@
 import { useMemo, useState } from 'react';
 import useApprovals from './useApprovals.js';
 import StatCard from '../../components/ui/StatCard.jsx';
-import { date, num } from '../../bridge/shared/ui.js';
-import { can } from '../../bridge/shared/permissions.js';
+import { date, num } from '../../utils/format.js';
+import usePermissions from '../../hooks/usePermissions.js';
 
-const TYPE_LABEL = { timesheets: 'Timesheet', expenses: 'Expense', attendance: 'Attendance', access: 'Access Control' };
+const TYPE_LABEL = { timesheets: 'Timesheet', expenses: 'Expense', leave: 'Leave', access: 'Access Control' };
 // Maps a row's _mod to the Roles & Permissions matrix module it's approved under. 'access'
 // has no matrix entry — those rows only ever reach here for Admin (see approvals.py), so
 // they're always actionable and deliberately left out of this map.
-const MOD_TO_PERMISSION_MODULE = { timesheets: 'Timesheets', expenses: 'Expenses', attendance: 'Attendance' };
-const TYPE_COLOR = { Timesheet: '#3b82f6', Expense: '#f59e0b', Attendance: '#22c55e', 'Access Control': '#64748b' };
+const MOD_TO_PERMISSION_MODULE = { timesheets: 'Timesheets', expenses: 'Expenses', leave: 'Leave' };
+const TYPE_COLOR = { Timesheet: '#3b82f6', Expense: '#f59e0b', Leave: '#7c3aed', 'Access Control': '#64748b' };
 
-// This page's type badge uses its own color map (Timesheet/Expense/Attendance/Access
+// This page's type badge uses its own color map (Timesheet/Expense/Leave/Access
 // Control), distinct from the shared <Badge> component's status color map — a local,
 // small inline pill instead of extending <Badge> for this one-off case.
 function TypeBadge({ mod }) {
@@ -30,16 +30,28 @@ function TypeBadge({ mod }) {
 function describeApproval(r) {
   switch (r._mod) {
     case 'timesheets': return { name: r.name || r.emp_id, detail: `${r.hours}h – ${r.project_id} – ${date(r.entry_date)}` };
-    case 'expenses': return { name: r.submitted_by, detail: `₹${num(r.amount)} – ${r.category}${r.vendor ? ' / ' + r.vendor : ''}` };
-    case 'attendance': return { name: r.name || r.emp_id, detail: `${date(r.att_date)} attendance – ${r.total_hours}h` };
-    case 'access': return { name: r.requester, detail: `Access to ${r.page}${r.project ? ' (' + r.project + ')' : ''}` };
+    case 'expenses': return { name: r.submitted_by, detail: `₹${num(r.amount)} – ${r.category}${r.vendor ? ' / ' + r.vendor : ''}${r.status === 'Pending Finance' ? ' – awaiting Finance' : ' – awaiting Manager'}` };
+    case 'leave': return { name: r.name || r.emp_id, detail: `${r.leave_type} – ${date(r.from_date)} to ${date(r.to_date)} – ${r.days}d` };
+    case 'access': return {
+      name: r.requester,
+      detail: r.request_type === 'project'
+        ? `Project access to ${r.project_id}`
+        : `Access to ${r.page}${r.project ? ' (' + r.project + ')' : ''}`,
+    };
     default: return { name: '—', detail: '' };
   }
 }
 
 export default function ApprovalsPage() {
+  const { can, role } = usePermissions();
   const { counts, all, loading } = useApprovals();
   const [filter, setFilter] = useState('');
+
+  // Finance User has no say over Timesheets/Leave/Access Control at all, and within
+  // Expenses only ever acts at the "Pending Finance" stage (see approvals.py's
+  // pending_approvals(), which already excludes everything else server-side for them) —
+  // so their view only offers the one category they can actually do something with.
+  const isFinanceUser = role === 'Finance User';
 
   const rows = useMemo(() => (filter ? all.filter(r => r._mod === filter) : all), [all, filter]);
 
@@ -49,19 +61,25 @@ export default function ApprovalsPage() {
         <h2>Approval Dashboard</h2>
         <select id="appr-type-filter" className="form-control" style={{ width: 'auto' }} value={filter} onChange={e => setFilter(e.target.value)}>
           <option value="">All Types</option>
-          <option value="timesheets">Timesheet</option>
+          {!isFinanceUser && <option value="timesheets">Timesheet</option>}
           <option value="expenses">Expense</option>
-          <option value="attendance">Attendance</option>
-          <option value="access">Access Control</option>
+          {!isFinanceUser && <option value="leave">Leave</option>}
+          {!isFinanceUser && <option value="access">Access Control</option>}
         </select>
       </div>
 
-      <div className="mb-5 grid grid-cols-4 gap-4 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1">
-        <StatCard label="Pending Timesheets" value={loading ? '—' : String(counts.timesheets)} sub="" color="var(--color-accent)" />
-        <StatCard label="Pending Expenses" value={loading ? '—' : String(counts.expenses)} sub="" color="var(--color-amber)" />
-        <StatCard label="Pending Attendance" value={loading ? '—' : String(counts.attendance)} sub="" color="var(--color-green)" />
-        <StatCard label="Pending Access Control" value={loading ? '—' : String(counts.access)} sub="" color="var(--color-text2)" />
-      </div>
+      {isFinanceUser ? (
+        <div className="mb-5 grid grid-cols-1 gap-4 max-w-xs">
+          <StatCard label="Pending Expenses" value={loading ? '—' : String(counts.expenses)} sub="" color="var(--color-amber)" />
+        </div>
+      ) : (
+        <div className="mb-5 grid grid-cols-4 gap-4 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1">
+          <StatCard label="Pending Timesheets" value={loading ? '—' : String(counts.timesheets)} sub="" color="var(--color-accent)" />
+          <StatCard label="Pending Expenses" value={loading ? '—' : String(counts.expenses)} sub="" color="var(--color-amber)" />
+          <StatCard label="Pending Leave" value={loading ? '—' : String(counts.leave)} sub="" color="var(--color-violet)" />
+          <StatCard label="Pending Access Control" value={loading ? '—' : String(counts.access)} sub="" color="var(--color-text2)" />
+        </div>
+      )}
 
       <div className="card">
         <div className="card-section-title">Pending Approvals</div>
@@ -73,7 +91,15 @@ export default function ApprovalsPage() {
         {rows.map(row => {
           const { name, detail } = describeApproval(row);
           const permModule = MOD_TO_PERMISSION_MODULE[row._mod];
-          const canAct = permModule ? can(permModule, 'approve') : true;
+          // Expenses is a two-stage chain (Manager confirms business purpose, then Finance
+          // validates policy + posts payment — see expenses.py) — the blanket module
+          // "approve" flag can't tell which stage this row is at, so gate on the row's
+          // own status + the viewer's role instead of the matrix.
+          const canAct = row._mod === 'expenses'
+            ? (role === 'Admin'
+                || (row.status === 'Pending' && role === 'Manager')
+                || (row.status === 'Pending Finance' && role === 'Finance User'))
+            : (permModule ? can(permModule, 'approve') : true);
           return (
             <div className="approval-item" key={`${row._mod}-${row.id}`}>
               <TypeBadge mod={row._mod} />

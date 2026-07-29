@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { get, qs } from '../../bridge/core/http.js';
+import { get, qs } from '../../services/httpClient.js';
 import { state } from '../../bridge/core/state.js';
-import { periodRange } from '../../bridge/shared/ui.js';
+import { periodRange } from '../../utils/format.js';
+import { markModuleNotificationsRead } from '../../bridge/shared/notifications.js';
 
 // period='' means "All Time" (no date filter) here — unlike periodRange('') itself,
 // which defaults to "today". Mirrors the legacy tsPeriodRange() wrapper exactly.
@@ -28,6 +29,10 @@ export default function useTimesheets({ period, projectId, billingCodeId, status
     document.addEventListener('timesheets:changed', refresh);
     return () => document.removeEventListener('timesheets:changed', refresh);
   }, [refresh]);
+
+  // Visiting this page is what dismisses your own Timesheets approved/rejected
+  // notifications — see markModuleNotificationsRead().
+  useEffect(() => { markModuleNotificationsRead('Timesheets'); }, []);
 
   return { timesheets, loading, refresh };
 }

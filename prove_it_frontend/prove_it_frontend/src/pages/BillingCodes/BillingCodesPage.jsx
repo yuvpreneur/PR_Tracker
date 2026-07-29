@@ -3,11 +3,12 @@ import useBillingCodes from './useBillingCodes.js';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
-import { date, num } from '../../bridge/shared/ui.js';
-import { can, canCreateOnPage } from '../../bridge/shared/permissions.js';
-import { openModal, startCreate } from '../../bridge/shared/modals.js';
+import { date, num } from '../../utils/format.js';
+import { openModal, startCreate, resetFields } from '../../bridge/shared/modals.js';
+import usePermissions from '../../hooks/usePermissions.js';
 
 export default function BillingCodesPage() {
+  const { can, canCreateOnPage } = usePermissions();
   const { bcodes, projects, loading } = useBillingCodes();
   const [projectId, setProjectId] = useState('');
   const [billingType, setBillingType] = useState('');
@@ -38,6 +39,7 @@ export default function BillingCodesPage() {
   }, [bcodes, projects, projectId, billingType, search]);
 
   const handleNew = () => {
+    resetFields('modal-bcode');
     startCreate('page-billing-codes');
     openModal('modal-bcode');
   };

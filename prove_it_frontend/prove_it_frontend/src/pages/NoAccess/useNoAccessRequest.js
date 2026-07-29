@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { get } from '../../bridge/core/http.js';
+import { get } from '../../services/httpClient.js';
 
 // showNoAccess() (bridge/index.js) still owns actually SHOWING this page (toggling
 // .active on #page-no-access, exactly like every other page's nav-driven show/hide)

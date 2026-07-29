@@ -181,54 +181,6 @@ def run():
         ]
         db[collections.RECEIVABLES].insert_many(recvs)
 
-        # ── Attendance ────────────────────────────────────────────────────────
-        def at(emp_id, name, att_date, check_in, check_out, total_hours, att_status, approval_status):
-            aid = _next(collections.ATTENDANCE)
-            return {
-                "_id": aid, "id": aid, "emp_id": emp_id, "name": name, "att_date": _d(att_date),
-                "check_in": check_in, "check_out": check_out, "total_hours": total_hours,
-                "att_status": att_status, "approval_status": approval_status,
-            }
-
-        att = [
-            at("EMP001", "Ravi Kumar",  date(2026,6,21), "09:02", "18:45", 9.5,  "Present", "Approved"),
-            at("EMP002", "Neha Singh",  date(2026,6,21), "09:30", "18:00", 8.5,  "Present", "Pending"),
-            at("EMP003", "Vikram Das",  date(2026,6,21), None,    None,    0.0,  "Absent",  "N/A"),
-            at("EMP005", "Rohan Mehta", date(2026,6,21), "09:00", "19:00", 10.0, "Present", "Approved"),
-        ]
-        db[collections.ATTENDANCE].insert_many(att)
-
-        # ── Leads ─────────────────────────────────────────────────────────────
-        def ld(lead_id, company, contact, email, value, owner, stage, followup_date, projects):
-            return {
-                "_id": lead_id, "lead_id": lead_id, "company": company, "contact": contact, "email": email,
-                "phone": None, "value": value, "owner": owner, "stage": stage,
-                "followup_date": _d(followup_date), "projects": projects, "source": None, "converted": "No",
-            }
-
-        leads = [
-            ld("LD-5001", "Acme Finance",  "Meera Kapoor", "meera@acmefinance.in",         1200000, "Rohan Mehta",  "New",           date(2026,6,23), "ERP Rollout"),
-            ld("LD-5002", "Flipkart",       "Amit Rao",     "amit.rao@flipkart.com",       2200000, "Priya Sharma", "Qualified",     date(2026,6,24), "Data Migration,Analytics Dashboard"),
-            ld("LD-5003", "HDFC Bank",      "Anil Gupta",   "anil.gupta@hdfcbank.com",     1500000, "Anil Gupta",   "Proposal",      date(2026,6,25), "Portal Redesign"),
-            ld("LD-5004", "RetailOne",      "Neha Singh",   "neha@retailone.com",          400000,  "Neha Singh",   "Contacted",     date(2026,6,26), "Mobile App v2"),
-            ld("LD-5005", "TechCorp India", "Suresh Iyer",  "suresh@techcorp.in",          3500000, "Rohan Mehta",  "Won / Project", date(2026,7,1),  "ERP Rollout"),
-            ld("LD-5006", "StartupXYZ",     "Divya Menon",  "divya@startupxyz.com",        250000,  "Priya Sharma", "Lost / Cold",   date(2026,5,30), "Mobile App v2"),
-        ]
-        db[collections.LEADS].insert_many(leads)
-
-        # ── Lead Notes ────────────────────────────────────────────────────────
-        def ln(lead_id, by, at_, text):
-            nid = _next(collections.LEAD_NOTES)
-            return {"_id": nid, "id": nid, "lead_id": lead_id, "by": by, "at": at_, "text": text}
-
-        notes = [
-            ln("LD-5001", "Rohan Mehta",  "21 Jun 2026, 10:15 AM", "Inbound website lead. Customer is evaluating cloud migration and ERP integration support."),
-            ln("LD-5002", "Priya Sharma", "21 Jun 2026, 12:40 PM", "Qualified after discovery call. Needs migration plan, timeline, and support model."),
-            ln("LD-5003", "Anil Gupta",   "20 Jun 2026, 05:30 PM", "Proposal sent for portal redesign phase 2. Waiting for procurement feedback."),
-            ln("LD-5004", "Neha Singh",   "22 Jun 2026, 09:05 AM", "Self-added lead for mobile support retainer. Follow-up scheduled this week."),
-        ]
-        db[collections.LEAD_NOTES].insert_many(notes)
-
         # ── Service Desk Tickets ──────────────────────────────────────────────
         def tk(ticket_no, subject, project_id, requester, queue, priority, status, sla_deadline, assigned_to, cancel_reason=None):
             tid = _next(collections.TICKETS)
@@ -300,7 +252,6 @@ def run():
 
         logs = [
             log("Admin User",  "CREATE",  "Projects",     "P001",     "Created project ERP Rollout",      datetime(2026,1,1,9,0)),
-            log("Rohan Mehta", "UPDATE",  "Leads",        "LD-5001",  "Lead stage updated to Qualified",  datetime(2026,6,21,10,20)),
             log("Sonal Patel", "APPROVE", "Expenses",     "2",        "Approved travel expense ₹8,200", datetime(2026,6,15,14,30)),
             log("Admin User",  "CANCEL",  "Service Desk", "SN-10244", "Ticket cancelled: duplicate request", datetime(2026,6,20,11,0)),
         ]

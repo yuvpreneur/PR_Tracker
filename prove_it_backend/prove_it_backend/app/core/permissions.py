@@ -1,9 +1,14 @@
 """
 Dynamic, DB-driven role permission matrix — the single source of truth for
-what each role can do, per module. Admin always has full access and never
-consults the DB. Every other role falls back to DEFAULT_PERMS for any module
-an Admin hasn't explicitly customized in the `role_permissions` collection.
+what each role can do, per module. Admin and Manager both always have full
+access and never consult the DB (Manager is Admin-equivalent everywhere
+except managing Admin/Manager user accounts — see app/routers/users.py).
+Every other role falls back to DEFAULT_PERMS for any module an Admin hasn't
+explicitly customized in the `role_permissions` collection.
 """
+
+import re
+from typing import List, Optional
 
 from pymongo.database import Database
 
@@ -11,9 +16,15 @@ from app.core import collections
 
 MODULES = [
     "Companies", "Projects", "Project Codes", "Billing Codes", "Employees", "Hourly Costs",
-    "Timesheets", "Expenses", "Attendance", "Leave", "Service Desk", "Receivables",
-    "Lead Management", "Reports", "Approvals",
+    "Timesheets", "Expenses", "Leave", "Service Desk", "Receivables",
+    "Reports", "Approvals",
 ]
+
+# Roles that bypass the DB-driven matrix entirely and always get full access
+# (see get_role_permissions()/get_effective_permissions()/has_permission() below).
+# Manager's only carve-out from true Admin parity is account management for
+# Admin/Manager-role users themselves (app/routers/users.py's PRIVILEGED_ROLES).
+FULL_ACCESS_ROLES = ("Admin", "Manager")
 
 
 def _flags(view=False, create=False, edit=False, delete=False, approve=False, export=False):
@@ -25,43 +36,35 @@ _FULL = _flags(True, True, True, True, True, True)
 DEFAULT_PERMS = {
     "Admin": {m: dict(_FULL) for m in MODULES},
 
-    # Manager — runs delivery: projects, people, billing-related codes, timesheets/expenses/
-    # attendance approval, service desk, sales pipeline. Not the cost-rate owner (Hourly
-    # Costs) and never deletes outright — that stays Admin-only (see has_permission()).
-    "Manager": {
-        "Companies":        _flags(view=True, create=True, edit=True, export=True),
-        "Projects":         _flags(view=True, create=True, edit=True, export=True),
-        "Project Codes":    _flags(view=True, create=True, edit=True, export=True),
-        "Billing Codes":    _flags(view=True, create=True, edit=True, export=True),
-        "Employees":        _flags(view=True, create=True, edit=True, export=True),
-        "Hourly Costs":     _flags(view=True),
-        "Timesheets":       _flags(view=True, create=True, edit=True, approve=True, export=True),
-        "Expenses":         _flags(view=True, create=True, edit=True, approve=True, export=True),
-        "Attendance":       _flags(view=True, create=True, edit=True, approve=True, export=True),
-        "Leave":            _flags(view=True, approve=True, export=True),
-        "Service Desk":     _flags(view=True, edit=True, approve=True, export=True),
-        "Receivables":      _flags(view=True, export=True),
-        "Lead Management":  _flags(view=True, create=True, edit=True, approve=True, export=True),
-        "Reports":          _flags(view=True, export=True),
-        "Approvals":        _flags(view=True),
-    },
-
-    # Finance User — owns money-side config and collections: billing rates, cost rates,
-    # receivables, expense approval. Read-only context on projects/people/pipeline.
+    # Finance User — owns money-side config and collections: billing codes/rates, hourly
+    # costs, receivables, final expense approval. Read-only financial context on
+    # Companies/Projects/Reports/Employees. No Timesheets visibility (HR-flavored, outside
+    # their remit) — Timesheets/Leave fall back to each router's own-record self-service
+    # bypass instead (SELF_SERVICE_MODULES above), same as Employee.
+    # Service Desk is deliberately all-False here too: full ticket access is
+    # scoped to FINANCE_QUEUES + their own tickets, enforced directly in tickets.py rather
+    # than through this blanket view/edit/approve matrix. Companies/Projects/Project Codes/
+    # Billing Codes/Employees are all view (+ export) only, full stop — reference/financial
+    # context this role can see in full (same unrestricted visibility as Manager, via the
+    # assigned_project_ids() carve-out below for the first four) but never create, edit, or
+    # delete.
     "Finance User": {
         "Companies":        _flags(view=True, export=True),
         "Projects":         _flags(view=True, export=True),
         "Project Codes":    _flags(view=True, export=True),
-        "Billing Codes":    _flags(view=True, create=True, edit=True, export=True),
+        "Billing Codes":    _flags(view=True, export=True),
         "Employees":        _flags(view=True, export=True),
         "Hourly Costs":     _flags(view=True, create=True, edit=True, export=True),
-        "Timesheets":       _flags(view=True, export=True),
+        "Timesheets":       _flags(),
+        # "approve" here is descriptive, not authoritative — expenses.py hardcodes the real
+        # two-stage gate (Manager confirms business purpose, then Finance validates policy
+        # and posts payment) by role check, bypassing this flag entirely, the same way
+        # Access Requests bypasses the matrix via require_role(). Toggling this checkbox in
+        # the Roles & Permissions UI has no effect on Expenses approval.
         "Expenses":         _flags(view=True, create=True, edit=True, approve=True, export=True),
-        "Attendance":       _flags(view=True),
         "Leave":            _flags(),
-        "Service Desk":     _flags(view=True, export=True),
+        "Service Desk":     _flags(),
         "Receivables":      _flags(view=True, create=True, edit=True, export=True),
-        "Lead Management":  _flags(view=True, export=True),
         "Reports":          _flags(view=True, export=True),
         "Approvals":        _flags(view=True),
     },
@@ -77,11 +80,9 @@ DEFAULT_PERMS = {
         "Hourly Costs":     _flags(),
         "Timesheets":       _flags(),
         "Expenses":         _flags(),
-        "Attendance":       _flags(),
         "Leave":            _flags(),
         "Service Desk":     _flags(),
         "Receivables":      _flags(),
-        "Lead Management":  _flags(),
         "Reports":          _flags(),
         "Approvals":        _flags(),
     },
@@ -96,11 +97,9 @@ DEFAULT_PERMS = {
         "Hourly Costs":     _flags(),
         "Timesheets":       _flags(view=True, export=True),
         "Expenses":         _flags(view=True, export=True),
-        "Attendance":       _flags(view=True, export=True),
         "Leave":            _flags(view=True, export=True),
         "Service Desk":     _flags(view=True, export=True),
         "Receivables":      _flags(view=True, export=True),
-        "Lead Management":  _flags(view=True, export=True),
         "Reports":          _flags(view=True, export=True),
         "Approvals":        _flags(),
     },
@@ -110,11 +109,12 @@ DEFAULT_PERMS = {
 def get_role_permissions(db: Database, role: str) -> dict:
     """Effective {module: {view,create,edit,delete,approve,export}} for a role.
 
-    Admin always gets full access without touching the DB. Any module an Admin
-    hasn't explicitly saved for a role falls back to DEFAULT_PERMS, so partial
-    customization never silently blanks out the rest of the matrix.
+    Admin and Manager both always get full access without touching the DB (see
+    FULL_ACCESS_ROLES). Any module an Admin hasn't explicitly saved for another
+    role falls back to DEFAULT_PERMS, so partial customization never silently
+    blanks out the rest of the matrix.
     """
-    if role == "Admin":
+    if role in FULL_ACCESS_ROLES:
         return {m: dict(_FULL) for m in MODULES}
 
     defaults = DEFAULT_PERMS.get(role, DEFAULT_PERMS["Viewer"])
@@ -129,16 +129,58 @@ def get_role_permissions(db: Database, role: str) -> dict:
         }
         for r in rows
     }
-    return {m: saved.get(m, defaults[m]) for m in MODULES}
+    result = {m: dict(saved.get(m, defaults[m])) for m in MODULES}
+    # Deletion is exclusive to Admin/Manager (FULL_ACCESS_ROLES above), full stop —
+    # never delegable to any other role via this matrix, even if a stale/manually-
+    # edited role_permissions row says otherwise. save_role_permissions()
+    # (role_permissions.py) enforces the same rule on write.
+    for m in result:
+        result[m]["delete"] = False
+    return result
 
 
 def my_emp_ids(db: Database, current_user) -> set:
-    return {e["emp_id"] for e in db[collections.EMPLOYEES].find({"name": current_user.name}, {"emp_id": 1})}
+    # Case-insensitive: User.name and Employees.name are two independently-typed fields
+    # (User accounts are created via a separate form from Employee records) and have been
+    # found to differ only in case for real accounts (e.g. User "anya" vs Employee "Anya")
+    # — an exact match would silently fail to link them, which now that assigned_project_ids()
+    # restricts-by-default on no match would incorrectly lock that person out of everything.
+    pattern = f"^{re.escape(current_user.name)}$"
+    return {
+        e["emp_id"] for e in
+        db[collections.EMPLOYEES].find({"name": {"$regex": pattern, "$options": "i"}}, {"emp_id": 1})
+    }
 
 
 def own_emp_id(db: Database, current_user):
     """The current user's own Employees._id, or None (e.g. Admin has no Employees row)."""
     return next(iter(my_emp_ids(db, current_user)), None)
+
+
+def assigned_project_ids(db: Database, current_user) -> Optional[List[str]]:
+    """None only for Admin/Manager — genuinely unrestricted, skip filtering entirely.
+    Every other role is restricted by default: an empty list (not None) is returned for
+    an employee with no Access Control -> Assigned Projects rows saved yet, or with no
+    Employees record at all, so they see NOTHING in Projects/Companies/Project Codes/
+    Billing Codes until an Admin/Manager explicitly assigns them at least one project.
+    Callers only need `if assigned_ids is not None: filter by $in assigned_ids` — an
+    empty list there already yields zero rows, no separate no-rows-yet case to handle.
+    Project Codes and Billing Codes are each tied to exactly one project_id (see
+    project_codes.py/billing_codes.py), so they reuse this same allow-list rather than
+    getting their own separate Assigned Projects-style checkbox list — being assigned a
+    project already implies seeing that project's codes.
+    Finance User is the one role-wide exception: Projects, Companies, Project Codes, and
+    Billing Codes (projects.py/companies.py/project_codes.py/billing_codes.py each bypass
+    this function directly for that role, same as Admin/Manager) are all unrestricted —
+    every record is visible regardless of assigned projects, same as Manager, though
+    DEFAULT_PERMS's "Finance User" row keeps create/edit/delete off across all four."""
+    if current_user.role in FULL_ACCESS_ROLES:
+        return None
+    emp_id = own_emp_id(db, current_user)
+    if not emp_id:
+        return []
+    assigned = list(db[collections.PROJECT_PERMISSIONS].find({"emp_id": emp_id}))
+    return [a["project_id"] for a in assigned if a["allowed"]]
 
 
 # Self-service modules — routers for these already let an Employee (or any non-Viewer
@@ -152,7 +194,7 @@ def own_emp_id(db: Database, current_user):
 # helper for what an unconfigured Page Access checkbox should default to (see
 # app/routers/access_control.py's GET /pages/{emp_id}) — a *different* question ("does this
 # person currently see this page's nav item at all") from what has_permission() answers.
-SELF_SERVICE_MODULES = {"Timesheets", "Attendance", "Leave", "Service Desk", "Lead Management"}
+SELF_SERVICE_MODULES = {"Timesheets", "Leave", "Service Desk", "Expenses"}
 
 
 def effective_view_default(role_perms: dict, role: str, module: str) -> bool:
@@ -170,7 +212,7 @@ def get_effective_permissions(db: Database, current_user) -> dict:
     that combines the role matrix with an individual's explicit grants/denials. Only
     "view" is ever overridden this way; create/edit/delete/approve/export stay role-only.
     Deliberately does NOT apply the SELF_SERVICE_MODULES bypass — see the note above."""
-    if current_user.role == "Admin":
+    if current_user.role in FULL_ACCESS_ROLES:
         return {m: dict(_FULL) for m in MODULES}
 
     perms = {m: dict(v) for m, v in get_role_permissions(db, current_user.role).items()}
@@ -183,7 +225,7 @@ def get_effective_permissions(db: Database, current_user) -> dict:
 
 
 def has_permission(db: Database, current_user, module: str, action: str) -> bool:
-    if current_user.role == "Admin":
+    if current_user.role in FULL_ACCESS_ROLES:
         return True
     return bool(get_effective_permissions(db, current_user).get(module, {}).get(action))
 
@@ -201,7 +243,7 @@ def is_own_emp_record(db: Database, current_user, emp_id) -> bool:
 def is_own_record(current_user, owner_name) -> bool:
     # See is_own_emp_record() above — same Viewer exclusion, same reason. Several routers
     # match this against a client-supplied "owner" field at creation time (e.g. expenses,
-    # tickets, leads), so without this check a Viewer could self-report as the record's
+    # tickets), so without this check a Viewer could self-report as the record's
     # owner and slip through despite the matrix's create/edit flags being False.
     if current_user.role == "Viewer":
         return False

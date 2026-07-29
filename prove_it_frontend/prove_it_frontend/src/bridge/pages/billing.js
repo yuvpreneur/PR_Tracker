@@ -37,6 +37,21 @@ export async function loadBillingCodes() {
   document.dispatchEvent(new CustomEvent('billing-codes:changed'));
 }
 
+// A billing code belongs to exactly one project (see billing_codes.py) — only ever offer
+// the codes that actually belong to the selected project, so the two fields can't be
+// combined into a mismatched pair. Exported so bridge/index.js's Edit prefill can refresh
+// this list for the row's project before set()-ing its billing code (the value wouldn't
+// "take" if it isn't currently a valid <option> in the select).
+export function populateRecvBillingCodeSelect(projectId, keepValue) {
+  const bcSel = field('modal-recv', 'billing code');
+  if (!bcSel || bcSel.tagName !== 'SELECT') return;
+  const codes = projectId ? state.bcodes.filter(b => b.project_id === projectId) : [];
+  const prev = keepValue !== undefined ? keepValue : bcSel.value;
+  bcSel.innerHTML = '<option value="">Select Billing Code</option>' +
+    codes.map(b => `<option value="${b.code}">${b.code}</option>`).join('');
+  bcSel.value = codes.some(b => b.code === prev) ? prev : '';
+}
+
 export function populateReceivableModalDropdowns() {
   const projSel = field('modal-recv', 'project');
   if (projSel && projSel.tagName === 'SELECT') {
@@ -44,14 +59,14 @@ export function populateReceivableModalDropdowns() {
     projSel.innerHTML = '<option value="">Select Project</option>' +
       state.projects.map(p => `<option value="${p.id}">${p.id} - ${p.name}</option>`).join('');
     if (prev) projSel.value = prev;
+
+    // Re-filter (and drop any now-mismatched selection) whenever the project changes.
+    if (!projSel._recvWired) {
+      projSel._recvWired = true;
+      projSel.addEventListener('change', () => populateRecvBillingCodeSelect(projSel.value));
+    }
   }
-  const bcSel = field('modal-recv', 'billing code');
-  if (bcSel && bcSel.tagName === 'SELECT') {
-    const prev = bcSel.value;
-    bcSel.innerHTML = '<option value="">Select Billing Code</option>' +
-      state.bcodes.map(b => `<option value="${b.code}">${b.code}</option>`).join('');
-    if (prev) bcSel.value = prev;
-  }
+  populateRecvBillingCodeSelect(projSel?.value);
 }
 
 export async function loadReceivables() {

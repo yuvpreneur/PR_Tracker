@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { get, qs } from '../../bridge/core/http.js';
+import { get, qs } from '../../services/httpClient.js';
 import { state } from '../../bridge/core/state.js';
-import { periodRange } from '../../bridge/shared/ui.js';
+import { periodRange } from '../../utils/format.js';
 
 // Server-side filtered like the legacy loadAudit() — period maps to a
 // date_from/date_to range (periodRange(), reused as-is), module/user/search

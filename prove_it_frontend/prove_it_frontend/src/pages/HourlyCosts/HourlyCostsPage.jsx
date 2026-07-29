@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react';
 import useHourlyCosts from './useHourlyCosts.js';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
-import { date } from '../../bridge/shared/ui.js';
-import { can, canCreateOnPage } from '../../bridge/shared/permissions.js';
-import { openModal, startCreate } from '../../bridge/shared/modals.js';
+import { date } from '../../utils/format.js';
+import { openModal, startCreate, resetFields } from '../../bridge/shared/modals.js';
+import usePermissions from '../../hooks/usePermissions.js';
 
 const COLUMNS = [
   { key: 'emp_id', header: 'Emp ID', render: r => <strong>{r.emp_id}</strong> },
@@ -22,6 +22,7 @@ const COLUMNS = [
 ];
 
 export default function HourlyCostsPage() {
+  const { can, canCreateOnPage } = usePermissions();
   const { costs, loading } = useHourlyCosts();
   const [dept, setDept] = useState('');
   const [search, setSearch] = useState('');
@@ -38,6 +39,7 @@ export default function HourlyCostsPage() {
   }, [costs, dept, search]);
 
   const handleNew = () => {
+    resetFields('modal-cost');
     startCreate('page-hourly-cost');
     openModal('modal-cost');
   };

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { get } from '../../bridge/core/http.js';
+import { get } from '../../services/httpClient.js';
 import { state } from '../../bridge/core/state.js';
 
 // The /api/hourly-costs rows already come back with denormalized name/department

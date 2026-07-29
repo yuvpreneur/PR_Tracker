@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 .venv/
 prove_it.db
+prove_it_backup_*.json

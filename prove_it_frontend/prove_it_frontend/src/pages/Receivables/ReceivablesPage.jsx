@@ -4,17 +4,18 @@ import StatCard from '../../components/ui/StatCard.jsx';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
-import { date, num } from '../../bridge/shared/ui.js';
-import { can, canCreateOnPage } from '../../bridge/shared/permissions.js';
-import { openModal, startCreate } from '../../bridge/shared/modals.js';
+import { date, num } from '../../utils/format.js';
+import { openModal, startCreate, resetFields } from '../../bridge/shared/modals.js';
+import usePermissions from '../../hooks/usePermissions.js';
 
 // The legacy stats-row here was 4 hardcoded numbers (₹10.0L/₹5.5L/₹4.5L/₹2.0L) that
-// no code ever updated — unlike Leads/Service Desk's much larger decorative
-// dashboards (ported verbatim per the user's explicit call), these are simple sums
+// no code ever updated — unlike Service Desk's much larger decorative
+// dashboard (ported verbatim per the user's explicit call), these are simple sums
 // over data already being fetched, so they're computed for real here instead.
 function sum(rows, key) { return rows.reduce((t, r) => t + (r[key] || 0), 0); }
 
 export default function ReceivablesPage() {
+  const { can, canCreateOnPage } = usePermissions();
   const { receivables, projects, loading } = useReceivables();
   const [projectId, setProjectId] = useState('');
   const [client, setClient] = useState('');
@@ -54,6 +55,7 @@ export default function ReceivablesPage() {
   }, [receivables, projects, projectId, client, status, search]);
 
   const handleNew = () => {
+    resetFields('modal-recv');
     startCreate('page-receivables');
     openModal('modal-recv');
   };

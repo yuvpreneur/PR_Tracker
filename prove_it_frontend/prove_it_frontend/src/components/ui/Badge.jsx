@@ -10,6 +10,7 @@ const STATUS_COLORS = {
   Milestone: '#f97316', Present: '#22c55e', Absent: '#ef4444', WFH: '#3b82f6',
   Paid: '#22c55e', Partial: '#f59e0b', Overdue: '#ef4444', 'Not Started': '#94a3b8',
   Completed: '#22c55e', 'On Hold': '#f59e0b', 'Waiting Approval': '#f97316',
+  'Pending Finance': '#8b5cf6',
 };
 
 export default function Badge({ status }) {

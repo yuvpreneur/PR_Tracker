@@ -6,7 +6,7 @@ from datetime import datetime
 from app.core import collections
 from app.core.database import get_db
 from app.core.mongo_utils import next_id, like
-from app.core.security import get_current_user, require_permission
+from app.core.security import get_current_user
 from app.core.audit import log_action
 from app.core.permissions import has_permission, is_own_record
 
@@ -69,13 +69,21 @@ def list_tickets(
     db: Database = Depends(get_db), cu=Depends(get_current_user),
 ):
     query = {}
-    if not (cu.role == "Admin" or has_permission(db, cu, "Service Desk", "view")):
-        query["requester"] = cu.name
     if status: query["status"] = status
     if queue: query["queue"] = queue
     if priority: query["priority"] = priority
     if project_id: query["project_id"] = project_id
     if search: query["$or"] = [{"subject": like(search)}, {"requester": like(search)}]
+
+    # Finance User has no access to Service Desk at all, not even their own tickets —
+    # unlike every other non-Viewer role, which keeps the usual self-service fallback.
+    if cu.role == "Finance User":
+        return []
+
+    if not (cu.role == "Admin" or has_permission(db, cu, "Service Desk", "view")):
+        scope = {"requester": cu.name}
+        query = {"$and": [query, scope]} if query else scope
+
     rows = db[collections.TICKETS].find(query).sort("_id", -1)
     return [_out(t) for t in rows]
 
@@ -94,6 +102,8 @@ def stats(db: Database = Depends(get_db), cu=Depends(get_current_user)):
 
 @router.post("/")
 def create_ticket(payload: TicketCreate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    if cu.role == "Finance User":
+        raise HTTPException(403, "Finance User does not have access to Service Desk")
     if payload.priority not in PRIORITIES:
         raise HTTPException(400, f"priority must be one of {PRIORITIES}")
     if payload.queue not in QUEUES:
@@ -115,6 +125,8 @@ def create_ticket(payload: TicketCreate, db: Database = Depends(get_db), cu=Depe
 
 @router.get("/{ticket_id}")
 def get_ticket(ticket_id: int, db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    if cu.role == "Finance User":
+        raise HTTPException(404, "Ticket not found")
     t = db[collections.TICKETS].find_one({"_id": ticket_id})
     if not t: raise HTTPException(404, "Ticket not found")
     return _out(t)
@@ -122,6 +134,8 @@ def get_ticket(ticket_id: int, db: Database = Depends(get_db), cu=Depends(get_cu
 
 @router.patch("/{ticket_id}")
 def update_ticket(ticket_id: int, payload: TicketUpdate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    if cu.role == "Finance User":
+        raise HTTPException(403, "Finance User does not have access to Service Desk")
     t = db[collections.TICKETS].find_one({"_id": ticket_id})
     if not t: raise HTTPException(404, "Ticket not found")
     can_edit_any = has_permission(db, cu, "Service Desk", "edit")
@@ -140,10 +154,14 @@ def update_ticket(ticket_id: int, payload: TicketUpdate, db: Database = Depends(
     return _out(t)
 
 
-@router.post("/{ticket_id}/resolve", dependencies=[Depends(require_permission("Service Desk", "approve"))])
+@router.post("/{ticket_id}/resolve")
 def resolve(ticket_id: int, payload: dict = {}, db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    if cu.role == "Finance User":
+        raise HTTPException(403, "Finance User does not have access to Service Desk")
     t = db[collections.TICKETS].find_one({"_id": ticket_id})
     if not t: raise HTTPException(404, "Not found")
+    if not has_permission(db, cu, "Service Desk", "approve"):
+        raise HTTPException(403, "Requires 'approve' permission on Service Desk")
     resolution = payload.get("resolution", "Issue resolved.") if isinstance(payload, dict) else "Issue resolved."
     db[collections.TICKETS].update_one({"_id": ticket_id}, {"$set": {"status": "Resolved", "updated_at": datetime.utcnow(), "resolution": resolution}})
     t = db[collections.TICKETS].find_one({"_id": ticket_id})
@@ -153,6 +171,8 @@ def resolve(ticket_id: int, payload: dict = {}, db: Database = Depends(get_db), 
 
 @router.post("/{ticket_id}/close")
 def close(ticket_id: int, db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    if cu.role == "Finance User":
+        raise HTTPException(403, "Finance User does not have access to Service Desk")
     t = db[collections.TICKETS].find_one({"_id": ticket_id})
     if not t: raise HTTPException(404, "Not found")
     if not has_permission(db, cu, "Service Desk", "approve") and not is_own_record(cu, t["requester"]):
@@ -167,6 +187,8 @@ def close(ticket_id: int, db: Database = Depends(get_db), cu=Depends(get_current
 
 @router.post("/{ticket_id}/cancel")
 def cancel(ticket_id: int, payload: CancelPayload, db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    if cu.role == "Finance User":
+        raise HTTPException(403, "Finance User does not have access to Service Desk")
     t = db[collections.TICKETS].find_one({"_id": ticket_id})
     if not t: raise HTTPException(404, "Not found")
     if not has_permission(db, cu, "Service Desk", "approve") and not is_own_record(cu, t["requester"]):

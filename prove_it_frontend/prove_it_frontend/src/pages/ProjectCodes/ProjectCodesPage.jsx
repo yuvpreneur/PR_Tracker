@@ -3,10 +3,11 @@ import useProjectCodes from './useProjectCodes.js';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
-import { can, canCreateOnPage } from '../../bridge/shared/permissions.js';
-import { openModal, startCreate } from '../../bridge/shared/modals.js';
+import { openModal, startCreate, resetFields } from '../../bridge/shared/modals.js';
+import usePermissions from '../../hooks/usePermissions.js';
 
 export default function ProjectCodesPage() {
+  const { can, canCreateOnPage } = usePermissions();
   const { pcodes, projects, loading } = useProjectCodes();
   const [projectId, setProjectId] = useState('');
   const [status, setStatus] = useState('');
@@ -32,6 +33,7 @@ export default function ProjectCodesPage() {
   }, [pcodes, projects, projectId, status, search]);
 
   const handleNew = () => {
+    resetFields('modal-pcode');
     startCreate('page-project-codes');
     openModal('modal-pcode');
   };

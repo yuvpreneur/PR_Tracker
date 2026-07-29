@@ -37,6 +37,27 @@ export const val = (m, h, def = '') => field(m, h)?.value?.trim() || def;
 
 export function set(m, h, v) { const el = field(m, h); if (el) el.value = v ?? ''; }
 
+// Clears every input/select/textarea inside a modal. These modals are persistent DOM
+// nodes shared between Edit and Create (set() populates fields for Edit; nothing ever
+// clears them afterward) — without this, opening "+ New X" right after editing/viewing
+// a record starts the form pre-filled with that record's values instead of blank.
+export function resetFields(modalId) {
+  const modal = document.getElementById(modalId);
+  if (!modal) return;
+  modal.querySelectorAll('input, textarea').forEach(el => {
+    if (el.type === 'checkbox' || el.type === 'radio') el.checked = false;
+    else el.value = '';
+  });
+  modal.querySelectorAll('select').forEach(el => { el.selectedIndex = 0; });
+  // input.value = '' above already clears a file input's selection — this just restores
+  // the attach-zone's label text, which the change handler in bridge/index.js overwrote
+  // with the picked filename and won't otherwise revert on its own.
+  modal.querySelectorAll('.attach-zone[data-default-label]').forEach(zone => {
+    const label = zone.querySelector('[data-attach-label]');
+    if (label) label.textContent = zone.dataset.defaultLabel;
+  });
+}
+
 export function fillSel(el, items, vk, lk, ph = 'Select…') {
   if (!el || el.tagName !== 'SELECT') return;
   const cur = el.value;

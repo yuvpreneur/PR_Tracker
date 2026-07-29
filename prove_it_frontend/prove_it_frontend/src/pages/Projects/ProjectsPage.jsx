@@ -5,9 +5,11 @@ import StatCard from '../../components/ui/StatCard.jsx';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
-import { date, num } from '../../bridge/shared/ui.js';
-import { can, canCreateOnPage, canExportOnPage } from '../../bridge/shared/permissions.js';
-import { openModal, startCreate } from '../../bridge/shared/modals.js';
+import { date, num } from '../../utils/format.js';
+import { toast } from '../../utils/toast.js';
+import usePermissions from '../../hooks/usePermissions.js';
+import { openModal, startCreate, resetFields } from '../../bridge/shared/modals.js';
+import { get, post } from '../../services/httpClient.js';
 
 const COLUMNS = [
   { key: 'id', header: 'Code', render: r => <strong>{r.id}</strong> },
@@ -20,6 +22,7 @@ const COLUMNS = [
 ];
 
 export default function ProjectsPage() {
+  const { can, canCreateOnPage, canExportOnPage, role } = usePermissions();
   const { projects, summary, loading } = useProjects();
   const [status, setStatus] = useState('');
   const [client, setClient] = useState('');
@@ -47,18 +50,88 @@ export default function ProjectsPage() {
   }, [projects, status, client, search]);
 
   const handleNewProject = () => {
+    resetFields('modal-project');
     startCreate('page-projects');
     openModal('modal-project');
+  };
+
+  // Request access to a project not currently in this user's Assigned Projects (Access
+  // Control) — Admin/Manager already see every project, so this is only offered to
+  // everyone else. Picks from the full, unfiltered project list (see
+  // requestable-projects in access_control.py) since a scoped user can't otherwise even
+  // know a project they need exists.
+  const canRequestProjectAccess = role && role !== 'Admin' && role !== 'Manager';
+  const [requestOpen, setRequestOpen] = useState(false);
+  const [requestableProjects, setRequestableProjects] = useState([]);
+  const [requestProjectId, setRequestProjectId] = useState('');
+  const [requestReason, setRequestReason] = useState('');
+  const [submittingRequest, setSubmittingRequest] = useState(false);
+
+  const openRequestPanel = () => {
+    setRequestOpen(true);
+    get('/api/access-control/requestable-projects').then(rows => setRequestableProjects(rows || [])).catch(() => {});
+  };
+
+  const submitProjectAccessRequest = async () => {
+    if (!requestProjectId) { toast('Choose a project first', 'error'); return; }
+    setSubmittingRequest(true);
+    try {
+      await post('/api/access-control/requests', {
+        request_type: 'project', project_id: requestProjectId, reason: requestReason || null,
+      });
+      toast('Project access request submitted — an Admin will review it');
+      setRequestOpen(false);
+      setRequestProjectId('');
+      setRequestReason('');
+    } finally {
+      setSubmittingRequest(false);
+    }
   };
 
   return (
     <div>
       <div className="section-header">
         <h2>Projects</h2>
-        {canCreateOnPage('projects') && (
-          <Button variant="primary" onClick={handleNewProject}>+ New Project</Button>
-        )}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {canRequestProjectAccess && (
+            <Button variant="ghost" onClick={openRequestPanel}>Request Project Access</Button>
+          )}
+          {canCreateOnPage('projects') && (
+            <Button variant="primary" onClick={handleNewProject}>+ New Project</Button>
+          )}
+        </div>
       </div>
+
+      {requestOpen && (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <div className="card-section-title">Request Project Access</div>
+          <p style={{ color: 'var(--slate)', fontSize: 13, marginBottom: 12 }}>
+            Don't see a project you need? Pick it here and submit a request — an Admin will review and grant it.
+          </p>
+          <div className="form-grid" style={{ marginBottom: 12 }}>
+            <div className="form-group">
+              <label className="form-label">Project</label>
+              <select className="form-control" value={requestProjectId} onChange={e => setRequestProjectId(e.target.value)}>
+                <option value="">Select project…</option>
+                {requestableProjects.map(p => <option key={p.id} value={p.id}>{p.id} — {p.name}</option>)}
+              </select>
+            </div>
+            <div className="form-group col-span-2">
+              <label className="form-label">Reason</label>
+              <input
+                className="form-control"
+                placeholder="Why do you need access?"
+                value={requestReason}
+                onChange={e => setRequestReason(e.target.value)}
+              />
+            </div>
+          </div>
+          <Button variant="primary" onClick={submitProjectAccessRequest} disabled={submittingRequest}>
+            {submittingRequest ? 'Submitting…' : 'Submit Request'}
+          </Button>
+          <Button variant="ghost" onClick={() => setRequestOpen(false)} style={{ marginLeft: 10 }}>Cancel</Button>
+        </div>
+      )}
 
       <div className="mb-5 grid grid-cols-4 gap-4 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1">
         <StatCard label="Total Projects" value={String(summary?.total ?? (loading ? '—' : 0))} sub="Across all clients" color="var(--color-brand)" />

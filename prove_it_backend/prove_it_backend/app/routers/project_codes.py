@@ -7,6 +7,7 @@ from app.core.database import get_db
 from app.core.mongo_utils import like
 from app.core.security import get_current_user, require_permission
 from app.core.audit import log_action
+from app.core.permissions import assigned_project_ids
 
 router = APIRouter()
 
@@ -35,6 +36,22 @@ def list_codes(project_id: Optional[str] = Query(None), status: Optional[str] = 
     if project_id: query["project_id"] = project_id
     if status: query["status"] = status
     if search: query["$or"] = [{"code": like(search)}, {"description": like(search)}]
+
+    # Each project code belongs to exactly one project — reuses the same Access Control ->
+    # Assigned Projects allow-list as Projects itself (see assigned_project_ids()) rather
+    # than a separate Project Codes assignment list, since being assigned a project already
+    # implies seeing that project's codes.
+    # Finance User is unrestricted here too, same as Companies/Projects/Billing Codes —
+    # every project code is financial-context reference data for this role, not just ones
+    # tied to their assigned projects.
+    assigned_ids = None if cu.role == "Finance User" else assigned_project_ids(db, cu)
+    if assigned_ids is not None:
+        if project_id is not None:
+            if project_id not in assigned_ids:
+                return []
+        else:
+            query["project_id"] = {"$in": assigned_ids}
+
     return [_out(pc) for pc in db[collections.PROJECT_CODES].find(query)]
 
 
