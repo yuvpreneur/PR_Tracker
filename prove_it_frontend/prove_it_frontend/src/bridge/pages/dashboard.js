@@ -218,9 +218,8 @@ async function dashEmployee(data, period) {
   const me = await currentUser();
   const empIds = state.employees.filter(e => e.name === me?.name).map(e => e.emp_id);
 
-  const [myTsRows, myAttRows, allExpenses, allTickets] = await Promise.all([
+  const [myTsRows, allExpenses, allTickets] = await Promise.all([
     Promise.all(empIds.map(id => get('/api/timesheets?emp_id=' + id).catch(() => []))).then(rs => rs.flat()),
-    Promise.all(empIds.map(id => get('/api/attendance?emp_id=' + id).catch(() => []))).then(rs => rs.flat()),
     get('/api/expenses').catch(() => []),
     get('/api/tickets').catch(() => []),
   ]);
@@ -232,14 +231,13 @@ async function dashEmployee(data, period) {
   const myExpAmt  = myExpRows.reduce((s, r) => s + (r.amount || 0), 0);
   const pendingTs = myTsRows.filter(r => r.status === 'Pending').length;
   const openTix   = myTixRows.filter(r => ['Open', 'In Progress'].includes(r.status)).length;
-  const presentDays = myAttRows.filter(r => ['Present', 'WFH'].includes(r.att_status)).length;
 
   content.innerHTML =
     `<div class="stats-row">` +
       statCard('My Hours (All Time)', myHrs + 'h', myTsRows.filter(r => r.billable).reduce((s, r) => s + (r.hours || 0), 0) + 'h billable', '#16A36C') +
       statCard('My Expenses',         '₹' + num(myExpAmt), myExpRows.length + ' submissions', '#F59E0B') +
       statCard('Pending Approvals',   String(pendingTs), 'timesheets awaiting review', '#7357E5') +
-      statCard('Open Tickets',        String(openTix), presentDays + ' days attendance logged', '#0086AD') +
+      statCard('Open Tickets',        String(openTix), myTixRows.length + ' raised total', '#0086AD') +
     `</div>` +
     `<div class="grid-2" style="margin-bottom:16px">` +
       `<div class="card"><div class="card-section-title">My Recent Timesheets</div>` +
@@ -258,14 +256,6 @@ async function dashEmployee(data, period) {
           ).join('') + `</tbody></table>`
         : '<div style="text-align:center;padding:24px;color:#94a3b8;font-size:13px">No expenses found</div>') +
       `</div>` +
-    `</div>` +
-    `<div class="card"><div class="card-section-title">My Attendance (Recent)</div>` +
-      (myAttRows.length ? `<table style="width:100%;font-size:12px;border-collapse:collapse">` +
-        `<thead><tr style="color:#7C92A1;font-size:11px"><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #f1f5f9">Date</th><th style="text-align:center;padding:6px 8px;border-bottom:1px solid #f1f5f9">Status</th><th style="text-align:center;padding:6px 8px;border-bottom:1px solid #f1f5f9">Check In</th><th style="text-align:center;padding:6px 8px;border-bottom:1px solid #f1f5f9">Check Out</th><th style="text-align:right;padding:6px 8px;border-bottom:1px solid #f1f5f9">Hours</th></tr></thead><tbody>` +
-        myAttRows.slice(0, 7).map(r =>
-          `<tr style="border-bottom:1px solid #f8fafc"><td style="padding:7px 8px">${date(r.att_date)}</td><td style="padding:7px 8px;text-align:center">${badge(r.att_status)}</td><td style="padding:7px 8px;text-align:center;color:#334155">${r.check_in || '—'}</td><td style="padding:7px 8px;text-align:center;color:#334155">${r.check_out || '—'}</td><td style="padding:7px 8px;text-align:right;font-weight:600">${r.total_hours}h</td></tr>`
-        ).join('') + `</tbody></table>`
-      : '<div style="text-align:center;padding:24px;color:#94a3b8;font-size:13px">No attendance records</div>') +
     `</div>`;
 }
 

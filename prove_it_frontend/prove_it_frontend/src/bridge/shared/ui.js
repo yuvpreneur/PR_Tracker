@@ -36,6 +36,7 @@ export function badge(s, extra = {}) {
     Milestone: '#f97316', Present: '#22c55e', Absent: '#ef4444', WFH: '#3b82f6',
     Paid: '#22c55e', Partial: '#f59e0b', Overdue: '#ef4444', 'Not Started': '#94a3b8',
     Completed: '#22c55e', 'On Hold': '#f59e0b', 'Waiting Approval': '#f97316',
+    'Pending Finance': '#8b5cf6',
     ...extra,
   }[s] || '#64748b';
   return `<span style="background:${c}20;color:${c};padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap">${s || '—'}</span>`;
@@ -44,6 +45,27 @@ export function badge(s, extra = {}) {
 export function setText(id, txt) {
   const el = document.getElementById(id);
   if (el) el.textContent = txt;
+}
+
+// Sidebar nav-item badge (e.g. Service Desk/Access Control/Approvals' red counters) —
+// mirrors updateNotifBadge()'s show-only-when-nonzero behavior (bridge/shared/notifications.js),
+// applied to a specific .nav-item instead of the topbar bell. The nav buttons themselves are
+// built once by appMarkup.js's buildNavigation() with no badge baked in; each page's data hook
+// calls this after every fetch so the count always reflects what that page actually has.
+export function setNavBadge(pageId, count) {
+  const item = document.querySelector(`.nav-item[data-page="${pageId}"]`);
+  if (!item) return;
+  let el = item.querySelector('.nav-badge');
+  if (count > 0) {
+    if (!el) {
+      el = document.createElement('span');
+      el.className = 'nav-badge';
+      item.appendChild(el);
+    }
+    el.textContent = count > 99 ? '99+' : String(count);
+  } else if (el) {
+    el.remove();
+  }
 }
 
 const ROLE_KEY_MAP = { Admin: 'admin', Manager: 'manager', 'Finance User': 'finance', Employee: 'employee' };
@@ -63,7 +85,7 @@ export function statCard(label, value, sub, color) {
   `</div>`;
 }
 
-// Generic period -> {date_from, date_to} — used by attendance, audit, timesheets
+// Generic period -> {date_from, date_to} — used by audit, timesheets
 export function periodRange(period) {
   const today = new Date();
   const fmt = d => d.toISOString().slice(0, 10);

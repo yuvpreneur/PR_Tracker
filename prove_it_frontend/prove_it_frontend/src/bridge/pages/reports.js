@@ -109,19 +109,6 @@ export const REPORTS = {
       { k: 'total_cost', label: 'Total Cost' },
     ],
   },
-  'attendance-report': {
-    title: 'Attendance Report',
-    endpoint: '/api/attendance/',
-    filters: ['emp_id', 'periodDates'],
-    idKey: 'id',
-    columns: [
-      { k: 'emp_id', label: 'Emp ID' },
-      { k: 'name', label: 'Name' },
-      { k: 'att_date', label: 'Date' },
-      { k: 'att_status', label: 'Status' },
-      { k: 'total_hours', label: 'Hours' },
-    ],
-  },
   'billable-nonbillable': {
     title: 'Billable vs Non-Billable Hours',
     endpoint: '/api/reports/employee-utilization',

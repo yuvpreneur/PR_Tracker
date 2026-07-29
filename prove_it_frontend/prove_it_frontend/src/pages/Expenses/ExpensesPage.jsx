@@ -3,13 +3,15 @@ import useExpenses from './useExpenses.js';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
-import { date } from '../../bridge/shared/ui.js';
-import { can, canCreateOnPage, isMine } from '../../bridge/shared/permissions.js';
-import { openModal, startCreate } from '../../bridge/shared/modals.js';
+import { date } from '../../utils/format.js';
+import { viewAttachment } from '../../services/httpClient.js';
+import usePermissions from '../../hooks/usePermissions.js';
+import { openModal, startCreate, resetFields } from '../../bridge/shared/modals.js';
 
 const CATEGORIES = ['Travel', 'Software', 'Vendor', 'Material', 'Misc'];
 
 export default function ExpensesPage() {
+  const { can, canCreateOnPage, isMine, role, noActionsColumn } = usePermissions();
   const { expenses, projects, loading } = useExpenses();
   const [projectId, setProjectId] = useState('');
   const [category, setCategory] = useState('');
@@ -26,7 +28,22 @@ export default function ExpensesPage() {
     { key: 'expense_date', header: 'Date', render: r => date(r.expense_date) },
     { key: 'amount', header: 'Amount', render: r => `₹${r.amount.toLocaleString('en-IN')}` },
     { key: 'vendor', header: 'Vendor', render: r => r.vendor || '—' },
+    {
+      key: 'receipt_url',
+      header: 'Receipt',
+      render: r => (r.receipt_url ? (
+        <button type="button" className="text-[12px] underline" onClick={() => viewAttachment(r.receipt_url)}>📎 View</button>
+      ) : '—'),
+    },
     { key: 'status', header: 'Status', render: r => <Badge status={r.status} /> },
+    {
+      key: 'reject_reason',
+      header: 'Reason',
+      // Rejected rows show the approver's rejection reason (more relevant at that point than
+      // why it was submitted); every other status falls back to the submitter's own
+      // description of the expense.
+      render: r => (r.status === 'Rejected' ? (r.reject_reason || '—') : (r.description || '—')),
+    },
   ], [projects]);
 
   const filtered = useMemo(() => {
@@ -41,18 +58,32 @@ export default function ExpensesPage() {
   }, [expenses, projects, projectId, category, status, search]);
 
   const handleNew = () => {
+    resetFields('modal-expense');
     startCreate('page-expenses');
     openModal('modal-expense');
   };
 
-  // Expenses is no longer self-service at all (not even own-pending edit) — matches the
-  // backend, where expenses.py's create/update endpoints are now purely matrix-gated.
-  const canEditRow = () => can('Expenses', 'edit');
+  // Expenses is self-service again — the submitter can edit their own Pending entry,
+  // matching expenses.py's update() (no self-service delete, even for your own pending
+  // entry — that stays permission-gated, same as the backend).
+  const canEditRow = row => can('Expenses', 'edit') || (isMine(row, 'submitted_by') && row.status === 'Pending');
   const canDeleteRow = () => can('Expenses', 'delete');
 
+  // Two-stage chain (expenses.py): Manager confirms business purpose (Pending -> Pending
+  // Finance), then Finance validates policy and posts payment (Pending Finance ->
+  // Approved). The blanket Expenses:approve permission can't distinguish the two stages,
+  // so this checks the row's own status against the viewer's role directly, same as the
+  // backend does.
+  const canActOnStage = row => {
+    if (role === 'Admin') return true;
+    if (row.status === 'Pending') return role === 'Manager';
+    if (row.status === 'Pending Finance') return role === 'Finance User';
+    return false;
+  };
+
   const renderExtraActions = row => {
-    if (row.status !== 'Pending') return null;
-    if (!can('Expenses', 'approve') || isMine(row, 'submitted_by')) return null;
+    if (row.status !== 'Pending' && row.status !== 'Pending Finance') return null;
+    if (isMine(row, 'submitted_by') || !canActOnStage(row)) return null;
     return (
       <>
         <button className="bridge-approve ml-1 rounded-md px-2.5 py-0.5 text-[11px] text-green" data-page="page-expenses" data-id={row.id} title="Approve">✓ Approve</button>
@@ -82,6 +113,7 @@ export default function ExpensesPage() {
         <select className="form-control" value={status} onChange={e => setStatus(e.target.value)}>
           <option value="">All Status</option>
           <option>Pending</option>
+          <option>Pending Finance</option>
           <option>Approved</option>
           <option>Rejected</option>
         </select>
@@ -103,6 +135,7 @@ export default function ExpensesPage() {
           canEdit={canEditRow}
           canDelete={canDeleteRow}
           renderExtraActions={renderExtraActions}
+          hideActionsColumn={noActionsColumn('expenses')}
           emptyMessage={loading ? 'Loading…' : 'No records found'}
         />
       </div>

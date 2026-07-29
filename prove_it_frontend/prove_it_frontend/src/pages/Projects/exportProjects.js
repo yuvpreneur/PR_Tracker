@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { toast } from '../../bridge/shared/ui.js';
+import { toast } from '../../utils/toast.js';
 
 const EXPORT_HEADERS = ['Project Code', 'Project Name', 'Client', 'Manager', 'Status', 'Start Date', 'End Date', 'Budget (INR)', 'Est. Revenue (INR)', 'Est. Expense (INR)'];
 

@@ -8,7 +8,8 @@ from app.core.database import get_db
 from app.core.mongo_utils import next_id, like
 from app.core.security import get_current_user, require_permission
 from app.core.audit import log_action
-from app.core.permissions import has_permission, my_emp_ids, is_own_emp_record
+from app.core.notifications import notify
+from app.core.permissions import has_permission, my_emp_ids, is_own_emp_record, own_emp_id
 
 router = APIRouter()
 
@@ -18,6 +19,7 @@ MAX_DAILY_HOURS = 9
 class TSCreate(BaseModel):
     entry_date: date
     project_id: str
+    project_code_id: Optional[str] = None
     billing_code_id: Optional[str] = None
     hours: float = Field(gt=0, le=MAX_DAILY_HOURS)
     billable: bool = True
@@ -26,6 +28,7 @@ class TSCreate(BaseModel):
 
 class TSUpdate(BaseModel):
     hours: Optional[float] = Field(None, gt=0, le=MAX_DAILY_HOURS)
+    project_code_id: Optional[str] = None
     billing_code_id: Optional[str] = None
     billable: Optional[bool] = None
     notes: Optional[str] = None
@@ -39,7 +42,7 @@ def _out(t: dict):
     return {
         "id": t["id"], "emp_id": t["emp_id"], "name": t["name"],
         "entry_date": str(t["entry_date"]) if t["entry_date"] else None,
-        "project_id": t["project_id"], "billing_code_id": t["billing_code_id"],
+        "project_id": t["project_id"], "project_code_id": t.get("project_code_id"), "billing_code_id": t["billing_code_id"],
         "hours": t["hours"], "billable": t["billable"],
         "status": t["status"], "notes": t["notes"], "approved_by": t["approved_by"],
     }
@@ -87,7 +90,13 @@ def list_timesheets(
     db: Database = Depends(get_db), cu=Depends(get_current_user),
 ):
     query = {}
-    if not (cu.role == "Admin" or has_permission(db, cu, "Timesheets", "view")):
+    # Employee/Finance User are always scoped to their own records here, full stop —
+    # unlike every other role, this doesn't fall back to has_permission(view). That flag
+    # can be forced True by a per-employee Access Control -> Page Access grant (meant only
+    # to unlock the nav page, not blanket visibility — see get_effective_permissions() in
+    # permissions.py), which would otherwise leak every employee's timesheet entries to
+    # anyone in these two roles who's been granted that page.
+    if cu.role in ("Employee", "Finance User") or not (cu.role == "Admin" or has_permission(db, cu, "Timesheets", "view")):
         mine = my_emp_ids(db, cu)
         if emp_id:
             if emp_id not in mine:
@@ -138,9 +147,17 @@ def create(payload: TSCreate, db: Database = Depends(get_db), cu=Depends(get_cur
     # other self-service routers, this lookup doesn't go through is_own_emp_record()).
     if cu.role == "Viewer":
         raise HTTPException(403, "Viewers cannot submit timesheets")
-    emp = db[collections.EMPLOYEES].find_one({"name": cu.name})
+    emp_id = own_emp_id(db, cu)
+    emp = db[collections.EMPLOYEES].find_one({"_id": emp_id}) if emp_id else None
     if not emp:
         raise HTTPException(403, "No employee record found for your account — timesheets can only be submitted by employees")
+
+    if payload.project_code_id:
+        pcode = db[collections.PROJECT_CODES].find_one({"_id": payload.project_code_id})
+        if not pcode:
+            raise HTTPException(404, "Project code not found")
+        if pcode["project_id"] != payload.project_id:
+            raise HTTPException(400, "That project code does not belong to the selected project")
 
     entry_date_str = payload.entry_date.isoformat()
     existing_hours, existing_rows = _same_day_hours(db, emp["emp_id"], entry_date_str)
@@ -169,6 +186,12 @@ def update(ts_id: int, payload: TSUpdate, db: Database = Depends(get_db), cu=Dep
     if not can_edit_any and not (is_own_emp_record(db, cu, t["emp_id"]) and t["status"] == "Pending"):
         raise HTTPException(403, "You may only edit your own pending timesheets")
     patch = payload.dict(exclude_none=True)
+    if "project_code_id" in patch:
+        pcode = db[collections.PROJECT_CODES].find_one({"_id": patch["project_code_id"]})
+        if not pcode:
+            raise HTTPException(404, "Project code not found")
+        if pcode["project_id"] != t["project_id"]:
+            raise HTTPException(400, "That project code does not belong to this entry's project")
     if "hours" in patch:
         other_hours, other_rows = _same_day_hours(db, t["emp_id"], t["entry_date"], exclude_id=ts_id)
         if other_hours + patch["hours"] > MAX_DAILY_HOURS:
@@ -189,6 +212,10 @@ def approve(ts_id: int, db: Database = Depends(get_db), cu=Depends(get_current_u
     db[collections.TIMESHEETS].update_one({"_id": ts_id}, {"$set": {"status": "Approved", "approved_by": cu.name}})
     t = db[collections.TIMESHEETS].find_one({"_id": ts_id})
     log_action(db, user=cu.name, action="APPROVE", module="Timesheets", record_id=str(ts_id))
+    notify(
+        db, recipient=t["name"], module="Timesheets", record_id=ts_id, status="Approved",
+        message=f"Your timesheet entry for {t['project_id']} on {t['entry_date']} ({t['hours']}h) was approved.",
+    )
     return _out(t)
 
 
@@ -201,6 +228,11 @@ def reject(ts_id: int, payload: ApprovalAction, db: Database = Depends(get_db), 
     db[collections.TIMESHEETS].update_one({"_id": ts_id}, {"$set": {"status": "Rejected", "approved_by": None}})
     t = db[collections.TIMESHEETS].find_one({"_id": ts_id})
     log_action(db, user=cu.name, action="REJECT", module="Timesheets", record_id=str(ts_id), detail=payload.reason)
+    reason_suffix = f" Reason: {payload.reason}" if payload.reason else ""
+    notify(
+        db, recipient=t["name"], module="Timesheets", record_id=ts_id, status="Rejected",
+        message=f"Your timesheet entry for {t['project_id']} on {t['entry_date']} ({t['hours']}h) was rejected.{reason_suffix}",
+    )
     return _out(t)
 
 

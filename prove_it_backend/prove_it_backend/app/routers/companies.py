@@ -8,6 +8,7 @@ from app.core.database import get_db
 from app.core.mongo_utils import next_id, like
 from app.core.security import get_current_user, require_permission
 from app.core.audit import log_action
+from app.core.permissions import assigned_project_ids
 
 router = APIRouter()
 
@@ -52,6 +53,19 @@ def list_companies(
     if industry: query["industry"] = industry
     if status: query["status"] = status
     if search: query["name"] = like(search)
+
+    # Same "only see what's assigned to you" scoping as list_projects() (projects.py),
+    # derived via Project.client since companies have no direct assignment of their own —
+    # a company is visible if at least one of the employee's assigned projects is for them.
+    # Finance User is unrestricted here too, same as Admin/Manager and same reasoning as
+    # projects.py — every company is financial context (billing relationship, lifetime
+    # value), not just the ones tied to their assigned projects.
+    assigned_ids = None if cu.role == "Finance User" else assigned_project_ids(db, cu)
+    if assigned_ids is not None:
+        clients = db[collections.PROJECTS].find({"_id": {"$in": assigned_ids}}, {"client": 1})
+        scope = {"name": {"$in": list({p["client"] for p in clients})}}
+        query = {"$and": [query, scope]} if query else scope
+
     return [_out(c, db) for c in db[collections.COMPANIES].find(query)]
 
 

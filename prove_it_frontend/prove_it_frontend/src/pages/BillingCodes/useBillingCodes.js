@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { get } from '../../bridge/core/http.js';
+import { get } from '../../services/httpClient.js';
 import { state } from '../../bridge/core/state.js';
 
 // Same pattern as useProjectCodes.js — billing codes carry a project_id FK, so this

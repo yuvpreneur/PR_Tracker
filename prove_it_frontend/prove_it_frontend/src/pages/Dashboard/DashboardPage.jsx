@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import useDashboardData from './useDashboardData.js';
 import StatCard from '../../components/ui/StatCard.jsx';
 import Badge from '../../components/ui/Badge.jsx';
-import { date, num } from '../../bridge/shared/ui.js';
+import { date, num } from '../../utils/format.js';
 import { lineChart, projRows } from '../../bridge/pages/dashboard.js';
 
 // Renders the shared SVG revenue-vs-cost bar chart by calling the existing,
@@ -69,44 +69,6 @@ function AdminDashboard({ summary, monthly, profit }) {
         </div>
       </div>
       <ProjectListCard title="Project Overview — All Projects" profit={profit} roleKey="admin" />
-    </>
-  );
-}
-
-function ManagerDashboard({ summary, monthly, profit, utilization }) {
-  const ts = summary?.timesheets || {};
-  const pr = summary?.projects || {};
-  const bHrs = ts.billable_hours || 0;
-  const tHrs = ts.approved_hours || 0;
-  const bPct = tHrs > 0 ? Math.round((bHrs / tHrs) * 100) : 0;
-  const topUtil = (utilization || []).slice(0, 5);
-
-  return (
-    <>
-      <div className="stats-row">
-        <StatCard label="Active Projects" value={String(pr.in_progress || 0)} sub={`${pr.total || 0} total projects`} color="#0086AD" />
-        <StatCard label="Approved Hours" value={tHrs.toLocaleString('en-IN') + 'h'} sub="Across all team members" color="#16A36C" />
-        <StatCard label="Team Utilisation" value={bPct + '%'} sub={`${bHrs}h billable of ${tHrs}h total`} color="#7357E5" />
-        <StatCard label="Pending Approvals" value={String(summary?.pending_approvals || 0)} sub={`${ts.pending || 0} timesheets awaiting`} color="#E14D56" />
-      </div>
-      <div className="grid-2 mb-4">
-        <RevenueCostChart monthly={monthly} />
-        <div className="card">
-          <div className="card-section-title">Team Utilisation by Member</div>
-          {topUtil.length ? topUtil.map(e => (
-            <div key={e.emp_id} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-              <div style={{ width: 90, fontSize: 12, fontWeight: 500, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.name}</div>
-              <div style={{ flex: 1 }}>
-                <div className="progress">
-                  <div className="progress-bar" style={{ width: `${e.utilization_pct}%`, background: e.utilization_pct >= 80 ? '#16A36C' : e.utilization_pct >= 50 ? '#0086AD' : '#F59E0B' }} />
-                </div>
-              </div>
-              <div style={{ fontSize: 12, color: '#7C92A1', width: 36, textAlign: 'right' }}>{e.utilization_pct}%</div>
-            </div>
-          )) : <div style={{ color: '#94a3b8', fontSize: 13, textAlign: 'center', padding: 16 }}>No utilisation data</div>}
-        </div>
-      </div>
-      <ProjectListCard title="My Projects" profit={profit} roleKey="manager" />
     </>
   );
 }
@@ -183,13 +145,12 @@ function previewTable(rows, columns, emptyMessage) {
 }
 
 function EmployeeDashboard({ employee }) {
-  const { timesheets, attendance, expenses, tickets } = employee;
+  const { timesheets, expenses, tickets } = employee;
   const myHrs = timesheets.reduce((s, r) => s + (r.hours || 0), 0);
   const billableHrs = timesheets.filter(r => r.billable).reduce((s, r) => s + (r.hours || 0), 0);
   const myExpAmt = expenses.reduce((s, r) => s + (r.amount || 0), 0);
   const pendingTs = timesheets.filter(r => r.status === 'Pending').length;
   const openTix = tickets.filter(r => ['Open', 'In Progress'].includes(r.status)).length;
-  const presentDays = attendance.filter(r => ['Present', 'WFH'].includes(r.att_status)).length;
 
   return (
     <>
@@ -197,7 +158,7 @@ function EmployeeDashboard({ employee }) {
         <StatCard label="My Hours (All Time)" value={myHrs + 'h'} sub={`${billableHrs}h billable`} color="#16A36C" />
         <StatCard label="My Expenses" value={'₹' + num(myExpAmt)} sub={`${expenses.length} submissions`} color="#F59E0B" />
         <StatCard label="Pending Approvals" value={String(pendingTs)} sub="timesheets awaiting review" color="#7357E5" />
-        <StatCard label="Open Tickets" value={String(openTix)} sub={`${presentDays} days attendance logged`} color="#0086AD" />
+        <StatCard label="Open Tickets" value={String(openTix)} sub={`${tickets.length} raised total`} color="#0086AD" />
       </div>
       <div className="grid-2 mb-4">
         <div className="card">
@@ -219,23 +180,13 @@ function EmployeeDashboard({ employee }) {
           ], 'No expenses found')}
         </div>
       </div>
-      <div className="card">
-        <div className="card-section-title">My Attendance (Recent)</div>
-        {previewTable(attendance.slice(0, 7), [
-          { key: 'date', header: 'Date', render: r => date(r.att_date) },
-          { key: 'att_status', header: 'Status', align: 'center', render: r => <Badge status={r.att_status} /> },
-          { key: 'check_in', header: 'Check In', align: 'center', render: r => r.check_in || '—' },
-          { key: 'check_out', header: 'Check Out', align: 'center', render: r => r.check_out || '—' },
-          { key: 'total_hours', header: 'Hours', align: 'right', bold: true, render: r => `${r.total_hours}h` },
-        ], 'No attendance records')}
-      </div>
     </>
   );
 }
 
 export default function DashboardPage() {
   const [period, setPeriod] = useState('last_month');
-  const { roleKey, loading, summary, monthly, profit, utilization, employee } = useDashboardData(period);
+  const { roleKey, loading, summary, monthly, profit, employee } = useDashboardData(period);
 
   return (
     <div>
@@ -251,8 +202,6 @@ export default function DashboardPage() {
 
       {loading ? (
         <div style={{ padding: 16, color: '#94a3b8', fontSize: 13 }}>Loading…</div>
-      ) : roleKey === 'manager' ? (
-        <ManagerDashboard summary={summary} monthly={monthly} profit={profit} utilization={utilization} />
       ) : roleKey === 'finance' ? (
         <FinanceDashboard summary={summary} monthly={monthly} profit={profit} />
       ) : roleKey === 'employee' ? (

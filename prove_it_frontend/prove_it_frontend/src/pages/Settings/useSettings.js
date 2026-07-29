@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { get, patch } from '../../bridge/core/http.js';
-import { toast } from '../../bridge/shared/ui.js';
+import { get, patch } from '../../services/httpClient.js';
+import { toast } from '../../utils/toast.js';
 import { API_BASE_URL } from '../../utils/constants.js';
 
 const _tok = () => localStorage.getItem('token');

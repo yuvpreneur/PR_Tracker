@@ -1,32 +1,70 @@
 // Bridge entry point — imports all modules and wires everything together
-import { get, post, patch, del } from './core/http.js';
+import { get, post, patch, del, uploadFile } from './core/http.js';
 import { state } from './core/state.js';
 import { refreshCaches, username } from './core/cache.js';
 import { viewAs } from '../services/authService.js';
 import { toast } from './shared/ui.js';
 import { canViewPage, canCreateOnPage, canExportOnPage } from './shared/permissions.js';
 import { wireBtn, closeModal, startCreate, startEdit, editId, openModal, set, val } from './shared/modals.js';
-import { ensureNotifPanel, loadNotifications, updateNotifBadge } from './shared/notifications.js';
+import { ensureNotifPanel, loadNotifications, refreshNotifBadge } from './shared/notifications.js';
 import { populateFilterDropdowns, wireFilters } from './shared/filters.js';
 import { loadDashboard } from './pages/dashboard.js';
 import { loadCompanies } from './pages/companies.js';
 import { loadCustomers } from './pages/customers.js';
 import { loadProjects, loadProjectCodes } from './pages/projects.js';
-import { loadBillingCodes, loadReceivables } from './pages/billing.js';
+import { loadBillingCodes, loadReceivables, populateRecvBillingCodeSelect } from './pages/billing.js';
 import { loadEmployees, loadHourlyCosts, showCostHistory } from './pages/employees.js';
-import { loadAttendance } from './pages/attendance.js';
-import { loadTimesheets } from './pages/timesheets.js';
+import { loadTimesheets, populateTsProjectCodeSelect } from './pages/timesheets.js';
 import { loadLeave } from './pages/leave.js';
-import { wirePayslipDownloads } from './pages/payslips.js';
 import { loadExpenses } from './pages/expenses.js';
 import { loadInvoices, openInvoiceView } from './pages/invoices.js';
 import { loadServiceDesk } from './pages/servicedesk.js';
-import { loadLeads, wireLeadManager, openLeadEditor } from './pages/leads.js';
 import { loadApprovals, openApprovalView } from './pages/approvals.js';
 import { loadUsers } from './pages/users.js';
-import { saveCustomPage, loadAccessRequests, submitPageAccessRequest } from './pages/accesscontrol.js';
+import { loadAccessRequests, submitPageAccessRequest } from './pages/accesscontrol.js';
 import { loadAudit } from './pages/audit.js';
 import { openReportView, handleReportExport } from './pages/reports.js';
+
+const ATTACH_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];
+const ATTACH_MAX_BYTES = 10 * 1024 * 1024; // 10MB — matches the backend's limit
+
+function validAttachment(file) {
+  const ext = '.' + (file.name.split('.').pop() || '').toLowerCase();
+  if (!ATTACH_EXTENSIONS.includes(ext)) { toast('Only PDF, JPG, PNG or WEBP files are allowed', 'error'); return false; }
+  if (file.size > ATTACH_MAX_BYTES) { toast('Attachment must be smaller than 10MB', 'error'); return false; }
+  return true;
+}
+
+// Wires the click-to-browse + drag & drop behavior for a modal's attach-zone. The
+// native file input (input[type=file] inside the zone) stays the single source of
+// truth for the picked file — drop just writes into it via DataTransfer — so
+// resetFields()'s generic `el.value = ''` pass clears it same as any other field.
+function wireAttachZone(modalId) {
+  const modal = document.getElementById(modalId);
+  const zone = modal?.querySelector('.attach-zone[data-default-label]');
+  const input = zone?.querySelector('input[type="file"]');
+  if (!zone || !input) return;
+  const label = zone.querySelector('[data-attach-label]');
+  const showFile = f => { if (label) label.textContent = f ? `📄 ${f.name}` : zone.dataset.defaultLabel; };
+  zone.addEventListener('click', e => { if (e.target !== input) input.click(); });
+  input.addEventListener('change', () => {
+    const f = input.files[0];
+    if (f && !validAttachment(f)) { input.value = ''; showFile(null); return; }
+    showFile(f);
+  });
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (!f || !validAttachment(f)) return;
+    const dt = new DataTransfer();
+    dt.items.add(f);
+    input.files = dt.files;
+    showFile(f);
+  });
+}
 
 export function initApiBridge() {
 
@@ -39,14 +77,12 @@ export function initApiBridge() {
     'page-billing-codes': loadBillingCodes,
     'page-employees':     loadEmployees,
     'page-hourly-cost':   loadHourlyCosts,
-    'page-attendance':    loadAttendance,
     'page-timesheets':    loadTimesheets,
     'page-leave':         loadLeave,
     'page-expenses':      loadExpenses,
     'page-invoices':      loadInvoices,
     'page-receivables':   loadReceivables,
     'page-service-desk':  loadServiceDesk,
-    'page-leads':         loadLeads,
     // page-dashboard/page-approvals/page-roles/page-access-control/page-settings/
     // page-reports deliberately NOT wired to a loader — those pages are full React
     // rebuilds (see src/pages/Dashboard, Approvals, Roles, AccessControl, Settings,
@@ -237,39 +273,16 @@ export function initApiBridge() {
       closeModal('modal-cost'); startCreate('page-hourly-cost'); loadHourlyCosts();
     });
 
-    // Attendance
-    wireBtn('modal-attendance', async () => {
-      const id = editId('page-attendance');
-      const body = {
-        emp_id: val('modal-attendance', 'employee'),
-        att_date: val('modal-attendance', 'date'),
-        check_in: val('modal-attendance', 'check in') || null,
-        check_out: val('modal-attendance', 'check out') || null,
-        total_hours: parseFloat(val('modal-attendance', 'total hours')) || 0,
-        att_status: val('modal-attendance', 'status') || 'Present',
-      };
-      if (id) {
-        const { emp_id: _, att_date: __, ...u } = body;
-        await patch(`/api/attendance/${id}`, u);
-        toast('Attendance updated');
-      } else {
-        if (!body.emp_id || !body.att_date) { toast('Employee and Date required', 'error'); return; }
-        await post('/api/attendance', body);
-        toast('Attendance marked');
-      }
-      closeModal('modal-attendance'); startCreate('page-attendance'); loadAttendance();
-    });
-
-    // Leave
+    // Leave — self-submitted only; the backend derives emp_id from the logged-in user's
+    // own employee record (see app/routers/leave.py), so it's never collected here.
     wireBtn('modal-leave', async () => {
       const body = {
-        emp_id: val('modal-leave', 'employee'),
         leave_type: val('modal-leave', 'leave type') || 'Casual',
         from_date: val('modal-leave', 'from date'),
         to_date: val('modal-leave', 'to date'),
         reason: val('modal-leave', 'reason') || null,
       };
-      if (!body.emp_id || !body.from_date || !body.to_date) { toast('Employee, From Date and To Date required', 'error'); return; }
+      if (!body.from_date || !body.to_date) { toast('From Date and To Date required', 'error'); return; }
       await post('/api/leave', body);
       toast('Leave request submitted');
       closeModal('modal-leave'); loadLeave();
@@ -283,20 +296,36 @@ export function initApiBridge() {
       const body = {
         entry_date: val('modal-timesheet', 'date'),
         project_id: val('modal-timesheet', 'project'),
+        project_code_id: val('modal-timesheet', 'project code') || null,
         billing_code_id: val('modal-timesheet', 'billing code') || null,
         hours,
         billable: val('modal-timesheet', 'billable') !== 'Non-Billable',
         notes: val('modal-timesheet', 'work description') || null,
       };
       if (hours <= 0 || hours > 9) { toast('Hours worked must be between 0 and 9', 'error'); return; }
+      if (body.project_code_id && !state.pcodes.some(c => c.code === body.project_code_id && c.project_id === body.project_id)) {
+        toast('That project code does not belong to the selected project', 'error');
+        return;
+      }
       if (id) { const { entry_date: __, project_id: ___, ...u } = body; await patch(`/api/timesheets/${id}`, u); toast('Timesheet updated'); }
       else { if (!body.entry_date || !body.project_id) { toast('Date and Project required', 'error'); return; } await post('/api/timesheets', body); toast('Timesheet submitted'); }
       closeModal('modal-timesheet'); startCreate('page-timesheets'); loadTimesheets();
     });
 
     // Expenses
+    wireAttachZone('modal-expense');
     wireBtn('modal-expense', async () => {
       const id = editId('page-expenses');
+      // Upload the picked receipt (if any) before touching the expense record itself —
+      // if this fails, bail out without creating/updating anything half-done.
+      const attachInput = document.querySelector('#modal-expense input[data-attach-input]');
+      const attachFile = attachInput?.files?.[0];
+      let receipt_url;
+      if (attachFile) {
+        const uploaded = await uploadFile('/api/expenses/attachments', attachFile).catch(() => null);
+        if (!uploaded) return;
+        receipt_url = uploaded.receipt_url;
+      }
       const body = {
         project_id: val('modal-expense', 'project'),
         project_code_id: val('modal-expense', 'project code') || null,
@@ -305,7 +334,14 @@ export function initApiBridge() {
         expense_date: val('modal-expense', 'expense date'),
         amount: parseFloat(val('modal-expense', 'amount')) || 0,
         vendor: val('modal-expense', 'vendor name') || null,
-        submitted_by: username() || 'unknown',
+        description: val('modal-expense', 'description') || null,
+        // Must be the display NAME, not username() — is_own_record()/isMine() on the
+        // backend and frontend both compare submitted_by against current_user.name, and
+        // the two are different values for every seeded account (e.g. "ravi" vs "Ravi
+        // Kumar"). Using username() here would make an Employee's own self-service
+        // expense submission fail is_own_record() and 403.
+        submitted_by: state.currentUser?.name || username() || 'unknown',
+        ...(receipt_url ? { receipt_url } : {}),
       };
       if (id) {
         const { project_id: _, project_code_id: __, billing_code_id: ___, submitted_by: ____, ...u } = body;
@@ -339,6 +375,10 @@ export function initApiBridge() {
         toast('Receivable updated');
       } else {
         if (!body.project_id || !body.invoice_no) { toast('Project and Invoice No required', 'error'); return; }
+        if (body.billing_code_id && !state.bcodes.some(b => b.code === body.billing_code_id && b.project_id === body.project_id)) {
+          toast('That billing code does not belong to the selected project', 'error');
+          return;
+        }
         await post('/api/receivables', body);
         toast('Receivable created');
       }
@@ -354,7 +394,9 @@ export function initApiBridge() {
       const slaHours = SLA_HOURS[slaChoice];
       const body = {
         subject: val('modal-ticket', 'subject'),
-        requester: val('modal-ticket', 'requester') || username(),
+        // Falls back to the display NAME, not username() — is_own_record() compares
+        // requester against current_user.name (see the same fix on modal-expense above).
+        requester: val('modal-ticket', 'requester') || state.currentUser?.name || username(),
         project_id: val('modal-ticket', 'project') || null,
         queue: val('modal-ticket', 'assignment queue'),
         priority: val('modal-ticket', 'priority') || 'Medium',
@@ -390,34 +432,27 @@ export function initApiBridge() {
       const id = editId('page-users');
       const name = val('modal-user', 'full name');
       const body = {
-        username: name.toLowerCase().replace(/\s+/g, '.').replace(/[^a-z0-9.]/g, '') + '_' + Math.floor(Math.random() * 900 + 100),
+        username: name,
         name,
         email: val('modal-user', 'email'),
         role: val('modal-user', 'role') || 'Employee',
         password: val('modal-user', 'temporary password') || 'Changeme@123',
       };
+      // Manager has Admin-equivalent access everywhere except managing Admin/Manager
+      // accounts (the backend rejects this too — see PRIVILEGED_ROLES in
+      // app/routers/users.py) — catch it client-side so a Manager gets an immediate
+      // message instead of a 403 after filling out the whole form.
+      if (state.currentUser?.role === 'Manager' && (body.role === 'Admin' || body.role === 'Manager')) {
+        toast('Only Admin can create or promote an Admin/Manager account', 'error');
+        return;
+      }
       if (id) { await patch(`/api/users/${id}`, { name: body.name, email: body.email, role: body.role }); toast('User updated'); }
-      else { if (!body.name || !body.email) { toast('Name and Email required', 'error'); return; } await post('/api/users', body); toast('User created'); }
+      else {
+        if (!body.name || !body.email) { toast('Name and Email required', 'error'); return; }
+        await post('/api/users', body);
+        toast(`User created — login username: ${body.username}`);
+      }
       closeModal('modal-user'); startCreate('page-users'); loadUsers();
-    });
-
-    // Leads
-    wireBtn('modal-lead', async () => {
-      const owner = val('modal-lead', 'owner');
-      const body = {
-        lead_id: 'LD-' + Date.now().toString().slice(-6),
-        company: val('modal-lead', 'company'),
-        contact: val('modal-lead', 'contact person') || null,
-        email: val('modal-lead', 'email') || null,
-        phone: val('modal-lead', 'phone') || null,
-        value: parseFloat(val('modal-lead', 'estimated value')) || 0,
-        owner: owner === 'Assign to me' ? (username() || owner) : owner,
-        stage: val('modal-lead', 'stage') || 'New',
-        source: val('modal-lead', 'lead source') || null,
-      };
-      if (!body.company || !body.owner) { toast('Company and Owner required', 'error'); return; }
-      await post('/api/leads', body); toast('Lead created');
-      closeModal('modal-lead'); loadLeads();
     });
 
     // Audit Log — manual entries
@@ -435,9 +470,6 @@ export function initApiBridge() {
       else { await post('/api/audit-log/', body); toast('Audit entry added'); }
       closeModal('modal-audit'); startCreate('page-audit'); loadAudit();
     });
-
-    // Custom Pages (Access Control)
-    wireBtn('modal-page', saveCustomPage);
   }
 
   // ── INIT ───────────────────────────────────────────────────────────────────
@@ -451,11 +483,10 @@ export function initApiBridge() {
 
   Promise.all([refreshCaches(), loadCurrentUser]).then(() => {
     wireSubmits();
-    wireLeadManager();
-    wirePayslipDownloads();
     populateFilterDropdowns();
     wireFilters(loaders, loadPage);
     ensureNotifPanel();
+    refreshNotifBadge();
 
     // Nav gating. appScript's own hasPageAccess()/buildNavigation()/navigate() close over
     // the IIFE's local USER_ACCESS/activeUserKey (which stays "admin" forever with no
@@ -496,8 +527,8 @@ export function initApiBridge() {
       setEl('active-user-role', state.currentUser.role || '');
     }
 
-    // Admin-only "View as role" (topbar). Mints a short-lived token for a real account
-    // of the chosen role via POST /api/auth/view-as — server enforces the Admin check
+    // Admin/Manager "View as role" (topbar). Mints a short-lived token for a real account
+    // of the chosen role via POST /api/auth/view-as — server enforces the role check
     // and audit-logs it (see app/routers/auth.py), no password needed. Works the same
     // in production as in dev; not gated on import.meta.env.DEV.
     const roleSwitcher = document.getElementById('role-switcher');
@@ -516,7 +547,7 @@ export function initApiBridge() {
           localStorage.removeItem('real_token');
           location.reload();
         });
-      } else if (state.currentUser?.role === 'Admin') {
+      } else if (['Admin', 'Manager'].includes(state.currentUser?.role)) {
         // Starts disabled (see appMarkup.js) so a click during this async init window —
         // before this listener exists — can't silently no-op. Only enable once wired.
         roleSwitcher.disabled = false;
@@ -541,7 +572,6 @@ export function initApiBridge() {
     }
 
     document.getElementById('dash-period')?.addEventListener('change', () => loadDashboard());
-    document.getElementById('att-period')?.addEventListener('change', () => loadAttendance());
     document.getElementById('ts-period')?.addEventListener('change', () => loadTimesheets());
     document.getElementById('audit-period')?.addEventListener('change', () => loadAudit());
 
@@ -551,7 +581,7 @@ export function initApiBridge() {
       if (!panel) return;
       const opening = panel.style.display === 'none' || !panel.style.display;
       panel.style.display = opening ? 'block' : 'none';
-      if (opening) loadNotifications();
+      if (opening) loadNotifications(true);
     });
 
     const _origSwitch = window.switchUserMode;
@@ -749,6 +779,7 @@ export function initApiBridge() {
         if (!row) return;
         set('modal-timesheet', 'date', row.entry_date || '');
         set('modal-timesheet', 'project', row.project_id || '');
+        populateTsProjectCodeSelect(row.project_id || '', row.project_code_id || '');
         set('modal-timesheet', 'billing code', row.billing_code_id || '');
         set('modal-timesheet', 'hours worked', row.hours ?? 0);
         set('modal-timesheet', 'billable', row.billable ? 'Billable' : 'Non-Billable');
@@ -796,6 +827,12 @@ export function initApiBridge() {
         set('modal-expense', 'expense date', row.expense_date || '');
         set('modal-expense', 'amount', row.amount ?? 0);
         set('modal-expense', 'vendor name', row.vendor || '');
+        set('modal-expense', 'description', row.description || '');
+        const attachZone = document.querySelector('#modal-expense .attach-zone[data-default-label]');
+        const attachInputEl = attachZone?.querySelector('input[type="file"]');
+        if (attachInputEl) attachInputEl.value = '';
+        const attachLabel = attachZone?.querySelector('[data-attach-label]');
+        if (attachLabel) attachLabel.textContent = row.receipt_url ? '📄 Attachment on file — upload to replace' : attachZone.dataset.defaultLabel;
         startEdit('page-expenses', row.id);
         openModal('modal-expense');
         return;
@@ -841,7 +878,10 @@ export function initApiBridge() {
         const row = state.invoices.find(x => String(x.id) === editBtn.dataset.id);
         if (!row) return;
         set('modal-recv', 'project', row.project_id || '');
-        set('modal-recv', 'billing code', row.billing_code_id || '');
+        // Refresh the billing code options for THIS row's project first — otherwise
+        // row.billing_code_id might not be a valid <option> yet and the set() below
+        // would silently fail to select it (see populateRecvBillingCodeSelect()).
+        populateRecvBillingCodeSelect(row.project_id || '', row.billing_code_id || '');
         set('modal-recv', 'client name', row.client || '');
         set('modal-recv', 'invoice number', row.invoice_no || '');
         set('modal-recv', 'invoice date', row.invoice_date || '');
@@ -864,7 +904,7 @@ export function initApiBridge() {
         const row = state.receivables.find(x => String(x.id) === editBtn.dataset.id);
         if (!row) return;
         set('modal-recv', 'project', row.project_id || '');
-        set('modal-recv', 'billing code', row.billing_code_id || '');
+        populateRecvBillingCodeSelect(row.project_id || '', row.billing_code_id || '');
         set('modal-recv', 'client name', row.client || '');
         set('modal-recv', 'invoice number', row.invoice_no || '');
         set('modal-recv', 'invoice date', row.invoice_date || '');
@@ -888,7 +928,7 @@ export function initApiBridge() {
     // "+ Add Receivable" should always start a fresh create, even after a cancelled edit
     document.querySelector('#page-receivables .section-header .btn-primary')?.addEventListener('click', () => startCreate('page-receivables'));
 
-    // Approvals view/approve/reject button delegation (cross-module: timesheets/expenses/attendance/access)
+    // Approvals view/approve/reject button delegation (cross-module: timesheets/expenses/leave/access)
     document.addEventListener('click', async e => {
       const viewBtn = e.target.closest('.bridge-view[data-module]');
       if (viewBtn) {
@@ -902,7 +942,7 @@ export function initApiBridge() {
         const endpoint = {
           timesheets: `/api/timesheets/${id}/approve`,
           expenses: `/api/expenses/${id}/approve`,
-          attendance: `/api/attendance/${id}/approve`,
+          leave: `/api/leave/${id}/approve`,
           access: `/api/access-control/requests/${id}/approve`,
         }[mod];
         if (!endpoint) return;
@@ -920,8 +960,10 @@ export function initApiBridge() {
           await post(`/api/expenses/${id}/reject`, { reason });
         } else if (mod === 'timesheets') {
           await post(`/api/timesheets/${id}/reject`, {});
-        } else if (mod === 'attendance') {
-          await patch(`/api/attendance/${id}`, { approval_status: 'Rejected' });
+        } else if (mod === 'leave') {
+          const reason = prompt('Reason for rejecting this leave request?');
+          if (!reason) return;
+          await post(`/api/leave/${id}/reject`, { reason });
         } else if (mod === 'access') {
           await post(`/api/access-control/requests/${id}/reject`, {});
         } else return;
@@ -993,45 +1035,13 @@ export function initApiBridge() {
       }
       const rejectBtn3 = e.target.closest('.bridge-reject[data-page="page-leave"]');
       if (rejectBtn3) {
-        await post(`/api/leave/${rejectBtn3.dataset.id}/reject`, {});
+        const reason = prompt('Reason for rejecting this leave request?');
+        if (!reason) return;
+        await post(`/api/leave/${rejectBtn3.dataset.id}/reject`, { reason });
         toast('Leave rejected');
         loadLeave();
       }
     });
-
-    // Attendance edit/approve/reject button delegation
-    document.addEventListener('click', async e => {
-      const editBtn = e.target.closest('.bridge-edit[data-page="page-attendance"]');
-      if (editBtn) {
-        const row = state.attendance.find(a => String(a.id) === editBtn.dataset.id);
-        if (!row) return;
-        set('modal-attendance', 'employee', row.emp_id);
-        set('modal-attendance', 'date', row.att_date || '');
-        set('modal-attendance', 'check in', row.check_in || '');
-        set('modal-attendance', 'check out', row.check_out || '');
-        set('modal-attendance', 'total hours', row.total_hours ?? 0);
-        set('modal-attendance', 'status', row.att_status);
-        startEdit('page-attendance', row.id);
-        openModal('modal-attendance');
-        return;
-      }
-      const approveBtn = e.target.closest('.bridge-approve[data-page="page-attendance"]');
-      if (approveBtn) {
-        await post(`/api/attendance/${approveBtn.dataset.id}/approve`, {});
-        toast('Attendance approved');
-        loadAttendance();
-        return;
-      }
-      const rejectBtn = e.target.closest('.bridge-reject[data-page="page-attendance"]');
-      if (rejectBtn) {
-        await patch(`/api/attendance/${rejectBtn.dataset.id}`, { approval_status: 'Rejected' });
-        toast('Attendance rejected');
-        loadAttendance();
-      }
-    });
-
-    // "+ Mark Attendance" should always start a fresh create, even after a cancelled edit
-    document.querySelector('#page-attendance .section-header .btn-primary')?.addEventListener('click', () => startCreate('page-attendance'));
 
     // Hourly Costs edit/delete button delegation
     document.addEventListener('click', async e => {
@@ -1089,24 +1099,6 @@ export function initApiBridge() {
 
     // "+ Create Ticket" should always start a fresh create, even after a cancelled edit
     document.querySelector('#page-service-desk .feature-actions .btn-primary')?.addEventListener('click', () => startCreate('page-service-desk'));
-
-    // Leads edit/delete button delegation
-    document.addEventListener('click', async e => {
-      const editBtn = e.target.closest('.bridge-edit[data-page="page-leads"]');
-      if (editBtn) {
-        const row = state.leads.find(l => String(l.lead_id) === editBtn.dataset.id);
-        if (!row) return;
-        openLeadEditor(row);
-        return;
-      }
-      const delBtn5 = e.target.closest('.bridge-delete[data-page="page-leads"]');
-      if (delBtn5) {
-        if (!confirm('Delete this lead?')) return;
-        await del(`/api/leads/${delBtn5.dataset.id}`);
-        toast('Lead deleted');
-        loadLeads();
-      }
-    });
 
     // Access Control — page access requests: approve/reject/audit
     document.addEventListener('click', async e => {

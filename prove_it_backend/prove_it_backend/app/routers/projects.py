@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pymongo.database import Database
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional
 from datetime import date
 
 from app.core import collections
@@ -9,7 +9,7 @@ from app.core.database import get_db
 from app.core.mongo_utils import like
 from app.core.security import get_current_user, require_permission
 from app.core.audit import log_action
-from app.core.permissions import own_emp_id
+from app.core.permissions import assigned_project_ids
 
 router = APIRouter()
 
@@ -71,12 +71,11 @@ def list_projects(
     # Projects). Only enforced once an Admin has actually assigned this employee at least
     # one project — otherwise every account would go from "sees everything" to "sees
     # nothing" the instant this shipped, before anyone had configured anything.
-    if cu.role != "Admin":
-        emp_id = own_emp_id(db, cu)
-        if emp_id:
-            assigned = list(db[collections.PROJECT_PERMISSIONS].find({"emp_id": emp_id}))
-            if assigned:
-                query["_id"] = {"$in": [a["project_id"] for a in assigned if a["allowed"]]}
+    # Finance User is unrestricted here, same as Admin/Manager — they need every project
+    # visible as financial context (budget/revenue/expense), not just ones assigned to them.
+    assigned_ids = None if cu.role == "Finance User" else assigned_project_ids(db, cu)
+    if assigned_ids is not None:
+        query["_id"] = {"$in": assigned_ids}
 
     return [_proj_out(p) for p in db[collections.PROJECTS].find(query)]
 
@@ -111,6 +110,9 @@ def create_project(payload: ProjectCreate, db: Database = Depends(get_db), cu=De
 
 @router.get("/{project_id}")
 def get_project(project_id: str, db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    assigned_ids = None if cu.role == "Finance User" else assigned_project_ids(db, cu)
+    if assigned_ids is not None and project_id not in assigned_ids:
+        raise HTTPException(404, "Project not found")
     p = db[collections.PROJECTS].find_one({"_id": project_id})
     if not p: raise HTTPException(404, "Project not found")
     return _proj_out(p)

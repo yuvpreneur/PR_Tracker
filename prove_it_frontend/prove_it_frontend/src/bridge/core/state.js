@@ -13,10 +13,8 @@ export const state = {
   employees: [],
   pcodes: [],
   bcodes: [],
-  leads: [],
   tickets: [],
   hourlyCosts: [],
-  attendance: [],
   timesheets: [],
   expenses: [],
   invoices: [],
@@ -28,7 +26,6 @@ export const state = {
   pf: {},
 
   PAGE_PARAM_OVERRIDES: {
-    'page-attendance': { status: 'att_status' },
     'page-users':      { status: 'is_active' },
   },
 
@@ -42,8 +39,6 @@ export const state = {
     'all types':         'billing_type',
     'all roles':         'role',
     'all billing codes': 'billing_code_id',
-    'all stages':        'stage',
-    'all owners':        'owner',
     'all employees':     'emp_id',
     'all queues':        'queue',
     'all priorities':    'priority',

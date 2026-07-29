@@ -5,7 +5,7 @@
 // React-rendered or not.
 export default function DataTable({ columns, rows, getRowId, pageId, canEdit, canDelete, renderExtraActions, hideActionsColumn = false, emptyMessage = 'No records found' }) {
   // canEdit/canDelete may be a flat boolean (same for every row) or a function of
-  // the row (e.g. Leads: edit allowed if you have blanket edit permission OR own the row).
+  // the row (e.g. edit allowed if you have blanket edit permission OR own the row).
   const editAllowed = row => (typeof canEdit === 'function' ? canEdit(row) : !!canEdit);
   const deleteAllowed = row => (typeof canDelete === 'function' ? canDelete(row) : !!canDelete);
   // renderExtraActions(row) — e.g. Service Desk's status-dependent Resolve/Close

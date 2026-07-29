@@ -97,21 +97,6 @@ Only seeded when `ENVIRONMENT=development` (the default) **and** the `users` col
 
 ### Expenses → `/api/expenses/` (same approve/reject pattern)
 ### Receivables → `/api/receivables/`
-### Attendance → `/api/attendance/`
-
-### Leads
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/leads/` | List (filter: stage, owner, search) |
-| GET | `/api/leads/summary` | Funnel KPIs by stage |
-| POST | `/api/leads/` | Create lead |
-| GET | `/api/leads/{lead_id}` | Get lead |
-| PATCH | `/api/leads/{lead_id}` | Update lead / change stage |
-| POST | `/api/leads/{lead_id}/convert` | Convert to Won / Project |
-| DELETE | `/api/leads/{lead_id}` | Delete |
-| GET | `/api/leads/{lead_id}/notes` | List notes |
-| POST | `/api/leads/{lead_id}/notes` | Add note (timestamped) |
-| DELETE | `/api/leads/{lead_id}/notes/{note_id}` | Delete note |
 
 ### Service Desk Tickets
 | Method | Path | Description |
@@ -159,7 +144,7 @@ Only seeded when `ENVIRONMENT=development` (the default) **and** the `users` col
 
 ## Role Permissions Summary
 
-The dynamic Roles & Permissions matrix (`app/core/permissions.py`'s `DEFAULT_PERMS`, editable per-role by an Admin via the Roles & Permissions UI) is the source of truth — read that file directly for the exact current view/create/edit/delete/approve/export flags per role and module. Broad shape: Admin has full access everywhere; Manager runs delivery (projects, people, billing codes, timesheets/expenses/attendance approval, service desk) but never deletes; Finance User owns money-side config (billing codes, hourly costs, receivables, expense approval) and financial reports only; Employee is self-service only (own timesheets/attendance/leave/tickets while pending, reference-data viewing, no delete ever); Viewer is read-only across the board with no write path anywhere, including no self-service bypass.
+The dynamic Roles & Permissions matrix (`app/core/permissions.py`'s `DEFAULT_PERMS`, editable per-role by an Admin via the Roles & Permissions UI) is the source of truth — read that file directly for the exact current view/create/edit/delete/approve/export flags per role and module. Broad shape: Admin has full access everywhere; Manager runs delivery (projects, people, billing codes, timesheets/expenses approval, service desk) but never deletes; Finance User owns money-side config (billing codes, hourly costs, receivables, expense approval) and financial reports only; Employee is self-service only (own timesheets/leave/tickets while pending, reference-data viewing, no delete ever); Viewer is read-only across the board with no write path anywhere, including no self-service bypass.
 
 ---
 
