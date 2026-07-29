@@ -18,6 +18,10 @@ export default function useBridgeMount(pageId) {
       const el = document.getElementById(pageId);
       if (!el) return;
       el.innerHTML = '';
+      // The default-active page (dashboard) starts with visibility:hidden in the raw
+      // markup so its legacy placeholder content never paints — reveal it now, the
+      // same moment React's real content takes over.
+      el.style.visibility = '';
       setMountNode(el);
     };
     if (window.__bridgeReady) mount();
