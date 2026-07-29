@@ -9,7 +9,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.database import client
-from app.core import seed
 from app.routers import (
     auth,
     users,
@@ -36,11 +35,6 @@ from app.routers import (
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     client.admin.command("ping")  # fail fast if Atlas is unreachable
-    # Demo-data seeding only runs in development — allowlisted (not "!= production")
-    # so an unset/misspelled ENVIRONMENT in a real deployment fails closed instead of
-    # silently seeding known-password accounts into a real database.
-    if os.environ.get("ENVIRONMENT", "development") == "development":
-        seed.run()
     yield
     client.close()
 

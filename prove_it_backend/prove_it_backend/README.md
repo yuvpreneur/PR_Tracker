@@ -33,22 +33,13 @@ http://localhost:8000/docs
 | `MONGODB_URI` | Yes | Atlas/MongoDB connection string |
 | `MONGODB_DB_NAME` | No (defaults to `prove_it`) | Database name |
 | `SECRET_KEY` | Yes | JWT signing key — generate a real random value, never reuse the example |
-| `ENVIRONMENT` | No (defaults to `development`) | `development` seeds demo data and enables the frontend's dev-only role-switcher; any other value disables both |
 | `CORS_ALLOWED_ORIGINS` | No (defaults to `http://localhost:5173`) | Comma-separated list of origins allowed to call this API |
 
 ---
 
-## Default Credentials (development only)
+## First-time setup
 
-Only seeded when `ENVIRONMENT=development` (the default) **and** the `users` collection is empty. Never applies to a database that already has users, and never runs at all when `ENVIRONMENT` is set to anything else — so a real production database is never auto-seeded with these.
-
-| Username | Password   | Role         |
-|----------|------------|--------------|
-| admin    | admin123   | Admin        |
-| rohan    | rohan123   | Manager      |
-| priya    | priya123   | Finance User |
-| ravi     | ravi123    | Employee     |
-| viewer   | viewer123  | Viewer       |
+There is no demo-data seeding — the database starts empty. Sign-in shows a "Create the admin account" option the first time (see `POST /api/auth/register`), which is only available while the `users` collection is empty and closes permanently once the first account exists.
 
 ---
 
@@ -149,6 +140,6 @@ The dynamic Roles & Permissions matrix (`app/core/permissions.py`'s `DEFAULT_PER
 ---
 
 ## Production Notes
-- `SECRET_KEY`, `CORS_ALLOWED_ORIGINS`, and `ENVIRONMENT` are all read from the environment (see table above) — set real values via your hosting platform's env var mechanism, not a committed `.env`
+- `SECRET_KEY` and `CORS_ALLOWED_ORIGINS` are both read from the environment (see table above) — set real values via your hosting platform's env var mechanism, not a committed `.env`
 - Add HTTPS / a reverse proxy (nginx, or your platform's built-in TLS termination) in front of uvicorn
 - Run uvicorn without `--reload` in production (e.g. `uvicorn main:app --host 0.0.0.0 --port 8000`), typically behind a process manager or the platform's own process supervision
