@@ -2,12 +2,34 @@ import { toast } from '../shared/ui.js';
 import { API_BASE_URL } from '../../utils/constants.js';
 const _tok = () => localStorage.getItem('token');
 
-async function _req(method, path, body = null) {
+// A single background request 401ing doesn't necessarily mean the session is dead —
+// on every login, ~30 requests fire concurrently (see useBridgeMount.js), and a lone
+// transient hiccup (slow backend wake-up, dropped connection) used to nuke the token
+// and reload the whole app even though every other request succeeded. Re-verify
+// against /auth/me before giving up, and share one in-flight check across all callers
+// so a burst of simultaneous 401s only triggers a single recheck.
+let _sessionCheck = null;
+async function _sessionStillValid() {
+  if (!_sessionCheck) {
+    _sessionCheck = fetch(API_BASE_URL + '/api/auth/me', { headers: { Authorization: `Bearer ${_tok()}` } })
+      .then(r => r.ok)
+      .catch(() => false)
+      .finally(() => { _sessionCheck = null; });
+  }
+  return _sessionCheck;
+}
+
+async function _req(method, path, body = null, _retried = false) {
   const headers = { Authorization: `Bearer ${_tok()}` };
   const opts = { method, headers };
   if (body) { headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
   const r = await fetch(API_BASE_URL + path, opts);
-  if (r.status === 401) { localStorage.removeItem('token'); location.reload(); return null; }
+  if (r.status === 401) {
+    if (!_retried && await _sessionStillValid()) return _req(method, path, body, true);
+    localStorage.removeItem('token');
+    location.reload();
+    return null;
+  }
   const data = await r.json().catch(() => ({}));
   if (!r.ok) {
     // Every page component mounts up front (see useBridgeMount.js) and fetches its own
@@ -27,11 +49,16 @@ export const patch = (p, b) => _req('PATCH', p, b);
 export const del   = p      => _req('DELETE', p);
 
 // Multipart upload — no Content-Type header, the browser sets the boundary itself.
-export async function uploadFile(path, file) {
+export async function uploadFile(path, file, _retried = false) {
   const form = new FormData();
   form.append('file', file);
   const r = await fetch(API_BASE_URL + path, { method: 'POST', headers: { Authorization: `Bearer ${_tok()}` }, body: form });
-  if (r.status === 401) { localStorage.removeItem('token'); location.reload(); return null; }
+  if (r.status === 401) {
+    if (!_retried && await _sessionStillValid()) return uploadFile(path, file, true);
+    localStorage.removeItem('token');
+    location.reload();
+    return null;
+  }
   const data = await r.json().catch(() => ({}));
   if (!r.ok) { toast(data.detail || 'Upload failed', 'error'); throw new Error(data.detail); }
   return data;
