@@ -4,14 +4,14 @@ import { badge, date, num } from '../shared/ui.js';
 import { openModal } from '../shared/modals.js';
 import { isReactOwned } from '../shared/table.js';
 
-const TYPE_LABEL = { timesheets: 'Timesheet', expenses: 'Expense', attendance: 'Attendance', access: 'Access Control' };
-const TYPE_COLOR = { Timesheet: '#3b82f6', Expense: '#f59e0b', Attendance: '#22c55e', 'Access Control': '#64748b' };
+const TYPE_LABEL = { timesheets: 'Timesheet', expenses: 'Expense', leave: 'Leave', access: 'Access Control' };
+const TYPE_COLOR = { Timesheet: '#3b82f6', Expense: '#f59e0b', Leave: '#7c3aed', 'Access Control': '#64748b' };
 
 function describeApproval(r) {
   switch (r._mod) {
     case 'timesheets': return { name: r.name || r.emp_id, detail: `${r.hours}h – ${r.project_id} – ${date(r.entry_date)}` };
     case 'expenses':   return { name: r.submitted_by, detail: `₹${num(r.amount)} – ${r.category}${r.vendor ? ' / ' + r.vendor : ''}` };
-    case 'attendance': return { name: r.name || r.emp_id, detail: `${date(r.att_date)} attendance – ${r.total_hours}h` };
+    case 'leave':      return { name: r.name || r.emp_id, detail: `${r.leave_type} – ${date(r.from_date)} to ${date(r.to_date)} – ${r.days}d` };
     case 'access':     return { name: r.requester, detail: `Access to ${r.page}${r.project ? ' (' + r.project + ')' : ''}` };
     default:           return { name: '—', detail: '' };
   }
@@ -63,22 +63,22 @@ export async function loadApprovals() {
   state.approvalsAll = [
     ...(data.timesheets      || []).map(r => ({ ...r, _mod: 'timesheets' })),
     ...(data.expenses        || []).map(r => ({ ...r, _mod: 'expenses' })),
-    ...(data.attendance      || []).map(r => ({ ...r, _mod: 'attendance' })),
+    ...(data.leave           || []).map(r => ({ ...r, _mod: 'leave' })),
     ...(data.access_requests || []).map(r => ({ ...r, _mod: 'access' })),
   ];
 
-  const ts  = (data.timesheets      || []).length;
-  const exp = (data.expenses        || []).length;
-  const att = (data.attendance      || []).length;
-  const acc = (data.access_requests || []).length;
-  const elTs  = document.getElementById('appr-stat-ts');
-  const elExp = document.getElementById('appr-stat-exp');
-  const elAtt = document.getElementById('appr-stat-att');
-  const elAcc = document.getElementById('appr-stat-access');
-  if (elTs)  elTs.textContent  = ts;
-  if (elExp) elExp.textContent = exp;
-  if (elAtt) elAtt.textContent = att;
-  if (elAcc) elAcc.textContent = acc;
+  const ts    = (data.timesheets      || []).length;
+  const exp   = (data.expenses        || []).length;
+  const leave = (data.leave           || []).length;
+  const acc   = (data.access_requests || []).length;
+  const elTs    = document.getElementById('appr-stat-ts');
+  const elExp   = document.getElementById('appr-stat-exp');
+  const elLeave = document.getElementById('appr-stat-leave');
+  const elAcc   = document.getElementById('appr-stat-access');
+  if (elTs)    elTs.textContent    = ts;
+  if (elExp)   elExp.textContent   = exp;
+  if (elLeave) elLeave.textContent = leave;
+  if (elAcc)   elAcc.textContent   = acc;
 
   const filter = document.getElementById('appr-type-filter')?.value || '';
   renderApprovalsTable(filter);
@@ -121,13 +121,18 @@ export function openApprovalView(row) {
   } else if (row._mod === 'expenses') {
     fields += field('Submitted By', row.submitted_by) + field('Category', row.category) +
       field('Amount', `₹${row.amount.toLocaleString('en-IN')}`) + field('Vendor', row.vendor || '—') +
-      field('Project', row.project_id) + field('Date', date(row.expense_date));
-  } else if (row._mod === 'attendance') {
-    fields += field('Employee', row.name || row.emp_id) +
-      field('Date', date(row.att_date)) + field('Total Hours', `${row.total_hours}h`);
+      field('Project', row.project_id) + field('Date', date(row.expense_date)) +
+      field('Stage', row.status === 'Pending Finance' ? 'Awaiting Finance (policy + payment)' : 'Awaiting Manager (business purpose)');
+  } else if (row._mod === 'leave') {
+    fields += field('Employee', row.name || row.emp_id) + field('Type', row.leave_type) +
+      field('From', date(row.from_date)) + field('To', date(row.to_date)) + field('Days', row.days) +
+      field('Reason', row.reason || '—');
   } else if (row._mod === 'access') {
-    fields += field('Requester', row.requester) + field('Page', row.page) +
-      field('Project', row.project || '—') + field('Reason', row.reason || '—');
+    fields += field('Requester', row.requester) +
+      (row.request_type === 'project'
+        ? field('Requested Project', row.project_id)
+        : field('Page', row.page) + field('Project Context', row.project || '—')) +
+      field('Reason', row.reason || '—');
   }
   document.getElementById('approval-view-body').innerHTML = fields;
   openModal('modal-approval-view');

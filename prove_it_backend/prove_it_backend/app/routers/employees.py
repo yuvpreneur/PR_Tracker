@@ -8,6 +8,7 @@ from app.core.database import get_db
 from app.core.mongo_utils import like
 from app.core.security import get_current_user, require_permission
 from app.core.audit import log_action
+from app.core.permissions import has_permission, my_emp_ids
 
 router = APIRouter()
 
@@ -46,7 +47,7 @@ def _out(e: dict):
     }
 
 
-@router.get("/", dependencies=[Depends(require_permission("Employees", "view"))])
+@router.get("/")
 def list_employees(
     department: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
@@ -54,7 +55,17 @@ def list_employees(
     db: Database = Depends(get_db),
     cu=Depends(get_current_user),
 ):
-    query = {}
+    # No blanket Employees:view (Employee role, by default) → scoped to just their own
+    # record(s), not blocked outright — same "mine" pattern as Leave, and what
+    # lets the personal Dashboard (useDashboardData.js) resolve its own emp_id via this
+    # same endpoint.
+    if not has_permission(db, cu, "Employees", "view"):
+        mine = my_emp_ids(db, cu)
+        if not mine:
+            return []
+        query = {"emp_id": {"$in": list(mine)}}
+    else:
+        query = {}
     if department: query["department"] = department
     if status: query["status"] = status
     if search: query["$or"] = [{"name": like(search)}, {"emp_id": like(search)}]
@@ -73,8 +84,10 @@ def create(payload: EmpCreate, db: Database = Depends(get_db), cu=Depends(get_cu
     return _out(doc)
 
 
-@router.get("/{emp_id}", dependencies=[Depends(require_permission("Employees", "view"))])
+@router.get("/{emp_id}")
 def get_employee(emp_id: str, db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    if not has_permission(db, cu, "Employees", "view") and emp_id not in my_emp_ids(db, cu):
+        raise HTTPException(404, "Employee not found")
     e = db[collections.EMPLOYEES].find_one({"_id": emp_id})
     if not e: raise HTTPException(404, "Employee not found")
     return _out(e)

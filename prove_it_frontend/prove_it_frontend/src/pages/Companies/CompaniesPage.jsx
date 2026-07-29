@@ -3,8 +3,8 @@ import useCompanies from './useCompanies.js';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
-import { can, canCreateOnPage } from '../../bridge/shared/permissions.js';
-import { openModal, startCreate } from '../../bridge/shared/modals.js';
+import { openModal, startCreate, resetFields } from '../../bridge/shared/modals.js';
+import usePermissions from '../../hooks/usePermissions.js';
 
 const COLUMNS = [
   { key: 'name', header: 'Company', render: r => <strong>{r.name}</strong> },
@@ -15,6 +15,7 @@ const COLUMNS = [
 ];
 
 export default function CompaniesPage() {
+  const { can, canCreateOnPage } = usePermissions();
   const { companies, loading } = useCompanies();
   const [industry, setIndustry] = useState('');
   const [search, setSearch] = useState('');
@@ -31,6 +32,7 @@ export default function CompaniesPage() {
   }, [companies, industry, search]);
 
   const handleNewCompany = () => {
+    resetFields('modal-company');
     startCreate('page-companies');
     openModal('modal-company');
   };

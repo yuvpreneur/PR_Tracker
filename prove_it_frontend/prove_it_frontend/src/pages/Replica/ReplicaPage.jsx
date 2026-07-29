@@ -8,11 +8,9 @@ import ProjectsBridgeMount from './ProjectsBridgeMount.jsx';
 import CompaniesBridgeMount from './CompaniesBridgeMount.jsx';
 import ProjectCodesBridgeMount from './ProjectCodesBridgeMount.jsx';
 import BillingCodesBridgeMount from './BillingCodesBridgeMount.jsx';
-import LeadsBridgeMount from './LeadsBridgeMount.jsx';
 import ServiceDeskBridgeMount from './ServiceDeskBridgeMount.jsx';
 import EmployeesBridgeMount from './EmployeesBridgeMount.jsx';
 import HourlyCostsBridgeMount from './HourlyCostsBridgeMount.jsx';
-import AttendanceBridgeMount from './AttendanceBridgeMount.jsx';
 import TimesheetsBridgeMount from './TimesheetsBridgeMount.jsx';
 import LeaveBridgeMount from './LeaveBridgeMount.jsx';
 import PayrollBridgeMount from './PayrollBridgeMount.jsx';
@@ -89,11 +87,9 @@ export default function ReplicaPage() {
       <CompaniesBridgeMount />
       <ProjectCodesBridgeMount />
       <BillingCodesBridgeMount />
-      <LeadsBridgeMount />
       <ServiceDeskBridgeMount />
       <EmployeesBridgeMount />
       <HourlyCostsBridgeMount />
-      <AttendanceBridgeMount />
       <TimesheetsBridgeMount />
       <LeaveBridgeMount />
       <PayrollBridgeMount />

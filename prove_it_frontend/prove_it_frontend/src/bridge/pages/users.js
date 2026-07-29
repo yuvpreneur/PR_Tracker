@@ -15,7 +15,7 @@ export async function loadUsers() {
     { k: 'projects',  fn: () => '—' },
     { k: 'is_active', fn: r => badge(r.is_active ? 'Active' : 'Inactive') },
   ], r => r.id, () => '', null, {
-    noEdit: state.currentUser?.role !== 'Admin', noDelete: state.currentUser?.role !== 'Admin',
+    noEdit: !['Admin', 'Manager'].includes(state.currentUser?.role), noDelete: !['Admin', 'Manager'].includes(state.currentUser?.role),
     hideActionsColumn: noActionsColumn('users'),
   });
   // Lets the React-based UsersPage (mounted as a portal into #page-users) know to

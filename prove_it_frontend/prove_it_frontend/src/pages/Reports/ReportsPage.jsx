@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { REPORTS } from '../../bridge/pages/reports.js';
-import { get } from '../../bridge/core/http.js';
+import { get } from '../../services/httpClient.js';
 import { state } from '../../bridge/core/state.js';
-import { canExportOnPage } from '../../bridge/shared/permissions.js';
+import usePermissions from '../../hooks/usePermissions.js';
 
 // Report rows keep the exact legacy classes/data-attributes (.perm-row[data-report-key],
 // .report-view-btn, .report-export-wrap > .report-export-btn + .report-export-menu >
@@ -14,7 +14,7 @@ import { canExportOnPage } from '../../bridge/shared/permissions.js';
 // not reimplement fetch/modal/export logic that's already correct and tested.
 const CATEGORIES = [
   { title: 'Project Reports', keys: ['project-revenue', 'project-expenses', 'project-employee-cost', 'project-profitability', 'billing-code-report'] },
-  { title: 'Employee Reports', keys: ['employee-hours', 'employee-cost', 'attendance-report', 'billable-nonbillable', 'timesheet-approval'] },
+  { title: 'Employee Reports', keys: ['employee-hours', 'employee-cost', 'billable-nonbillable', 'timesheet-approval'] },
   { title: 'Financial Reports', keys: ['receivables-aging', 'outstanding-payments', 'expense-approval'] },
   { title: 'Audit Reports', keys: ['audit-log-report'] },
 ];
@@ -41,6 +41,7 @@ function ReportRow({ reportKey, exportAllowed }) {
 }
 
 export default function ReportsPage() {
+  const { canExportOnPage, role } = usePermissions();
   const [projectId, setProjectId] = useState('');
   const [empId, setEmpId] = useState('');
   const [period, setPeriod] = useState('this_month');
@@ -59,11 +60,13 @@ export default function ReportsPage() {
 
   const exportAllowed = canExportOnPage('reports');
   const q = search.trim().toLowerCase();
-  // Employee Reports (hours/cost/utilization, attendance, timesheet-approval) is HR-flavored
+  // Employee Reports (hours/cost/utilization, timesheet-approval) is HR-flavored
   // and outside Finance User's money-side remit — see app/routers/reports.py's matching
   // backend restriction on /employee-utilization for the two reports that actually expose it.
-  const categories = state.currentUser?.role === 'Finance User'
-    ? CATEGORIES.filter(cat => cat.title !== 'Employee Reports')
+  // Audit Reports is hidden too — Finance User has no access to Audit Log (its
+  // 'audit-log-report' hits an Admin/Manager-only endpoint and would just 403).
+  const categories = role === 'Finance User'
+    ? CATEGORIES.filter(cat => cat.title !== 'Employee Reports' && cat.title !== 'Audit Reports')
     : CATEGORIES;
 
   return (

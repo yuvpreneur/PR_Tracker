@@ -33,7 +33,7 @@ export async function loadAudit() {
     { k: 'action',    fn: r => r.action || '—' },
     { k: 'detail',    fn: r => r.detail || '—' },
   ], r => r.id, () => '', null, {
-    noEdit: state.currentUser?.role !== 'Admin', noDelete: state.currentUser?.role !== 'Admin',
+    noEdit: !['Admin', 'Manager'].includes(state.currentUser?.role), noDelete: !['Admin', 'Manager'].includes(state.currentUser?.role),
     hideActionsColumn: noActionsColumn('audit'),
   });
 

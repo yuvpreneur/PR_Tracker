@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { get, post } from '../../bridge/core/http.js';
-import { toast } from '../../bridge/shared/ui.js';
+import { get, post } from '../../services/httpClient.js';
+import { toast } from '../../utils/toast.js';
 
 // Mirrors app.core.permissions.MODULES exactly — every module the dynamic Roles &
 // Permissions matrix knows about is individually grantable/deniable here per employee.
@@ -8,8 +8,8 @@ import { toast } from '../../bridge/shared/ui.js';
 // list — they're always-visible or hardcoded-Admin-only regardless of Page Access.)
 export const PAGES = [
   'Companies', 'Projects', 'Project Codes', 'Billing Codes', 'Employees', 'Hourly Costs',
-  'Timesheets', 'Expenses', 'Attendance', 'Leave', 'Service Desk', 'Receivables',
-  'Lead Management', 'Reports', 'Approvals',
+  'Timesheets', 'Expenses', 'Leave', 'Service Desk', 'Receivables',
+  'Reports', 'Approvals',
 ];
 
 export default function usePageAccess(empId) {

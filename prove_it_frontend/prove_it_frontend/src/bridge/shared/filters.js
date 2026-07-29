@@ -21,10 +21,6 @@ export function populateFilterDropdowns() {
       sel.innerHTML = '<option value="">All Employees</option>' +
         state.employees.map(e => `<option value="${e.emp_id}">${e.emp_id} - ${e.name}</option>`).join('');
       replaced = true;
-    } else if (txt.includes('all owners')) {
-      sel.innerHTML = '<option value="">All Owners</option>' +
-        state.employees.map(e => `<option value="${e.name}">${e.name}</option>`).join('');
-      replaced = true;
     } else if (txt.includes('all depts')) {
       const depts = uniq(state.employees, 'department');
       sel.innerHTML = '<option value="">All Depts</option>' +

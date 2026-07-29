@@ -5,18 +5,18 @@ import { renderTable, approveBtns } from '../shared/table.js';
 import { field } from '../shared/modals.js';
 import { noActionsColumn } from '../shared/permissions.js';
 
-function populateLeaveEmployeeDropdown() {
+// Leave is self-submitted only — the backend always derives emp_id from the logged-in
+// user's own employee record (see app/routers/leave.py's create()), so there's nothing
+// to pick here. Hide the field rather than leave a dead "Select Employee" dropdown.
+function hideLeaveEmployeeField() {
   const sel = field('modal-leave', 'employee');
-  if (!sel || sel.tagName !== 'SELECT') return;
-  const prev = sel.value;
-  sel.innerHTML = '<option value="">Select Employee</option>' +
-    state.employees.map(e => `<option value="${e.emp_id}">${e.emp_id} - ${e.name}</option>`).join('');
-  if (prev) sel.value = prev;
+  const group = sel?.closest('.form-group');
+  if (group) group.style.display = 'none';
 }
 
 export async function loadLeave() {
   const rows = await get('/api/leave' + qs(state.pf['page-leave'])).catch(() => []);
-  populateLeaveEmployeeDropdown();
+  hideLeaveEmployeeField();
 
   const summary = await get('/api/leave/summary').catch(() => null);
   if (summary) {

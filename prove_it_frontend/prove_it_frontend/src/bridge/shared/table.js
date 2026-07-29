@@ -51,7 +51,7 @@ export function renderTable(pageId, rows, cols, idFn, extraBtns = () => '', tabl
   }).join('');
 }
 
-// Factory — module/ownerField vary per page (e.g. Timesheets/Attendance/Leave denormalize
+// Factory — module/ownerField vary per page (e.g. Timesheets/Leave denormalize
 // the submitter's name onto `name`, Expenses onto `submitted_by`). Suppresses the buttons
 // when the role lacks approve permission on that module, or the row is the caller's own
 // (self-approval is blocked backend-side too — never offer it as an option here).

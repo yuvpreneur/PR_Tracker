@@ -35,8 +35,16 @@ function populateCostEmployeeDropdown() {
 }
 
 export async function loadHourlyCosts() {
-  const rows = await get('/api/hourly-costs' + qs(state.pf['page-hourly-cost'])).catch(() => []);
+  // Fetches its own employee roster rather than relying on state.employees having already
+  // been populated by a visit to the Employees page — a role like Finance User can set
+  // Hourly Costs without ever having (or being able to) open Employees, so the dropdown
+  // can't depend on that page having loaded first.
+  const [rows, employees] = await Promise.all([
+    get('/api/hourly-costs' + qs(state.pf['page-hourly-cost'])).catch(() => []),
+    get('/api/employees').catch(() => []),
+  ]);
   state.hourlyCosts = rows;
+  if (employees.length) state.employees = employees;
   populateCostEmployeeDropdown();
   renderTable('page-hourly-cost', rows, [
     { k: 'emp_id',         fn: r => `<strong>${r.emp_id}</strong>` },

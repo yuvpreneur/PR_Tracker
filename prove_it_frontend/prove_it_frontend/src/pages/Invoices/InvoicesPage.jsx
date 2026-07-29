@@ -3,11 +3,12 @@ import useInvoices from './useInvoices.js';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
-import { date } from '../../bridge/shared/ui.js';
-import { can, canCreateOnPage } from '../../bridge/shared/permissions.js';
-import { openModal, startCreate } from '../../bridge/shared/modals.js';
+import { date } from '../../utils/format.js';
+import { openModal, startCreate, resetFields } from '../../bridge/shared/modals.js';
+import usePermissions from '../../hooks/usePermissions.js';
 
 export default function InvoicesPage() {
+  const { can, canCreateOnPage } = usePermissions();
   const { invoices, projects, loading } = useInvoices();
 
   const columns = useMemo(() => [
@@ -20,6 +21,7 @@ export default function InvoicesPage() {
   ], [projects]);
 
   const handleNew = () => {
+    resetFields('modal-recv');
     startCreate('page-invoices');
     openModal('modal-recv');
   };

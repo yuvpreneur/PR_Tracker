@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { get, post } from '../../bridge/core/http.js';
-import { toast } from '../../bridge/shared/ui.js';
+import { get, post } from '../../services/httpClient.js';
+import { toast } from '../../utils/toast.js';
 
 // Unlike every other migrated page, this one has no shared DOM/state to interop
 // with — the legacy loadRoles() drives role-tab clicks via a `window.selectRole`

@@ -1,8 +1,8 @@
 import useCustomers from './useCustomers.js';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
-import { can, canCreateOnPage } from '../../bridge/shared/permissions.js';
-import { openModal, startCreate } from '../../bridge/shared/modals.js';
+import { openModal, startCreate, resetFields } from '../../bridge/shared/modals.js';
+import usePermissions from '../../hooks/usePermissions.js';
 
 const COLUMNS = [
   { key: 'name', header: 'Customer', render: r => <strong>{r.name}</strong> },
@@ -13,9 +13,11 @@ const COLUMNS = [
 ];
 
 export default function CustomersPage() {
+  const { can, canCreateOnPage } = usePermissions();
   const { customers, loading } = useCustomers();
 
   const handleNew = () => {
+    resetFields('modal-company');
     startCreate('page-customers');
     openModal('modal-company');
   };

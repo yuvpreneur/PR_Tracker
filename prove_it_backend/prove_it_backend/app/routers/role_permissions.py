@@ -7,15 +7,17 @@ from app.core.database import get_db
 from app.core.mongo_utils import next_id
 from app.core.security import get_current_user, require_role
 from app.core.audit import log_action
-from app.core.permissions import MODULES, DEFAULT_PERMS, get_role_permissions as _effective_perms
+from app.core.permissions import MODULES, DEFAULT_PERMS, FULL_ACCESS_ROLES, get_role_permissions as _effective_perms
 
 router = APIRouter()
 
 ROLES = ["Admin", "Manager", "Finance User", "Employee", "Viewer"]
 
 # Access Control / Roles & Permissions / Audit Log / Settings / User Mgmt (mutations) are
-# deliberately NOT part of this dynamic matrix — they stay hardcoded Admin-only in their own
-# routers, so the tool that controls permissions can never be reconfigured by a non-Admin.
+# deliberately NOT part of this dynamic matrix — they stay hardcoded Admin/Manager-only in
+# their own routers, so the tool that controls permissions can never be reconfigured by
+# Finance User/Employee/Viewer. Saving here for "Admin" or "Manager" is a no-op anyway —
+# get_role_permissions() short-circuits both to full access regardless of what's stored.
 
 
 class ModulePerm(BaseModel):
@@ -33,7 +35,7 @@ class RolePermSave(BaseModel):
     permissions: List[ModulePerm]
 
 
-@router.get("/{role}", dependencies=[Depends(require_role("Admin"))])
+@router.get("/{role}", dependencies=[Depends(require_role("Admin", "Manager"))])
 def get_role_permissions(role: str, db: Database = Depends(get_db)):
     if role not in ROLES:
         raise HTTPException(400, f"role must be one of {ROLES}")
@@ -43,14 +45,21 @@ def get_role_permissions(role: str, db: Database = Depends(get_db)):
     return [{"module": m, **effective[m]} for m in MODULES]
 
 
-@router.post("/", dependencies=[Depends(require_role("Admin"))])
+@router.post("/", dependencies=[Depends(require_role("Admin", "Manager"))])
 def save_role_permissions(payload: RolePermSave, db: Database = Depends(get_db), cu=Depends(get_current_user)):
     if payload.role not in ROLES:
         raise HTTPException(400, f"role must be one of {ROLES}")
     db[collections.ROLE_PERMISSIONS].delete_many({"role": payload.role})
     for p in payload.permissions:
         pid = next_id(db, collections.ROLE_PERMISSIONS)
-        db[collections.ROLE_PERMISSIONS].insert_one({"_id": pid, "id": pid, "role": payload.role, **p.dict()})
+        doc = {"_id": pid, "id": pid, "role": payload.role, **p.dict()}
+        # Deletion authority stays exclusive to FULL_ACCESS_ROLES, always — reject any
+        # attempt to persist delete=True for another role rather than silently accepting
+        # then ignoring it (get_role_permissions() forces this too, this just keeps
+        # stored data honest).
+        if payload.role not in FULL_ACCESS_ROLES:
+            doc["delete"] = False
+        db[collections.ROLE_PERMISSIONS].insert_one(doc)
     log_action(db, user=cu.name, action="UPDATE", module="Roles & Permissions", record_id=payload.role,
                detail=f"Updated permissions for {payload.role}")
     return {"message": "Permissions saved"}

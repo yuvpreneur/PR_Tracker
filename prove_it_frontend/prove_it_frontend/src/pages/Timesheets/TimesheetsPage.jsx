@@ -3,10 +3,10 @@ import useTimesheets from './useTimesheets.js';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
-import { date } from '../../bridge/shared/ui.js';
-import { get } from '../../bridge/core/http.js';
-import { can, canCreateOnPage, isMine } from '../../bridge/shared/permissions.js';
-import { openModal, startCreate } from '../../bridge/shared/modals.js';
+import { date } from '../../utils/format.js';
+import { get } from '../../services/httpClient.js';
+import usePermissions from '../../hooks/usePermissions.js';
+import { openModal, startCreate, resetFields } from '../../bridge/shared/modals.js';
 
 // project_id/billing_code_id are rendered raw (not joined to a name) — mirrors the
 // legacy loadTimesheets(), which does the same (unlike Billing/Project Codes' pages).
@@ -22,6 +22,7 @@ const COLUMNS = [
 ];
 
 export default function TimesheetsPage() {
+  const { can, canCreateOnPage, isMine, noActionsColumn } = usePermissions();
   const [period, setPeriod] = useState('');
   const [projectId, setProjectId] = useState('');
   const [billingCodeId, setBillingCodeId] = useState('');
@@ -38,6 +39,7 @@ export default function TimesheetsPage() {
   const { timesheets, loading } = useTimesheets({ period, projectId, billingCodeId, status, search });
 
   const handleNew = () => {
+    resetFields('modal-timesheet');
     startCreate('page-timesheets');
     openModal('modal-timesheet');
   };
@@ -106,6 +108,7 @@ export default function TimesheetsPage() {
           canEdit={canEditRow}
           canDelete={canDeleteRow}
           renderExtraActions={renderExtraActions}
+          hideActionsColumn={noActionsColumn('timesheets')}
           emptyMessage={loading ? 'Loading…' : 'No records found'}
         />
       </div>

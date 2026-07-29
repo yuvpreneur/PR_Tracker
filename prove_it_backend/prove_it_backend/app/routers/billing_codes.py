@@ -8,6 +8,7 @@ from app.core.database import get_db
 from app.core.mongo_utils import like
 from app.core.security import get_current_user, require_permission
 from app.core.audit import log_action
+from app.core.permissions import assigned_project_ids
 
 router = APIRouter()
 
@@ -52,6 +53,23 @@ def list_codes(project_id: Optional[str] = Query(None), billing_type: Optional[s
     if project_id: query["project_id"] = project_id
     if billing_type: query["billing_type"] = billing_type
     if search: query["code"] = like(search)
+
+    # Each billing code belongs to exactly one project — reuses the same Access Control ->
+    # Assigned Projects allow-list as Projects itself (see assigned_project_ids()) rather
+    # than a separate Billing Codes assignment list, since being assigned a project already
+    # implies seeing that project's codes.
+    # Finance User is the one exception: billing codes/rates are their module to own (see
+    # DEFAULT_PERMS's "Finance User" comment in app/core/permissions.py), so — same as
+    # Admin/Manager — they see every billing code unrestricted rather than only their
+    # assigned projects'. Projects/Companies/Project Codes stay project-scoped for them.
+    assigned_ids = None if cu.role == "Finance User" else assigned_project_ids(db, cu)
+    if assigned_ids is not None:
+        if project_id is not None:
+            if project_id not in assigned_ids:
+                return []
+        else:
+            query["project_id"] = {"$in": assigned_ids}
+
     return [_out(b) for b in db[collections.BILLING_CODES].find(query)]
 
 

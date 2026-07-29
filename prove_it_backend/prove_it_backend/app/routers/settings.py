@@ -55,7 +55,6 @@ DEFAULT_NOTIF_ITEMS = [
     {"label": "Pending approvals reminder", "in_app": True, "email": True},
     {"label": "Overdue receivables alert", "in_app": True, "email": False},
     {"label": "Project deadline reminder", "in_app": True, "email": False},
-    {"label": "Missing attendance reminder", "in_app": True, "email": False},
 ]
 
 DEFAULT_WORKFLOW = ApprovalWorkflowSettings().dict()
@@ -77,12 +76,12 @@ def _save_section(db: Database, section_id: str, data: dict):
 
 # ── Company Profile ───────────────────────────────────────────────────────────
 
-@router.get("/profile", dependencies=[Depends(require_role("Admin"))])
+@router.get("/profile", dependencies=[Depends(require_role("Admin", "Manager"))])
 def get_profile(db: Database = Depends(get_db)):
     return _get_section(db, "profile", DEFAULT_PROFILE)
 
 
-@router.patch("/profile", dependencies=[Depends(require_role("Admin"))])
+@router.patch("/profile", dependencies=[Depends(require_role("Admin", "Manager"))])
 def save_profile(payload: ProfileSettings, db: Database = Depends(get_db), cu=Depends(get_current_user)):
     _save_section(db, "profile", payload.dict())
     log_action(db, user=cu.name, action="UPDATE", module="Settings", record_id="profile", detail="Company profile updated")
@@ -91,13 +90,13 @@ def save_profile(payload: ProfileSettings, db: Database = Depends(get_db), cu=De
 
 # ── Notifications ─────────────────────────────────────────────────────────────
 
-@router.get("/notifications", dependencies=[Depends(require_role("Admin"))])
+@router.get("/notifications", dependencies=[Depends(require_role("Admin", "Manager"))])
 def get_notifications(db: Database = Depends(get_db)):
     section = _get_section(db, "notifications", {"items": DEFAULT_NOTIF_ITEMS})
     return section.get("items", DEFAULT_NOTIF_ITEMS)
 
 
-@router.patch("/notifications", dependencies=[Depends(require_role("Admin"))])
+@router.patch("/notifications", dependencies=[Depends(require_role("Admin", "Manager"))])
 def save_notifications(payload: NotificationSettings, db: Database = Depends(get_db), cu=Depends(get_current_user)):
     _save_section(db, "notifications", {"items": [i.dict() for i in payload.items]})
     log_action(db, user=cu.name, action="UPDATE", module="Settings", record_id="notifications", detail="Notification preferences updated")
@@ -106,12 +105,12 @@ def save_notifications(payload: NotificationSettings, db: Database = Depends(get
 
 # ── Approval Workflow ─────────────────────────────────────────────────────────
 
-@router.get("/approval-workflow", dependencies=[Depends(require_role("Admin"))])
+@router.get("/approval-workflow", dependencies=[Depends(require_role("Admin", "Manager"))])
 def get_approval_workflow(db: Database = Depends(get_db)):
     return _get_section(db, "approval_workflow", DEFAULT_WORKFLOW)
 
 
-@router.patch("/approval-workflow", dependencies=[Depends(require_role("Admin"))])
+@router.patch("/approval-workflow", dependencies=[Depends(require_role("Admin", "Manager"))])
 def save_approval_workflow(payload: ApprovalWorkflowSettings, db: Database = Depends(get_db), cu=Depends(get_current_user)):
     _save_section(db, "approval_workflow", payload.dict())
     log_action(db, user=cu.name, action="UPDATE", module="Settings", record_id="approval_workflow", detail="Approval workflow updated")
@@ -120,12 +119,12 @@ def save_approval_workflow(payload: ApprovalWorkflowSettings, db: Database = Dep
 
 # ── Backup config (schedule/retention prefs — separate from the export/restore actions below) ──
 
-@router.get("/backup-config", dependencies=[Depends(require_role("Admin"))])
+@router.get("/backup-config", dependencies=[Depends(require_role("Admin", "Manager"))])
 def get_backup_config(db: Database = Depends(get_db)):
     return _get_section(db, "backup_config", DEFAULT_BACKUP_CONFIG)
 
 
-@router.patch("/backup-config", dependencies=[Depends(require_role("Admin"))])
+@router.patch("/backup-config", dependencies=[Depends(require_role("Admin", "Manager"))])
 def save_backup_config(payload: BackupConfigSettings, db: Database = Depends(get_db), cu=Depends(get_current_user)):
     _save_section(db, "backup_config", payload.dict())
     log_action(db, user=cu.name, action="UPDATE", module="Settings", record_id="backup_config", detail="Backup configuration updated")
@@ -138,7 +137,7 @@ def save_backup_config(payload: BackupConfigSettings, db: Database = Depends(get
 # collection keys actually present in the uploaded file — it does not wipe collections
 # the file doesn't mention.
 
-@router.get("/backup/export", dependencies=[Depends(require_role("Admin"))])
+@router.get("/backup/export", dependencies=[Depends(require_role("Admin", "Manager"))])
 def export_backup(db: Database = Depends(get_db), cu=Depends(get_current_user)):
     data = {name: list(db[name].find()) for name in collections.ALL_COLLECTIONS}
     data["counters"] = list(db["counters"].find())
@@ -159,7 +158,7 @@ def export_backup(db: Database = Depends(get_db), cu=Depends(get_current_user)):
     )
 
 
-@router.post("/backup/restore", dependencies=[Depends(require_role("Admin"))])
+@router.post("/backup/restore", dependencies=[Depends(require_role("Admin", "Manager"))])
 def restore_backup(file: UploadFile = File(...), db: Database = Depends(get_db), cu=Depends(get_current_user)):
     raw = file.file.read()
     try:

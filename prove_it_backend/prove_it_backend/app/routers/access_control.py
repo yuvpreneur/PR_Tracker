@@ -1,3 +1,5 @@
+import re
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pymongo.database import Database
 from pydantic import BaseModel
@@ -7,6 +9,7 @@ from app.core.database import get_db
 from app.core.mongo_utils import next_id
 from app.core.security import get_current_user, require_role
 from app.core.audit import log_action
+from app.core.notifications import notify
 from app.core.permissions import (
     MODULES, get_role_permissions, effective_view_default, own_emp_id,
 )
@@ -17,11 +20,14 @@ router = APIRouter()
 def _role_for_emp(db: Database, emp_id: str) -> Optional[str]:
     """An employee's real login role (Users.role, matched by name) — the same role every
     other permission check in the app uses, not the separate (and not always in sync)
-    Employees.role field."""
+    Employees.role field. Case-insensitive for the same reason as my_emp_ids() in
+    app/core/permissions.py — User.name and Employees.name are independently typed and
+    have been found to differ only in case for real accounts."""
     emp = db[collections.EMPLOYEES].find_one({"_id": emp_id})
     if not emp:
         return None
-    user = db[collections.USERS].find_one({"name": emp["name"]})
+    pattern = f"^{re.escape(emp['name'])}$"
+    user = db[collections.USERS].find_one({"name": {"$regex": pattern, "$options": "i"}})
     return user["role"] if user else emp.get("role")
 
 
@@ -38,8 +44,14 @@ class ProjPermUpdate(BaseModel):
 
 
 class AccessReqCreate(BaseModel):
-    page: str
+    # "page" requests grant a controlled module/page (Timesheets, Reports, ...); "project"
+    # requests grant a specific project (Assigned Projects). `project` stays a free-text
+    # context label for page requests ("which project is this for") — it's display-only,
+    # never a grant target. `project_id` is the real target for a project-type request.
+    request_type: str = "page"
+    page: Optional[str] = None
     project: Optional[str] = None
+    project_id: Optional[str] = None
     reason: Optional[str] = None
 
 
@@ -47,22 +59,9 @@ class ReqAction(BaseModel):
     pass
 
 
-class LeadProjectSettingCreate(BaseModel):
-    project_id: str
-    default_stage: str = "New"
-
-
-class CustomPageCreate(BaseModel):
-    name: str
-    icon: Optional[str] = None
-    visibility: str = "Admin only"
-    projects: List[str] = []
-    initial_access: List[str] = []
-
-
 # ── Page Permissions ──────────────────────────────────────────────────────────
 
-@router.get("/pages/{emp_id}", dependencies=[Depends(require_role("Admin"))])
+@router.get("/pages/{emp_id}", dependencies=[Depends(require_role("Admin", "Manager"))])
 def get_page_permissions(emp_id: str, db: Database = Depends(get_db)):
     # Always return every controlled module, defaulting an unconfigured one to what this
     # employee's role *already* effectively grants them (self-service-aware) — not blank/
@@ -78,8 +77,10 @@ def get_page_permissions(emp_id: str, db: Database = Depends(get_db)):
     ]
 
 
-@router.post("/pages", dependencies=[Depends(require_role("Admin"))])
+@router.post("/pages", dependencies=[Depends(require_role("Admin", "Manager"))])
 def set_page_permissions(payload: PagePermUpdate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    if not db[collections.EMPLOYEES].find_one({"_id": payload.emp_id}):
+        raise HTTPException(404, "Employee not found")
     # Delete existing, re-insert
     db[collections.PAGE_PERMISSIONS].delete_many({"emp_id": payload.emp_id})
     for item in payload.permissions:
@@ -94,24 +95,28 @@ def set_page_permissions(payload: PagePermUpdate, db: Database = Depends(get_db)
 
 # ── Project Permissions ───────────────────────────────────────────────────────
 
-@router.get("/projects/{emp_id}", dependencies=[Depends(require_role("Admin"))])
+@router.get("/projects/{emp_id}", dependencies=[Depends(require_role("Admin", "Manager"))])
 def get_project_permissions(emp_id: str, db: Database = Depends(get_db)):
-    # Same "reflect true current access, don't default to unchecked" reasoning as
-    # get_page_permissions() above. Every role currently sees every project (nothing has
-    # ever scoped the Projects list before now — see list_projects() in projects.py), so
-    # an employee with NO saved rows yet defaults every project to allowed=True. Once ANY
-    # row has been explicitly saved for them, an unmentioned project defaults to False —
-    # curation has started, so from then on assignment is opt-in per project.
+    # Restrict-by-default (see assigned_project_ids() in app/core/permissions.py): an
+    # employee with no saved rows yet has NO access, so every project defaults to
+    # unchecked here too — this checklist must reflect their real current access.
     saved = {p["project_id"]: p["allowed"] for p in db[collections.PROJECT_PERMISSIONS].find({"emp_id": emp_id})}
-    unrestricted = not saved
     return [
-        {"project_id": p["_id"], "allowed": saved.get(p["_id"], unrestricted)}
+        {"project_id": p["_id"], "allowed": saved.get(p["_id"], False)}
         for p in db[collections.PROJECTS].find()
     ]
 
 
-@router.post("/projects", dependencies=[Depends(require_role("Admin"))])
+@router.post("/projects", dependencies=[Depends(require_role("Admin", "Manager"))])
 def set_project_permissions(payload: ProjPermUpdate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    if not db[collections.EMPLOYEES].find_one({"_id": payload.emp_id}):
+        raise HTTPException(404, "Employee not found")
+    project_ids = [item["project_id"] for item in payload.permissions]
+    if project_ids:
+        found = {p["_id"] for p in db[collections.PROJECTS].find({"_id": {"$in": project_ids}}, {"_id": 1})}
+        missing = set(project_ids) - found
+        if missing:
+            raise HTTPException(400, f"Unknown project id(s): {', '.join(sorted(missing))}")
     db[collections.PROJECT_PERMISSIONS].delete_many({"emp_id": payload.emp_id})
     for item in payload.permissions:
         pid = next_id(db, collections.PROJECT_PERMISSIONS)
@@ -125,23 +130,46 @@ def set_project_permissions(payload: ProjPermUpdate, db: Database = Depends(get_
 
 # ── Access Requests ───────────────────────────────────────────────────────────
 
-def _req_out(r: dict):
+def _req_out(r: dict, project_name: str = None):
     return {
         "id": r["id"], "requester": r["requester"], "emp_id": r.get("emp_id"),
-        "page": r["page"], "project": r["project"], "reason": r["reason"], "status": r["status"],
+        "request_type": r.get("request_type", "page"),
+        "page": r.get("page"), "project": r.get("project"),
+        "project_id": r.get("project_id"), "project_name": project_name,
+        "reason": r["reason"], "status": r["status"],
     }
 
 
-@router.get("/requests", dependencies=[Depends(require_role("Admin"))])
+@router.get("/requests", dependencies=[Depends(require_role("Admin", "Manager"))])
 def list_requests(status: Optional[str] = Query(None), db: Database = Depends(get_db)):
     query = {}
     if status: query["status"] = status
-    rows = db[collections.ACCESS_REQUESTS].find(query)
-    return [_req_out(r) for r in rows]
+    rows = list(db[collections.ACCESS_REQUESTS].find(query))
+    proj_ids = {r["project_id"] for r in rows if r.get("project_id")}
+    names = {p["_id"]: p["name"] for p in db[collections.PROJECTS].find({"_id": {"$in": list(proj_ids)}})}
+    return [_req_out(r, names.get(r.get("project_id"))) for r in rows]
+
+
+@router.get("/requestable-projects")
+def list_requestable_projects(db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    """Every project, unfiltered by this user's current Assigned Projects scoping — used
+    only to populate the "which project do I need access to" picker, so someone can
+    request a project they can't yet see. Id/name only, no financial fields."""
+    return [{"id": p["_id"], "name": p["name"]} for p in db[collections.PROJECTS].find()]
 
 
 @router.post("/requests")
 def submit_request(payload: AccessReqCreate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    if payload.request_type not in ("page", "project"):
+        raise HTTPException(400, "request_type must be 'page' or 'project'")
+    if payload.request_type == "page" and not payload.page:
+        raise HTTPException(400, "page is required for a page access request")
+    if payload.request_type == "project":
+        if not payload.project_id:
+            raise HTTPException(400, "project_id is required for a project access request")
+        if not db[collections.PROJECTS].find_one({"_id": payload.project_id}):
+            raise HTTPException(404, "Project not found")
+
     # requester/emp_id are always the logged-in user's own identity — never client-supplied
     # (same reasoning as Timesheets: a spoofable "who is this for" field would let anyone
     # request access on someone else's behalf).
@@ -152,22 +180,39 @@ def submit_request(payload: AccessReqCreate, db: Database = Depends(get_db), cu=
         **payload.dict(),
     }
     db[collections.ACCESS_REQUESTS].insert_one(doc)
-    log_action(db, user=cu.name, action="CREATE", module="Access Control", record_id=str(rid), detail=f"Access requested for {doc['page']}")
+    target = doc["page"] if doc["request_type"] == "page" else f"project {doc['project_id']}"
+    log_action(db, user=cu.name, action="CREATE", module="Access Control", record_id=str(rid), detail=f"Access requested for {target}")
     return _req_out(doc)
 
 
-@router.post("/requests/{req_id}/approve", dependencies=[Depends(require_role("Admin"))])
+@router.post("/requests/{req_id}/approve", dependencies=[Depends(require_role("Admin", "Manager"))])
 def approve_request(req_id: int, db: Database = Depends(get_db), cu=Depends(get_current_user)):
     r = db[collections.ACCESS_REQUESTS].find_one({"_id": req_id})
     if not r: raise HTTPException(404, "Request not found")
     db[collections.ACCESS_REQUESTS].update_one({"_id": req_id}, {"$set": {"status": "Approved"}})
 
     # Actually grant what was requested — not just flip the status badge. Only possible
-    # when the requester has a real employee record and the page is one of the controlled
-    # modules (a request for e.g. "Dashboard" has nothing to grant — always visible anyway).
-    detail = f"Approved {r['page']} for {r['requester']}"
+    # when the requester has a real employee record.
     emp_id = r.get("emp_id")
-    if emp_id and r["page"] in MODULES:
+    request_type = r.get("request_type", "page")
+
+    if request_type == "project" and emp_id and r.get("project_id"):
+        # Note: PROJECT_PERMISSIONS' own semantics apply here same as a manual Access
+        # Control grant (see get_project_permissions()) — an employee with NO rows yet is
+        # unrestricted (sees every project); inserting this first row switches them to an
+        # explicit allow-list, so every OTHER project they could previously see now needs
+        # its own row too. Same tradeoff as an Admin manually checking one box for a
+        # previously-unrestricted employee; not special-cased here.
+        existing = db[collections.PROJECT_PERMISSIONS].find_one({"emp_id": emp_id, "project_id": r["project_id"]})
+        if existing:
+            db[collections.PROJECT_PERMISSIONS].update_one({"_id": existing["_id"]}, {"$set": {"allowed": True}})
+        else:
+            pid = next_id(db, collections.PROJECT_PERMISSIONS)
+            db[collections.PROJECT_PERMISSIONS].insert_one(
+                {"_id": pid, "id": pid, "emp_id": emp_id, "project_id": r["project_id"], "allowed": True}
+            )
+        detail = f"Approved project access to {r['project_id']} for {r['requester']} — project access granted"
+    elif request_type == "page" and emp_id and r.get("page") in MODULES:
         existing = db[collections.PAGE_PERMISSIONS].find_one({"emp_id": emp_id, "page": r["page"]})
         if existing:
             db[collections.PAGE_PERMISSIONS].update_one({"_id": existing["_id"]}, {"$set": {"allowed": True}})
@@ -176,61 +221,28 @@ def approve_request(req_id: int, db: Database = Depends(get_db), cu=Depends(get_
             db[collections.PAGE_PERMISSIONS].insert_one(
                 {"_id": pid, "id": pid, "emp_id": emp_id, "page": r["page"], "allowed": True}
             )
-        detail += " — page access granted"
+        detail = f"Approved {r['page']} for {r['requester']} — page access granted"
     else:
-        detail += " — status only (no employee record or not a grantable page)"
+        detail = f"Approved request for {r['requester']} — status only (no employee record or not a grantable target)"
 
     log_action(db, user=cu.name, action="APPROVE", module="Access Control", record_id=str(req_id), detail=detail)
+    target = r["page"] if request_type == "page" else f"project {r.get('project_id')}"
+    notify(
+        db, recipient=r["requester"], module="Access Control", record_id=req_id, status="Approved",
+        message=f"Your access request for {target} was approved.",
+    )
     return {"message": "Request approved"}
 
 
-@router.post("/requests/{req_id}/reject", dependencies=[Depends(require_role("Admin"))])
+@router.post("/requests/{req_id}/reject", dependencies=[Depends(require_role("Admin", "Manager"))])
 def reject_request(req_id: int, db: Database = Depends(get_db), cu=Depends(get_current_user)):
     r = db[collections.ACCESS_REQUESTS].find_one({"_id": req_id})
     if not r: raise HTTPException(404, "Request not found")
     db[collections.ACCESS_REQUESTS].update_one({"_id": req_id}, {"$set": {"status": "Rejected"}})
-    log_action(db, user=cu.name, action="REJECT", module="Access Control", record_id=str(req_id), detail=f"Rejected {r['page']} for {r['requester']}")
+    target = r["page"] if r.get("request_type", "page") == "page" else f"project {r.get('project_id')}"
+    log_action(db, user=cu.name, action="REJECT", module="Access Control", record_id=str(req_id), detail=f"Rejected {target} for {r['requester']}")
+    notify(
+        db, recipient=r["requester"], module="Access Control", record_id=req_id, status="Rejected",
+        message=f"Your access request for {target} was rejected.",
+    )
     return {"message": "Request rejected"}
-
-
-# ── Lead Management Project Settings ──────────────────────────────────────────
-# Saved reference config only — does not gate what a user can actually pick when creating/editing a lead.
-
-@router.get("/lead-project-settings", dependencies=[Depends(require_role("Admin"))])
-def list_lead_project_settings(db: Database = Depends(get_db)):
-    rows = db[collections.LEAD_PROJECT_SETTINGS].find()
-    return [{"id": r["id"], "project_id": r["project_id"], "default_stage": r["default_stage"]} for r in rows]
-
-
-@router.post("/lead-project-settings", dependencies=[Depends(require_role("Admin"))])
-def upsert_lead_project_setting(payload: LeadProjectSettingCreate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    existing = db[collections.LEAD_PROJECT_SETTINGS].find_one({"project_id": payload.project_id})
-    if existing:
-        db[collections.LEAD_PROJECT_SETTINGS].update_one({"project_id": payload.project_id}, {"$set": {"default_stage": payload.default_stage}})
-    else:
-        pid = next_id(db, collections.LEAD_PROJECT_SETTINGS)
-        db[collections.LEAD_PROJECT_SETTINGS].insert_one({"_id": pid, "id": pid, "project_id": payload.project_id, "default_stage": payload.default_stage})
-    log_action(db, user=cu.name, action="UPDATE", module="Access Control", record_id=payload.project_id, detail=f"Lead Management default stage set to {payload.default_stage}")
-    return {"message": "Saved"}
-
-
-# ── Custom Pages ───────────────────────────────────────────────────────────────
-# Saved config only — does not add a working nav item/page to the running app (the app's page list is fixed).
-
-@router.get("/custom-pages", dependencies=[Depends(require_role("Admin"))])
-def list_custom_pages(db: Database = Depends(get_db)):
-    rows = db[collections.CUSTOM_PAGES].find()
-    return [
-        {"id": r["id"], "name": r["name"], "icon": r["icon"], "visibility": r["visibility"],
-         "projects": r["projects"], "initial_access": r["initial_access"]}
-        for r in rows
-    ]
-
-
-@router.post("/custom-pages", dependencies=[Depends(require_role("Admin"))])
-def create_custom_page(payload: CustomPageCreate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    pid = next_id(db, collections.CUSTOM_PAGES)
-    doc = {"_id": pid, "id": pid, **payload.dict()}
-    db[collections.CUSTOM_PAGES].insert_one(doc)
-    log_action(db, user=cu.name, action="CREATE", module="Access Control", record_id=str(pid), detail=f"Custom page config saved: {doc['name']}")
-    return doc

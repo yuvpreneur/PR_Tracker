@@ -52,10 +52,11 @@ def dashboard_summary(
 
     # Pending approvals count
     pending_ts     = db[collections.TIMESHEETS].count_documents({"status": "Pending"})
-    pending_exp    = db[collections.EXPENSES].count_documents({"status": "Pending"})
-    pending_att    = db[collections.ATTENDANCE].count_documents({"approval_status": "Pending"})
+    # Expenses has two pending stages (Pending -> awaiting Manager, Pending Finance ->
+    # awaiting Finance) — see expenses.py; both count as "pending" here.
+    pending_exp    = db[collections.EXPENSES].count_documents({"status": {"$in": ["Pending", "Pending Finance"]}})
     pending_access = db[collections.ACCESS_REQUESTS].count_documents({"status": "Pending"})
-    pending_total  = pending_ts + pending_exp + pending_att + pending_access
+    pending_total  = pending_ts + pending_exp + pending_access
 
     billable_hrs = sum(t["hours"] for t in ts_all if t["billable"])
     total_hrs    = sum(t["hours"] for t in ts_all)

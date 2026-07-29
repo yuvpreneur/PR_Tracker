@@ -26,6 +26,17 @@ export const post  = (p, b) => _req('POST',  p, b);
 export const patch = (p, b) => _req('PATCH', p, b);
 export const del   = p      => _req('DELETE', p);
 
+// Multipart upload — no Content-Type header, the browser sets the boundary itself.
+export async function uploadFile(path, file) {
+  const form = new FormData();
+  form.append('file', file);
+  const r = await fetch(API_BASE_URL + path, { method: 'POST', headers: { Authorization: `Bearer ${_tok()}` }, body: form });
+  if (r.status === 401) { localStorage.removeItem('token'); location.reload(); return null; }
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) { toast(data.detail || 'Upload failed', 'error'); throw new Error(data.detail); }
+  return data;
+}
+
 export function qs(params) {
   if (!params) return '';
   const p = Object.fromEntries(Object.entries(params).filter(([, v]) => v && v !== ''));

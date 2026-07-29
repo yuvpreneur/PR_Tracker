@@ -1,4 +1,6 @@
+import hashlib
 import os
+import secrets
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 from typing import Optional
@@ -38,6 +40,19 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
+def hash_reset_token(raw_token: str) -> str:
+    """Only this hash is ever persisted — the raw token exists solely in the emailed
+    link, so a database dump can't be replayed into a working reset token."""
+    return hashlib.sha256(raw_token.encode()).hexdigest()
+
+
+def generate_reset_token() -> tuple[str, str]:
+    """Returns (raw_token, token_hash). Mint the raw token into the emailed reset link
+    and store only token_hash — see hash_reset_token()."""
+    raw_token = secrets.token_urlsafe(32)
+    return raw_token, hash_reset_token(raw_token)
+
+
 def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: Database = Depends(get_db),
@@ -58,7 +73,9 @@ def get_current_user(
     user = db[collections.USERS].find_one({"username": username})
     if user is None:
         raise credentials_exception
-    return SimpleNamespace(**user)
+    # Set only on a token minted by POST /auth/view-as — the username of the Admin who
+    # is previewing this account, so /me can surface a "viewing as" banner to them.
+    return SimpleNamespace(**user, view_as_actor=payload.get("actor"))
 
 
 def require_role(*roles: str):

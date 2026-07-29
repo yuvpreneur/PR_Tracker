@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import { get } from '../../bridge/core/http.js';
+import { get } from '../../services/httpClient.js';
 import { state } from '../../bridge/core/state.js';
+import { setNavBadge } from '../../bridge/shared/ui.js';
 
-// No filter bar exists on this page in the legacy markup (unlike Leads) — a
-// single unfiltered fetch, client-side rendering, same as Companies/Projects.
+// Mirrors ServiceDeskPage.jsx's OPEN_STATUSES — tickets still needing action, as opposed
+// to Resolved/Closed/Cancelled — used here only to size the sidebar nav badge.
+const OPEN_STATUSES = ['Open', 'In Progress', 'Waiting Approval'];
+
+// No filter bar exists on this page in the legacy markup — a single unfiltered
+// fetch, client-side rendering, same as Companies/Projects.
 export default function useServiceDesk() {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,6 +19,7 @@ export default function useServiceDesk() {
     // Keeps the legacy `.bridge-edit`/`.bridge-resolve`/`.bridge-close` delegation's
     // row lookup (bridge/index.js, reads state.tickets) in sync with what's on screen.
     state.tickets = rows || [];
+    setNavBadge('service-desk', (rows || []).filter(r => OPEN_STATUSES.includes(r.status)).length);
     setLoading(false);
   }, []);
 
