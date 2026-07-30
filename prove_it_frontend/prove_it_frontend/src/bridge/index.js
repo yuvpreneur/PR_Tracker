@@ -316,11 +316,14 @@ export function initApiBridge() {
     wireAttachZone('modal-expense');
     wireBtn('modal-expense', async () => {
       const id = editId('page-expenses');
+      const modalEl = document.getElementById('modal-expense');
       // Upload the picked receipt (if any) before touching the expense record itself —
-      // if this fails, bail out without creating/updating anything half-done.
+      // if this fails, bail out without creating/updating anything half-done. A file
+      // already uploaded (and OCR'd) via the "Upload File" flow before the modal opened
+      // takes a back seat to a freshly picked one — the user swapped it on purpose.
       const attachInput = document.querySelector('#modal-expense input[data-attach-input]');
       const attachFile = attachInput?.files?.[0];
-      let receipt_url;
+      let receipt_url = modalEl?.dataset.pendingReceiptUrl || undefined;
       if (attachFile) {
         const uploaded = await uploadFile('/api/expenses/attachments', attachFile).catch(() => null);
         if (!uploaded) return;
@@ -352,6 +355,7 @@ export function initApiBridge() {
         await post('/api/expenses', body);
         toast('Expense submitted');
       }
+      if (modalEl) delete modalEl.dataset.pendingReceiptUrl;
       closeModal('modal-expense'); startCreate('page-expenses'); loadExpenses();
     });
 

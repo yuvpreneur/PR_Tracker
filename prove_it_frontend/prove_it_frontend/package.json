@@ -8,9 +8,11 @@
     "@vitejs/plugin-react": "latest",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
+    "pdfjs-dist": "^6.2.108",
     "react": "latest",
     "react-dom": "latest",
     "react-router-dom": "latest",
+    "tesseract.js": "^7.0.0",
     "vite": "latest",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },

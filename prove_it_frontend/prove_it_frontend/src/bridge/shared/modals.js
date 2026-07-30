@@ -56,6 +56,21 @@ export function resetFields(modalId) {
     const label = zone.querySelector('[data-attach-label]');
     if (label) label.textContent = zone.dataset.defaultLabel;
   });
+  delete modal.dataset.pendingReceiptUrl;
+}
+
+// Marks a modal's attach-zone as already having a receipt on file — used when a file was
+// uploaded (and OCR'd) via an "Upload File" flow before the modal even opened, so its own
+// submit handler doesn't need to re-upload the same file again. resetFields() above clears
+// this same as every other field.
+export function setPendingReceipt(modalId, receiptUrl, filename) {
+  const modal = document.getElementById(modalId);
+  if (!modal) return;
+  if (receiptUrl) modal.dataset.pendingReceiptUrl = receiptUrl;
+  else delete modal.dataset.pendingReceiptUrl;
+  const zone = modal.querySelector('.attach-zone[data-default-label]');
+  const label = zone?.querySelector('[data-attach-label]');
+  if (label) label.textContent = filename ? `📄 ${filename} — attached` : zone.dataset.defaultLabel;
 }
 
 export function fillSel(el, items, vk, lk, ph = 'Select…') {

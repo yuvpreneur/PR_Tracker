@@ -52,6 +52,22 @@ export const post  = (p, b) => _req('POST',  p, b);
 export const patch = (p, b) => _req('PATCH', p, b);
 export const del   = p      => _req('DELETE', p);
 
+// Multipart upload — no Content-Type header, the browser sets the boundary itself.
+export async function uploadFile(path, file, _retried = false) {
+  const form = new FormData();
+  form.append('file', file);
+  const r = await fetch(API_BASE_URL + path, { method: 'POST', headers: { Authorization: `Bearer ${_tok()}` }, body: form });
+  if (r.status === 401) {
+    if (!_retried && await _sessionStillValid()) return uploadFile(path, file, true);
+    localStorage.removeItem('token');
+    location.reload();
+    return null;
+  }
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) { toast(data.detail || 'Upload failed', 'error'); throw new Error(data.detail); }
+  return data;
+}
+
 // Attachment endpoints require the same Bearer auth as everything else, so a plain
 // <a href> can't hit them directly — fetch the bytes ourselves and open a blob: URL.
 export async function viewAttachment(path, _retried = false) {
