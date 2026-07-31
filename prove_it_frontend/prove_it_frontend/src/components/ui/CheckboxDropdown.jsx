@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 // A single form-control-styled trigger that opens a checkbox list, instead of always
 // showing every option inline. `options` can be plain strings (getKey/getLabel default to
@@ -35,7 +36,9 @@ export default function CheckboxDropdown({
         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', textAlign: 'left' }}
       >
         <span style={{ color: !staticLabel && selectedCount === 0 ? '#94a3b8' : 'var(--ink)' }}>{summary}</span>
-        <span style={{ fontSize: 10, color: '#94a3b8', marginLeft: 8 }}>{open ? '▲' : '▼'}</span>
+        <span style={{ color: '#94a3b8', marginLeft: 8, display: 'inline-flex' }}>
+          {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </span>
       </button>
 
       {open && (

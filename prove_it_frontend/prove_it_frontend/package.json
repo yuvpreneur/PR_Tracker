@@ -8,6 +8,8 @@
     "@vitejs/plugin-react": "latest",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
+    "lucide": "^1.28.0",
+    "lucide-react": "^1.28.0",
     "pdfjs-dist": "^6.2.108",
     "react": "latest",
     "react-dom": "latest",

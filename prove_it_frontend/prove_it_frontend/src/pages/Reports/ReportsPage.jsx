@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react';
+import { ChartColumn, Search, Download, FileSpreadsheet, FileType, FolderKanban, Users, Wallet, ClipboardList } from 'lucide-react';
 import { REPORTS } from '../../bridge/pages/reports.js';
 import { get } from '../../services/httpClient.js';
 import { state } from '../../bridge/core/state.js';
 import usePermissions from '../../hooks/usePermissions.js';
+import SectionTitle from '../../components/ui/SectionTitle.jsx';
+
+const CATEGORY_ICONS = { 'Project Reports': FolderKanban, 'Employee Reports': Users, 'Financial Reports': Wallet, 'Audit Reports': ClipboardList };
 
 // Report rows keep the exact legacy classes/data-attributes (.perm-row[data-report-key],
 // .report-view-btn, .report-export-wrap > .report-export-btn + .report-export-menu >
@@ -25,13 +29,13 @@ function ReportRow({ reportKey, exportAllowed }) {
     <div className="perm-row" data-report-key={reportKey}>
       <span>{cfg.title}</span>
       <div className="report-export-wrap">
-        <button className="btn btn-ghost btn-sm report-view-btn">📊 View</button>
+        <button className="btn btn-ghost btn-sm report-view-btn"><ChartColumn size={14} /> View</button>
         {exportAllowed && (
           <>
-            <button className="btn btn-ghost btn-sm report-export-btn">↓ Export</button>
+            <button className="btn btn-ghost btn-sm report-export-btn"><Download size={15} /> Export</button>
             <div className="report-export-menu">
-              <button className="report-export-option" data-format="excel">📊 Excel</button>
-              <button className="report-export-option" data-format="pdf">🧾 PDF</button>
+              <button className="report-export-option" data-format="excel"><FileSpreadsheet size={14} /> Excel</button>
+              <button className="report-export-option" data-format="pdf"><FileType size={14} /> PDF</button>
             </div>
           </>
         )}
@@ -71,7 +75,7 @@ export default function ReportsPage() {
 
   return (
     <div>
-      <div className="section-header"><h2>Reports</h2></div>
+      <div className="section-header"><h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><ChartColumn size={22} /> Reports</h2></div>
 
       <div className="filter-bar">
         <select className="form-control" value={projectId} onChange={e => setProjectId(e.target.value)}>
@@ -88,19 +92,22 @@ export default function ReportsPage() {
           <option value="q1_2026">Q1</option>
           <option value="fy_2025_26">FY 2025-26</option>
         </select>
-        <input
-          className="form-control"
-          style={{ flex: 1 }}
-          placeholder="🔍 Search reports…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
+        <div className="relative" style={{ flex: 1, minWidth: 180 }}>
+          <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+          <input
+            className="form-control"
+            style={{ width: '100%', paddingLeft: 32 }}
+            placeholder="Search reports…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className="grid-2">
         {categories.map(cat => (
           <div className="card" key={cat.title}>
-            <div className="card-section-title">{cat.title}</div>
+            <SectionTitle icon={CATEGORY_ICONS[cat.title]}>{cat.title}</SectionTitle>
             {cat.keys
               .filter(k => !q || REPORTS[k].title.toLowerCase().includes(q))
               .map(k => <ReportRow key={k} reportKey={k} exportAllowed={exportAllowed} />)}

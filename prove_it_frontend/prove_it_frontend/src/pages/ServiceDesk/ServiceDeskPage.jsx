@@ -1,8 +1,10 @@
+import { Ticket, ClipboardCheck, Clock, XCircle, Check, X } from 'lucide-react';
 import useServiceDesk from './useServiceDesk.js';
 import { SERVICE_DESK_HERO_HTML, SERVICE_DESK_WORKFLOW_HTML } from './serviceDeskDashboardStatic.js';
 import Badge from '../../components/ui/Badge.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
 import StatCard from '../../components/ui/StatCard.jsx';
+import SectionTitle from '../../components/ui/SectionTitle.jsx';
 import { date } from '../../utils/format.js';
 import usePermissions from '../../hooks/usePermissions.js';
 
@@ -46,7 +48,7 @@ export default function ServiceDeskPage() {
       if (!canManage) return null;
       return (
         <button className="bridge-resolve ml-1 rounded-md px-2.5 py-0.5 text-[11px] text-green" data-page="page-service-desk" data-id={row.id} title="Resolve">
-          ✓ Resolve
+          <Check size={14} /> Resolve
         </button>
       );
     }
@@ -54,7 +56,7 @@ export default function ServiceDeskPage() {
       if (!canManage && !mine) return null;
       return (
         <button className="bridge-close ml-1 rounded-md px-2.5 py-0.5 text-[11px]" data-page="page-service-desk" data-id={row.id} title="Close">
-          Close
+          <X size={14} /> Close
         </button>
       );
     }
@@ -66,19 +68,19 @@ export default function ServiceDeskPage() {
       <div dangerouslySetInnerHTML={{ __html: SERVICE_DESK_HERO_HTML }} />
 
       <div className="mb-5 grid grid-cols-4 gap-4 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1">
-        <StatCard label="Open Tickets" value={loading ? '—' : String(openTickets.length)} sub={loading ? '' : `${highPriorityCount} high priority`} color="var(--color-brand)" />
+        <StatCard label="Open Tickets" value={loading ? '—' : String(openTickets.length)} sub={loading ? '' : `${highPriorityCount} high priority`} color="var(--color-brand)" icon={Ticket} />
         {/* SLA Compliance / Avg Resolution: no real computation behind these yet
             (no resolved-at timestamp, no SLA-met definition) — placeholder values kept
             per request until that data/logic is provided. */}
-        <StatCard label="SLA Compliance" value="0%" sub="+4% this month" color="var(--color-green)" />
-        <StatCard label="Avg Resolution" value="0h" sub="Across all queues" color="var(--color-violet)" />
-        <StatCard label="Cancelled" value={loading ? '—' : String(cancelledCount)} sub="With audit reason" color="var(--color-red)" />
+        <StatCard label="SLA Compliance" value="0%" sub="+4% this month" color="var(--color-green)" icon={ClipboardCheck} />
+        <StatCard label="Avg Resolution" value="0h" sub="Across all queues" color="var(--color-violet)" icon={Clock} />
+        <StatCard label="Cancelled" value={loading ? '—' : String(cancelledCount)} sub="With audit reason" color="var(--color-red)" icon={XCircle} />
       </div>
 
       <div dangerouslySetInnerHTML={{ __html: SERVICE_DESK_WORKFLOW_HTML }} />
 
       <div className="card table-wrap">
-        <div className="card-section-title">Ticket Workbench</div>
+        <SectionTitle icon={Ticket}>Ticket Workbench</SectionTitle>
         <DataTable
           columns={COLUMNS}
           rows={tickets}

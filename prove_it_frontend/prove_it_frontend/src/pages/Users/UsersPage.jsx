@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { UserCog, Plus, Search, Check } from 'lucide-react';
 import useUsers from './useUsers.js';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
@@ -70,7 +71,7 @@ export default function UsersPage() {
         onClick={() => handleApprove(row)}
         title="Approve access"
       >
-        ✓ Approve
+        <Check size={14} /> Approve
       </button>
     )
   );
@@ -78,9 +79,9 @@ export default function UsersPage() {
   return (
     <div>
       <div className="section-header">
-        <h2>User Management</h2>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><UserCog size={22} /> User Management</h2>
         {canCreateOnPage('users') && (
-          <Button variant="primary" onClick={handleNew}>+ Create User</Button>
+          <Button variant="primary" onClick={handleNew}><Plus size={15} /> Create User</Button>
         )}
       </div>
 
@@ -95,13 +96,16 @@ export default function UsersPage() {
           <option value="false">Inactive</option>
           <option value="pending">Pending</option>
         </select>
-        <input
-          className="form-control"
-          style={{ flex: 1 }}
-          placeholder="🔍 Search…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
+        <div className="relative" style={{ flex: 1, minWidth: 180 }}>
+          <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+          <input
+            className="form-control"
+            style={{ width: '100%', paddingLeft: 32 }}
+            placeholder="Search…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className="card table-wrap">

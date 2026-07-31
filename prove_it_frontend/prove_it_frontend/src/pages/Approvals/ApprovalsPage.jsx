@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
+import { ClipboardCheck, Clock, Receipt, CalendarDays, KeyRound, Check, X, Eye } from 'lucide-react';
 import useApprovals from './useApprovals.js';
 import StatCard from '../../components/ui/StatCard.jsx';
+import SectionTitle from '../../components/ui/SectionTitle.jsx';
 import { date, num } from '../../utils/format.js';
 import usePermissions from '../../hooks/usePermissions.js';
 
@@ -58,7 +60,7 @@ export default function ApprovalsPage() {
   return (
     <div>
       <div className="section-header">
-        <h2>Approval Dashboard</h2>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><ClipboardCheck size={22} /> Approval Dashboard</h2>
         <select id="appr-type-filter" className="form-control" style={{ width: 'auto' }} value={filter} onChange={e => setFilter(e.target.value)}>
           <option value="">All Types</option>
           {!isFinanceUser && <option value="timesheets">Timesheet</option>}
@@ -70,19 +72,19 @@ export default function ApprovalsPage() {
 
       {isFinanceUser ? (
         <div className="mb-5 grid grid-cols-1 gap-4 max-w-xs">
-          <StatCard label="Pending Expenses" value={loading ? '—' : String(counts.expenses)} sub="" color="var(--color-amber)" />
+          <StatCard label="Pending Expenses" value={loading ? '—' : String(counts.expenses)} sub="" color="var(--color-amber)" icon={Receipt} />
         </div>
       ) : (
         <div className="mb-5 grid grid-cols-4 gap-4 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1">
-          <StatCard label="Pending Timesheets" value={loading ? '—' : String(counts.timesheets)} sub="" color="var(--color-accent)" />
-          <StatCard label="Pending Expenses" value={loading ? '—' : String(counts.expenses)} sub="" color="var(--color-amber)" />
-          <StatCard label="Pending Leave" value={loading ? '—' : String(counts.leave)} sub="" color="var(--color-violet)" />
-          <StatCard label="Pending Access Control" value={loading ? '—' : String(counts.access)} sub="" color="var(--color-text2)" />
+          <StatCard label="Pending Timesheets" value={loading ? '—' : String(counts.timesheets)} sub="" color="var(--color-accent)" icon={Clock} />
+          <StatCard label="Pending Expenses" value={loading ? '—' : String(counts.expenses)} sub="" color="var(--color-amber)" icon={Receipt} />
+          <StatCard label="Pending Leave" value={loading ? '—' : String(counts.leave)} sub="" color="var(--color-violet)" icon={CalendarDays} />
+          <StatCard label="Pending Access Control" value={loading ? '—' : String(counts.access)} sub="" color="var(--color-text2)" icon={KeyRound} />
         </div>
       )}
 
       <div className="card">
-        <div className="card-section-title">Pending Approvals</div>
+        <SectionTitle icon={ClipboardCheck}>Pending Approvals</SectionTitle>
         {rows.length === 0 && (
           <div style={{ textAlign: 'center', padding: 32, color: '#94a3b8', fontSize: 13 }}>
             No pending {filter ? (TYPE_LABEL[filter] || filter) : ''} approvals
@@ -108,9 +110,9 @@ export default function ApprovalsPage() {
                 <div className="approval-detail">{detail}</div>
               </div>
               <div className="approval-actions">
-                {canAct && <button className="btn btn-success btn-sm bridge-approve" data-module={row._mod} data-id={row.id}>✓ Approve</button>}
-                {canAct && <button className="btn btn-danger btn-sm bridge-reject" data-module={row._mod} data-id={row.id}>✗ Reject</button>}
-                <button className="btn btn-ghost btn-sm bridge-view" data-module={row._mod} data-id={row.id}>View</button>
+                {canAct && <button className="btn btn-success btn-sm bridge-approve" data-module={row._mod} data-id={row.id}><Check size={14} /> Approve</button>}
+                {canAct && <button className="btn btn-danger btn-sm bridge-reject" data-module={row._mod} data-id={row.id}><X size={14} /> Reject</button>}
+                <button className="btn btn-ghost btn-sm bridge-view" data-module={row._mod} data-id={row.id}><Eye size={14} /> View</button>
               </div>
             </div>
           );

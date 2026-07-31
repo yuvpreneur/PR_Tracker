@@ -1,4 +1,5 @@
 // Modal helpers, field finders, edit state, wireBtn
+import { iconSvg } from './icons.js';
 
 export function openModal(id) {
   if (typeof window.openModal === 'function') window.openModal(id);
@@ -70,7 +71,7 @@ export function setPendingReceipt(modalId, receiptUrl, filename) {
   else delete modal.dataset.pendingReceiptUrl;
   const zone = modal.querySelector('.attach-zone[data-default-label]');
   const label = zone?.querySelector('[data-attach-label]');
-  if (label) label.textContent = filename ? `📄 ${filename} — attached` : zone.dataset.defaultLabel;
+  if (label) label.innerHTML = filename ? `${iconSvg('FileText')} ${filename} — attached` : zone.dataset.defaultLabel;
 }
 
 export function fillSel(el, items, vk, lk, ph = 'Select…') {

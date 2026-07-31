@@ -1,6 +1,8 @@
 import { useRef } from 'react';
+import { Settings as SettingsIcon, Building2, Bell, Workflow, Database, Save, Download, Upload } from 'lucide-react';
 import useSettings from './useSettings.js';
 import Button from '../../components/ui/Button.jsx';
+import SectionTitle from '../../components/ui/SectionTitle.jsx';
 
 export default function SettingsPage() {
   const {
@@ -23,7 +25,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div>
-        <div className="section-header"><h2>Settings</h2></div>
+        <div className="section-header"><h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><SettingsIcon size={22} /> Settings</h2></div>
         <div style={{ padding: 16, color: '#94a3b8', fontSize: 13 }}>Loading…</div>
       </div>
     );
@@ -31,10 +33,10 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <div className="section-header"><h2>Settings</h2></div>
+      <div className="section-header"><h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><SettingsIcon size={22} /> Settings</h2></div>
       <div className="grid-2">
         <div className="card" id="settings-profile-card">
-          <div className="card-section-title">Company Profile</div>
+          <SectionTitle icon={Building2}>Company Profile</SectionTitle>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div className="form-group">
               <label className="form-label">Company Name</label>
@@ -61,13 +63,13 @@ export default function SettingsPage() {
               </select>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <Button variant="primary" onClick={saveProfile}>Save Profile</Button>
+              <Button variant="primary" onClick={saveProfile}><Save size={15} /> Save Profile</Button>
             </div>
           </div>
         </div>
 
         <div className="card">
-          <div className="card-section-title">Notifications</div>
+          <SectionTitle icon={Bell}>Notifications</SectionTitle>
           <div id="notif-rows">
             {notifications.map((item, i) => (
               <div className="notif-row" key={item.label}>
@@ -90,7 +92,7 @@ export default function SettingsPage() {
         </div>
 
         <div className="card" id="settings-workflow-card">
-          <div className="card-section-title">Approval Workflow</div>
+          <SectionTitle icon={Workflow}>Approval Workflow</SectionTitle>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div className="form-group">
               <label className="form-label">Timesheet Approval Levels</label>
@@ -118,13 +120,13 @@ export default function SettingsPage() {
               </select>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <Button variant="primary" onClick={saveWorkflow}>Save Workflow</Button>
+              <Button variant="primary" onClick={saveWorkflow}><Save size={15} /> Save Workflow</Button>
             </div>
           </div>
         </div>
 
         <div className="card" id="settings-backup-card">
-          <div className="card-section-title">Backup &amp; Data</div>
+          <SectionTitle icon={Database}>Backup &amp; Data</SectionTitle>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div className="form-group">
               <label className="form-label">Auto Backup Frequency</label>
@@ -142,9 +144,9 @@ export default function SettingsPage() {
             </div>
             {/* No Save button here — legacy never wires saveBackupConfig() to one either */}
             <div style={{ display: 'flex', gap: 10 }}>
-              <Button variant="ghost" onClick={downloadBackup}>Download Backup</Button>
+              <Button variant="ghost" onClick={downloadBackup}><Download size={15} /> Download Backup</Button>
               <Button variant="ghost" onClick={() => fileInputRef.current?.click()} disabled={restoring}>
-                {restoring ? 'Restoring…' : 'Restore Backup'}
+                <Upload size={15} /> {restoring ? 'Restoring…' : 'Restore Backup'}
               </Button>
               <input
                 ref={fileInputRef}

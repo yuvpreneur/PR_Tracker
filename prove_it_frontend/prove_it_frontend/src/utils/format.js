@@ -2,7 +2,15 @@
 // (Phase 1) — canonical location for new React code. bridge/shared/ui.js keeps its own
 // copy for the still-legacy pages until they're migrated off bridge entirely.
 
+import { CURRENCIES } from './constants.js';
+
 export const date = d => d ? String(d).slice(0, 10) : '—';
+
+export const formatMoney = (amount, currencyCode = 'INR') => {
+  const symbol = CURRENCIES.find(c => c.code === currencyCode)?.symbol || currencyCode + ' ';
+  const n = (Number(amount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${symbol}${n}`;
+};
 
 export const num = n => {
   if (!n) return '0';

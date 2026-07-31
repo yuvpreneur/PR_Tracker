@@ -21,6 +21,7 @@ from app.routers import (
     timesheets,
     expenses,
     receivables,
+    invoices,
     leave,
     tickets,
     approvals,
@@ -65,6 +66,7 @@ app.include_router(hourly_costs.router,   prefix="/api/hourly-costs",   tags=["H
 app.include_router(timesheets.router,     prefix="/api/timesheets",     tags=["Timesheets"])
 app.include_router(expenses.router,       prefix="/api/expenses",       tags=["Expenses"])
 app.include_router(receivables.router,    prefix="/api/receivables",    tags=["Receivables"])
+app.include_router(invoices.router,       prefix="/api/invoices",       tags=["Invoices"])
 app.include_router(leave.router,          prefix="/api/leave",          tags=["Leave"])
 app.include_router(tickets.router,        prefix="/api/tickets",        tags=["Service Desk"])
 app.include_router(approvals.router,      prefix="/api/approvals",      tags=["Approvals"])

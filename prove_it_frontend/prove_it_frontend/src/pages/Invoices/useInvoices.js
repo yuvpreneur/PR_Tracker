@@ -1,32 +1,40 @@
 import { useCallback, useEffect, useState } from 'react';
-import { get } from '../../services/httpClient.js';
-import { state } from '../../bridge/core/state.js';
+import { get, post, patch, del } from '../../services/httpClient.js';
 
-// Invoices is a view+edit layer over the Receivables backend (/api/receivables) —
-// mirrors the legacy loadInvoices(), which reads the same endpoint into state.invoices.
+// Invoices is its own backend resource (/api/invoices) — no longer a view over
+// Receivables. Fully React-owned: no legacy bridge state, no bridge:changed events.
 export default function useInvoices() {
   const [invoices, setInvoices] = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const [rows, projs] = await Promise.all([
-      get('/api/receivables').catch(() => []),
+    const [rows, comps, projs, sum] = await Promise.all([
+      get('/api/invoices').catch(() => []),
+      get('/api/companies').catch(() => []),
       get('/api/projects').catch(() => []),
+      get('/api/invoices/summary').catch(() => null),
     ]);
     setInvoices(rows || []);
+    setCompanies(comps || []);
     setProjects(projs || []);
-    // Keeps the legacy `.bridge-view`/`.bridge-edit` delegation's row lookup
-    // (bridge/index.js, reads state.invoices) in sync with what's on screen.
-    state.invoices = rows || [];
+    setSummary(sum);
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    refresh();
-    document.addEventListener('invoices:changed', refresh);
-    return () => document.removeEventListener('invoices:changed', refresh);
-  }, [refresh]);
+  useEffect(() => { refresh(); }, [refresh]);
 
-  return { invoices, projects, loading, refresh };
+  const createInvoice   = payload => post('/api/invoices', payload).then(r => { refresh(); return r; });
+  const updateInvoice   = (id, payload) => patch(`/api/invoices/${id}`, payload).then(r => { refresh(); return r; });
+  const sendInvoice     = id => post(`/api/invoices/${id}/send`).then(r => { refresh(); return r; });
+  const recordPayment   = (id, amount) => post(`/api/invoices/${id}/payments`, { amount }).then(r => { refresh(); return r; });
+  const voidInvoice     = id => post(`/api/invoices/${id}/void`).then(r => { refresh(); return r; });
+  const deleteInvoice   = id => del(`/api/invoices/${id}`).then(r => { refresh(); return r; });
+
+  return {
+    invoices, companies, projects, summary, loading, refresh,
+    createInvoice, updateInvoice, sendInvoice, recordPayment, voidInvoice, deleteInvoice,
+  };
 }

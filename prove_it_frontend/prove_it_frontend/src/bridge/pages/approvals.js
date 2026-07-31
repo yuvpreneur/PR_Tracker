@@ -3,6 +3,7 @@ import { state } from '../core/state.js';
 import { badge, date, num } from '../shared/ui.js';
 import { openModal } from '../shared/modals.js';
 import { isReactOwned } from '../shared/table.js';
+import { iconSvg } from '../shared/icons.js';
 
 const TYPE_LABEL = { timesheets: 'Timesheet', expenses: 'Expense', leave: 'Leave', access: 'Access Control' };
 const TYPE_COLOR = { Timesheet: '#3b82f6', Expense: '#f59e0b', Leave: '#7c3aed', 'Access Control': '#64748b' };
@@ -47,9 +48,9 @@ export function renderApprovalsTable(filter) {
             <div class="approval-detail">${detail}</div>
           </div>
           <div class="approval-actions">
-            <button class="btn btn-success btn-sm bridge-approve" data-module="${r._mod}" data-id="${r.id}">✓ Approve</button>
-            <button class="btn btn-danger btn-sm bridge-reject" data-module="${r._mod}" data-id="${r.id}">✗ Reject</button>
-            <button class="btn btn-ghost btn-sm bridge-view" data-module="${r._mod}" data-id="${r.id}">View</button>
+            <button class="btn btn-success btn-sm bridge-approve" data-module="${r._mod}" data-id="${r.id}">${iconSvg('Check')} Approve</button>
+            <button class="btn btn-danger btn-sm bridge-reject" data-module="${r._mod}" data-id="${r.id}">${iconSvg('X')} Reject</button>
+            <button class="btn btn-ghost btn-sm bridge-view" data-module="${r._mod}" data-id="${r.id}">${iconSvg('Eye')} View</button>
           </div>
         </div>`;
       }).join('')

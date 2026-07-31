@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ClipboardList, Plus, Download, Search } from 'lucide-react';
 import useAuditLog from './useAuditLog.js';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
@@ -56,13 +57,13 @@ export default function AuditLogPage() {
   return (
     <div>
       <div className="section-header">
-        <h2>Audit Log</h2>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><ClipboardList size={22} /> Audit Log</h2>
         <div style={{ display: 'flex', gap: 10 }}>
           {canCreateOnPage('audit') && (
-            <Button variant="primary" onClick={handleNew}>+ Add Entry</Button>
+            <Button variant="primary" onClick={handleNew}><Plus size={15} /> Add Entry</Button>
           )}
           {canExportOnPage('audit') && (
-            <Button variant="ghost" onClick={handleExport}>↓ Export</Button>
+            <Button variant="ghost" onClick={handleExport}><Download size={15} /> Export</Button>
           )}
         </div>
       </div>
@@ -81,13 +82,16 @@ export default function AuditLogPage() {
           <option value="this_week">This Week</option>
           <option value="this_month">This Month</option>
         </select>
-        <input
-          className="form-control"
-          style={{ flex: 1 }}
-          placeholder="🔍 Search…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
+        <div className="relative" style={{ flex: 1, minWidth: 180 }}>
+          <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+          <input
+            className="form-control"
+            style={{ width: '100%', paddingLeft: 32 }}
+            placeholder="Search…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className="card table-wrap">

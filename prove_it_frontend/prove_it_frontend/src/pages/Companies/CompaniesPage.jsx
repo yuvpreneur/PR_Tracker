@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Building2, Plus, Search } from 'lucide-react';
 import useCompanies from './useCompanies.js';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
@@ -40,9 +41,9 @@ export default function CompaniesPage() {
   return (
     <div>
       <div className="section-header">
-        <h2>Companies</h2>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Building2 size={22} /> Companies</h2>
         {canCreateOnPage('companies') && (
-          <Button variant="primary" onClick={handleNewCompany}>+ New Company</Button>
+          <Button variant="primary" onClick={handleNewCompany}><Plus size={15} /> New Company</Button>
         )}
       </div>
 
@@ -51,13 +52,16 @@ export default function CompaniesPage() {
           <option value="">All Industries</option>
           {industries.map(i => <option key={i} value={i}>{i}</option>)}
         </select>
-        <input
-          className="form-control"
-          style={{ flex: 1, minWidth: 180 }}
-          placeholder="🔍 Search…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
+        <div className="relative" style={{ flex: 1, minWidth: 180 }}>
+          <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+          <input
+            className="form-control"
+            style={{ width: '100%', paddingLeft: 32 }}
+            placeholder="Search…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className="card table-wrap">

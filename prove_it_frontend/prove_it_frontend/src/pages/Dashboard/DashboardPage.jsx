@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import { LayoutDashboard, IndianRupee, Receipt, TrendingUp, ClipboardCheck, FileText, AlertCircle, Clock, Ticket, FolderKanban, PieChart } from 'lucide-react';
 import useDashboardData from './useDashboardData.js';
 import StatCard from '../../components/ui/StatCard.jsx';
+import SectionTitle from '../../components/ui/SectionTitle.jsx';
 import Badge from '../../components/ui/Badge.jsx';
 import { date, num } from '../../utils/format.js';
 import { lineChart, projRows } from '../../bridge/pages/dashboard.js';
@@ -14,7 +16,7 @@ function RevenueCostChart({ monthly }) {
   useEffect(() => { lineChart(monthly, 'bar-chart-1'); }, [monthly]);
   return (
     <div className="card">
-      <div className="card-section-title">Monthly Revenue vs Cost</div>
+      <SectionTitle icon={TrendingUp}>Monthly Revenue vs Cost</SectionTitle>
       <div className="bar-chart" id="bar-chart-1" />
     </div>
   );
@@ -23,7 +25,7 @@ function RevenueCostChart({ monthly }) {
 function ProjectListCard({ title, profit, roleKey }) {
   return (
     <div className="card">
-      <div className="card-section-title">{title}</div>
+      <SectionTitle icon={FolderKanban}>{title}</SectionTitle>
       <div dangerouslySetInnerHTML={{ __html: projRows(profit, roleKey) }} />
     </div>
   );
@@ -45,15 +47,15 @@ function AdminDashboard({ summary, monthly, profit }) {
   return (
     <>
       <div className="stats-row">
-        <StatCard label="Total Revenue" value={'₹' + num(rev)} sub={`${pr.in_progress || 0} active projects`} color="#16A36C" />
-        <StatCard label="Total Expenses" value={'₹' + num(exp)} sub={`${pr.in_progress || 0} projects active`} color="#F59E0B" />
-        <StatCard label="Net Profit" value={'₹' + num(Math.abs(net))} sub={`Margin ${margin}%${net < 0 ? ' (loss)' : ''}`} color="#0086AD" />
-        <StatCard label="Pending Approvals" value={String(summary?.pending_approvals || 0)} sub={`${ts.pending || 0} timesheets pending`} color="#E14D56" />
+        <StatCard label="Total Revenue" value={'₹' + num(rev)} sub={`${pr.in_progress || 0} active projects`} color="#16A36C" icon={IndianRupee} />
+        <StatCard label="Total Expenses" value={'₹' + num(exp)} sub={`${pr.in_progress || 0} projects active`} color="#F59E0B" icon={Receipt} />
+        <StatCard label="Net Profit" value={'₹' + num(Math.abs(net))} sub={`Margin ${margin}%${net < 0 ? ' (loss)' : ''}`} color="#0086AD" icon={TrendingUp} />
+        <StatCard label="Pending Approvals" value={String(summary?.pending_approvals || 0)} sub={`${ts.pending || 0} timesheets pending`} color="#E14D56" icon={ClipboardCheck} />
       </div>
       <div className="grid-2 mb-4">
         <RevenueCostChart monthly={monthly} />
         <div className="card">
-          <div className="card-section-title">Billable vs Non-Billable Hours</div>
+          <SectionTitle icon={Clock}>Billable vs Non-Billable Hours</SectionTitle>
           <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
             <div style={{ flex: 1, textAlign: 'center' }}>
               <div style={{ color: '#16A36C', fontSize: 28, fontWeight: 700 }}>{bHrs.toLocaleString('en-IN')}</div>
@@ -91,15 +93,15 @@ function FinanceDashboard({ summary, monthly, profit }) {
   return (
     <>
       <div className="stats-row">
-        <StatCard label="Total Billed" value={'₹' + num(billed)} sub="Invoice amounts raised" color="#0086AD" />
-        <StatCard label="Total Received" value={'₹' + num(received)} sub="Cash collected" color="#16A36C" />
-        <StatCard label="Outstanding" value={'₹' + num(outstanding)} sub="Unpaid balance" color="#E14D56" />
-        <StatCard label="Total Expenses" value={'₹' + num(expenses)} sub="Approved expenses" color="#F59E0B" />
+        <StatCard label="Total Billed" value={'₹' + num(billed)} sub="Invoice amounts raised" color="#0086AD" icon={FileText} />
+        <StatCard label="Total Received" value={'₹' + num(received)} sub="Cash collected" color="#16A36C" icon={IndianRupee} />
+        <StatCard label="Outstanding" value={'₹' + num(outstanding)} sub="Unpaid balance" color="#E14D56" icon={AlertCircle} />
+        <StatCard label="Total Expenses" value={'₹' + num(expenses)} sub="Approved expenses" color="#F59E0B" icon={Receipt} />
       </div>
       <div className="grid-2 mb-4">
         <RevenueCostChart monthly={monthly} />
         <div className="card">
-          <div className="card-section-title">Revenue Collection Summary</div>
+          <SectionTitle icon={PieChart}>Revenue Collection Summary</SectionTitle>
           <div style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 6 }}>
               <span style={{ color: '#7C92A1' }}>Collection Rate</span>
@@ -155,14 +157,14 @@ function EmployeeDashboard({ employee }) {
   return (
     <>
       <div className="stats-row">
-        <StatCard label="My Hours (All Time)" value={myHrs + 'h'} sub={`${billableHrs}h billable`} color="#16A36C" />
-        <StatCard label="My Expenses" value={'₹' + num(myExpAmt)} sub={`${expenses.length} submissions`} color="#F59E0B" />
-        <StatCard label="Pending Approvals" value={String(pendingTs)} sub="timesheets awaiting review" color="#7357E5" />
-        <StatCard label="Open Tickets" value={String(openTix)} sub={`${tickets.length} raised total`} color="#0086AD" />
+        <StatCard label="My Hours (All Time)" value={myHrs + 'h'} sub={`${billableHrs}h billable`} color="#16A36C" icon={Clock} />
+        <StatCard label="My Expenses" value={'₹' + num(myExpAmt)} sub={`${expenses.length} submissions`} color="#F59E0B" icon={Receipt} />
+        <StatCard label="Pending Approvals" value={String(pendingTs)} sub="timesheets awaiting review" color="#7357E5" icon={ClipboardCheck} />
+        <StatCard label="Open Tickets" value={String(openTix)} sub={`${tickets.length} raised total`} color="#0086AD" icon={Ticket} />
       </div>
       <div className="grid-2 mb-4">
         <div className="card">
-          <div className="card-section-title">My Recent Timesheets</div>
+          <SectionTitle icon={Clock}>My Recent Timesheets</SectionTitle>
           {previewTable(timesheets.slice(0, 6), [
             { key: 'date', header: 'Date', render: r => date(r.entry_date) },
             { key: 'project_id', header: 'Project' },
@@ -171,7 +173,7 @@ function EmployeeDashboard({ employee }) {
           ], 'No timesheets found')}
         </div>
         <div className="card">
-          <div className="card-section-title">My Expenses</div>
+          <SectionTitle icon={Receipt}>My Expenses</SectionTitle>
           {previewTable(expenses.slice(0, 6), [
             { key: 'date', header: 'Date', render: r => date(r.expense_date) },
             { key: 'category', header: 'Category' },
@@ -191,7 +193,7 @@ export default function DashboardPage() {
   return (
     <div>
       <div className="section-header">
-        <h2>Dashboard</h2>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><LayoutDashboard size={22} /> Dashboard</h2>
         <select id="dash-period" className="form-control" style={{ width: 'auto' }} value={period} onChange={e => setPeriod(e.target.value)}>
           <option value="this_month">This Month</option>
           <option value="last_month">Last Month</option>

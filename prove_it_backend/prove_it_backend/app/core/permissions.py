@@ -16,7 +16,7 @@ from app.core import collections
 
 MODULES = [
     "Companies", "Projects", "Project Codes", "Billing Codes", "Employees", "Hourly Costs",
-    "Timesheets", "Expenses", "Leave", "Service Desk", "Receivables",
+    "Timesheets", "Expenses", "Leave", "Service Desk", "Receivables", "Invoices",
     "Reports", "Approvals",
 ]
 
@@ -65,6 +65,7 @@ DEFAULT_PERMS = {
         "Leave":            _flags(),
         "Service Desk":     _flags(),
         "Receivables":      _flags(view=True, create=True, edit=True, export=True),
+        "Invoices":         _flags(view=True, create=True, edit=True, export=True),
         "Reports":          _flags(view=True, export=True),
         "Approvals":        _flags(view=True),
     },
@@ -83,6 +84,7 @@ DEFAULT_PERMS = {
         "Leave":            _flags(),
         "Service Desk":     _flags(),
         "Receivables":      _flags(),
+        "Invoices":         _flags(),
         "Reports":          _flags(),
         "Approvals":        _flags(),
     },
@@ -100,6 +102,7 @@ DEFAULT_PERMS = {
         "Leave":            _flags(view=True, export=True),
         "Service Desk":     _flags(view=True, export=True),
         "Receivables":      _flags(view=True, export=True),
+        "Invoices":         _flags(view=True, export=True),
         "Reports":          _flags(view=True, export=True),
         "Approvals":        _flags(),
     },

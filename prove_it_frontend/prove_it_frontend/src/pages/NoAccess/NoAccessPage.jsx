@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Lock } from 'lucide-react';
 import useNoAccessRequest from './useNoAccessRequest.js';
 import { submitPageAccessRequest } from '../../bridge/pages/accesscontrol.js';
 import Button from '../../components/ui/Button.jsx';
@@ -25,7 +26,7 @@ export default function NoAccessPage() {
 
   return (
     <div className="card no-access-card">
-      <div className="no-access-icon">🔒</div>
+      <div className="no-access-icon"><Lock size={36} strokeWidth={2} /></div>
       <h2 style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-.8px', marginBottom: 8 }}>No access to this page</h2>
       <p style={{ color: 'var(--slate)', fontSize: 14, marginBottom: 18 }}>
         You do not currently have permission to view <strong>{blockedLabel}</strong>. Submit a request to Admin with the project context and reason.

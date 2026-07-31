@@ -8,7 +8,7 @@ import { toast } from '../../utils/toast.js';
 // list — they're always-visible or hardcoded-Admin-only regardless of Page Access.)
 export const PAGES = [
   'Companies', 'Projects', 'Project Codes', 'Billing Codes', 'Employees', 'Hourly Costs',
-  'Timesheets', 'Expenses', 'Leave', 'Service Desk', 'Receivables',
+  'Timesheets', 'Expenses', 'Leave', 'Service Desk', 'Receivables', 'Invoices',
   'Reports', 'Approvals',
 ];
 

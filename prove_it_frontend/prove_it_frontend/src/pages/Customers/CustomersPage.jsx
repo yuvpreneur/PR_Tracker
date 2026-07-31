@@ -1,3 +1,4 @@
+import { Handshake, Plus } from 'lucide-react';
 import useCustomers from './useCustomers.js';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
@@ -25,9 +26,9 @@ export default function CustomersPage() {
   return (
     <div>
       <div className="section-header">
-        <h2>Customers</h2>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Handshake size={22} /> Customers</h2>
         {canCreateOnPage('customers') && (
-          <Button variant="primary" onClick={handleNew}>+ New Customer</Button>
+          <Button variant="primary" onClick={handleNew}><Plus size={15} /> New Customer</Button>
         )}
       </div>
 

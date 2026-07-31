@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { CreditCard, Plus, Search } from 'lucide-react';
 import useBillingCodes from './useBillingCodes.js';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
@@ -47,9 +48,9 @@ export default function BillingCodesPage() {
   return (
     <div>
       <div className="section-header">
-        <h2>Billing Codes</h2>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><CreditCard size={22} /> Billing Codes</h2>
         {canCreateOnPage('billing-codes') && (
-          <Button variant="primary" onClick={handleNew}>+ New Billing Code</Button>
+          <Button variant="primary" onClick={handleNew}><Plus size={15} /> New Billing Code</Button>
         )}
       </div>
 
@@ -64,13 +65,16 @@ export default function BillingCodesPage() {
           <option value="Fixed">Fixed</option>
           <option value="Milestone">Milestone</option>
         </select>
-        <input
-          className="form-control"
-          style={{ flex: 1, minWidth: 180 }}
-          placeholder="🔍 Search…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
+        <div className="relative" style={{ flex: 1, minWidth: 180 }}>
+          <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+          <input
+            className="form-control"
+            style={{ width: '100%', paddingLeft: 32 }}
+            placeholder="Search…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className="card table-wrap">
