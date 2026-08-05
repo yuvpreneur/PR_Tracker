@@ -1,25 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pymongo.database import Database
 from typing import Optional
-from datetime import date, timedelta
+from datetime import date
 from app.core import collections
 from app.core.database import get_db
 from app.core.security import require_permission, get_current_user
+from app.core.reporting import period_range as _period_range, group_by as _group_by, latest_hourly_costs as _latest_hourly_costs
 
 router = APIRouter()
-
-
-def _period_range(period: Optional[str]):
-    today = date.today()
-    if period == "last_month":
-        last = today.replace(day=1) - timedelta(days=1)
-        return last.replace(day=1), last
-    if period == "q1_2026":
-        return date(2026, 1, 1), date(2026, 3, 31)
-    if period == "fy_2025_26":
-        return date(2025, 4, 1), date(2026, 3, 31)
-    # default: this_month
-    return today.replace(day=1), today
 
 
 @router.get("/dashboard", dependencies=[Depends(require_permission("Reports", "view"))])
@@ -101,25 +89,33 @@ def project_profitability(
 
     proj_query = {"id": project_id} if project_id else {}
     projects = list(db[collections.PROJECTS].find(proj_query))
+    project_ids = [p["id"] for p in projects]
+
+    ts_query = {"project_id": {"$in": project_ids}, "status": "Approved"}
+    exp_query = {"project_id": {"$in": project_ids}, "status": "Approved"}
+    recv_query = {"project_id": {"$in": project_ids}}
+    if date_filter:
+        ts_query["entry_date"] = date_filter
+        exp_query["expense_date"] = date_filter
+        recv_query["invoice_date"] = date_filter
+
+    # One batch query per collection instead of one per project, and one shared
+    # emp_id → latest hourly_cost lookup instead of a find_one per timesheet row —
+    # the previous version issued O(projects + timesheet rows) queries here, which
+    # dominated Dashboard/Reports load time since this endpoint runs unfiltered by
+    # project on every load.
+    ts_by_project = _group_by(db[collections.TIMESHEETS].find(ts_query), "project_id")
+    exps_by_project = _group_by(db[collections.EXPENSES].find(exp_query), "project_id")
+    recvs_by_project = _group_by(db[collections.RECEIVABLES].find(recv_query), "project_id")
+    hourly_cost_by_emp = _latest_hourly_costs(db)
+
     rows = []
     for p in projects:
-        ts_query = {"project_id": p["id"], "status": "Approved"}
-        exp_query = {"project_id": p["id"], "status": "Approved"}
-        recv_query = {"project_id": p["id"]}
-        if date_filter:
-            ts_query["entry_date"] = date_filter
-            exp_query["expense_date"] = date_filter
-            recv_query["invoice_date"] = date_filter
-        ts = list(db[collections.TIMESHEETS].find(ts_query))
-        exps = list(db[collections.EXPENSES].find(exp_query))
-        recvs = list(db[collections.RECEIVABLES].find(recv_query))
+        ts = ts_by_project.get(p["id"], [])
+        exps = exps_by_project.get(p["id"], [])
+        recvs = recvs_by_project.get(p["id"], [])
 
-        # Employee cost = hours × hourly cost
-        total_emp_cost = 0
-        for t in ts:
-            hc = db[collections.HOURLY_COSTS].find_one({"emp_id": t["emp_id"]}, sort=[("effective_from", -1)])
-            total_emp_cost += t["hours"] * (hc["hourly_cost"] if hc else 0)
-
+        total_emp_cost = sum(t["hours"] * hourly_cost_by_emp.get(t["emp_id"], 0) for t in ts)
         total_expense = sum(e["amount"] for e in exps)
         total_cost = total_emp_cost + total_expense
         total_revenue = sum(r["received_amount"] for r in recvs)
@@ -202,16 +198,20 @@ def employee_utilization(
     if emp_id:
         emp_query["emp_id"] = emp_id
     employees = list(db[collections.EMPLOYEES].find(emp_query))
+    emp_ids = [e["emp_id"] for e in employees]
+
+    ts_query = {"emp_id": {"$in": emp_ids}, "status": "Approved"}
+    if date_filter:
+        ts_query["entry_date"] = date_filter
+    ts_by_emp = _group_by(db[collections.TIMESHEETS].find(ts_query), "emp_id")
+    hourly_cost_by_emp = _latest_hourly_costs(db)
+
     rows = []
     for e in employees:
-        ts_query = {"emp_id": e["emp_id"], "status": "Approved"}
-        if date_filter:
-            ts_query["entry_date"] = date_filter
-        ts = list(db[collections.TIMESHEETS].find(ts_query))
+        ts = ts_by_emp.get(e["emp_id"], [])
         billable   = sum(t["hours"] for t in ts if t["billable"])
         total      = sum(t["hours"] for t in ts)
-        hc = db[collections.HOURLY_COSTS].find_one({"emp_id": e["emp_id"]}, sort=[("effective_from", -1)])
-        hourly_cost = hc["hourly_cost"] if hc else 0
+        hourly_cost = hourly_cost_by_emp.get(e["emp_id"], 0)
         rows.append({
             "emp_id": e["emp_id"],
             "name": e["name"],

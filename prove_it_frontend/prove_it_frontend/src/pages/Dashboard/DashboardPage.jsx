@@ -31,26 +31,22 @@ function ProjectListCard({ title, profit, roleKey }) {
   );
 }
 
-function AdminDashboard({ summary, monthly, profit }) {
-  const f = summary?.financials || {};
-  const ts = summary?.timesheets || {};
-  const pr = summary?.projects || {};
-  const rev = f.total_revenue_received || 0;
-  const exp = f.total_approved_expenses || 0;
-  const net = f.net_profit ?? (rev - exp);
-  const margin = rev > 0 ? ((net / rev) * 100).toFixed(1) : '0.0';
-  const bHrs = ts.billable_hours || 0;
-  const tHrs = ts.approved_hours || 0;
-  const nbHrs = Math.max(0, tHrs - bHrs);
-  const bPct = tHrs > 0 ? Math.round((bHrs / tHrs) * 100) : 0;
+function AdminDashboard({ revenue, expenses, netProfit, pendingApprovals, billableHours, monthly, profit }) {
+  const rev = revenue?.total_revenue || 0;
+  const exp = expenses?.total_expenses || 0;
+  const net = netProfit?.net_profit ?? (rev - exp);
+  const margin = (netProfit?.margin_pct ?? 0).toFixed(1);
+  const bHrs = billableHours?.billable_hours || 0;
+  const nbHrs = billableHours?.non_billable_hours || 0;
+  const bPct = billableHours?.billable_pct || 0;
 
   return (
     <>
       <div className="stats-row">
-        <StatCard label="Total Revenue" value={'₹' + num(rev)} sub={`${pr.in_progress || 0} active projects`} color="#16A36C" icon={IndianRupee} />
-        <StatCard label="Total Expenses" value={'₹' + num(exp)} sub={`${pr.in_progress || 0} projects active`} color="#F59E0B" icon={Receipt} />
-        <StatCard label="Net Profit" value={'₹' + num(Math.abs(net))} sub={`Margin ${margin}%${net < 0 ? ' (loss)' : ''}`} color="#0086AD" icon={TrendingUp} />
-        <StatCard label="Pending Approvals" value={String(summary?.pending_approvals || 0)} sub={`${ts.pending || 0} timesheets pending`} color="#E14D56" icon={ClipboardCheck} />
+        <StatCard label="Total Revenue" value={'₹' + num(rev)} sub={`${revenue?.active_projects || 0} active projects`} color="#16A36C" icon={IndianRupee} />
+        <StatCard label="Total Expenses" value={'₹' + num(exp)} sub={`${expenses?.active_projects || 0} projects active`} color="#F59E0B" icon={Receipt} />
+        <StatCard label="Net Profit" value={'₹' + num(Math.abs(net))} sub={`Margin ${margin}%${netProfit?.is_loss ? ' (loss)' : ''}`} color="#0086AD" icon={TrendingUp} />
+        <StatCard label="Pending Approvals" value={String(pendingApprovals?.pending_approvals || 0)} sub={`${pendingApprovals?.pending_timesheets || 0} timesheets pending`} color="#E14D56" icon={ClipboardCheck} />
       </div>
       <div className="grid-2 mb-4">
         <RevenueCostChart monthly={monthly} />
@@ -75,13 +71,12 @@ function AdminDashboard({ summary, monthly, profit }) {
   );
 }
 
-function FinanceDashboard({ summary, monthly, profit }) {
-  const f = summary?.financials || {};
-  const billed = f.total_revenue_billed || 0;
-  const received = f.total_revenue_received || 0;
-  const outstanding = f.outstanding || 0;
-  const expenses = f.total_approved_expenses || 0;
-  const collectionPct = billed > 0 ? Math.round((received / billed) * 100) : 0;
+function FinanceDashboard({ billed, received, outstanding, expenses, monthly, profit }) {
+  const billedAmt = billed?.total_billed || 0;
+  const receivedAmt = received?.total_received || 0;
+  const outstandingAmt = outstanding?.outstanding || 0;
+  const expensesAmt = expenses?.total_expenses || 0;
+  const collectionPct = billedAmt > 0 ? Math.round((receivedAmt / billedAmt) * 100) : 0;
 
   const box = (label, value, color) => (
     <div style={{ background: '#f8fafc', borderRadius: 8, padding: 12, textAlign: 'center' }}>
@@ -93,10 +88,10 @@ function FinanceDashboard({ summary, monthly, profit }) {
   return (
     <>
       <div className="stats-row">
-        <StatCard label="Total Billed" value={'₹' + num(billed)} sub="Invoice amounts raised" color="#0086AD" icon={FileText} />
-        <StatCard label="Total Received" value={'₹' + num(received)} sub="Cash collected" color="#16A36C" icon={IndianRupee} />
-        <StatCard label="Outstanding" value={'₹' + num(outstanding)} sub="Unpaid balance" color="#E14D56" icon={AlertCircle} />
-        <StatCard label="Total Expenses" value={'₹' + num(expenses)} sub="Approved expenses" color="#F59E0B" icon={Receipt} />
+        <StatCard label="Total Billed" value={'₹' + num(billedAmt)} sub="Invoice amounts raised" color="#0086AD" icon={FileText} />
+        <StatCard label="Total Received" value={'₹' + num(receivedAmt)} sub="Cash collected" color="#16A36C" icon={IndianRupee} />
+        <StatCard label="Outstanding" value={'₹' + num(outstandingAmt)} sub="Unpaid balance" color="#E14D56" icon={AlertCircle} />
+        <StatCard label="Total Expenses" value={'₹' + num(expensesAmt)} sub="Approved expenses" color="#F59E0B" icon={Receipt} />
       </div>
       <div className="grid-2 mb-4">
         <RevenueCostChart monthly={monthly} />
@@ -110,10 +105,10 @@ function FinanceDashboard({ summary, monthly, profit }) {
             <div className="progress"><div className="progress-bar" style={{ width: `${collectionPct}%`, background: '#16A36C' }} /></div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            {box('Billed', billed, '#0086AD')}
-            {box('Received', received, '#16A36C')}
-            {box('Outstanding', outstanding, '#E14D56')}
-            {box('Expenses', expenses, '#F59E0B')}
+            {box('Billed', billedAmt, '#0086AD')}
+            {box('Received', receivedAmt, '#16A36C')}
+            {box('Outstanding', outstandingAmt, '#E14D56')}
+            {box('Expenses', expensesAmt, '#F59E0B')}
           </div>
         </div>
       </div>
@@ -146,26 +141,27 @@ function previewTable(rows, columns, emptyMessage) {
   );
 }
 
-function EmployeeDashboard({ employee }) {
-  const { timesheets, expenses, tickets } = employee;
-  const myHrs = timesheets.reduce((s, r) => s + (r.hours || 0), 0);
-  const billableHrs = timesheets.filter(r => r.billable).reduce((s, r) => s + (r.hours || 0), 0);
-  const myExpAmt = expenses.reduce((s, r) => s + (r.amount || 0), 0);
-  const pendingTs = timesheets.filter(r => r.status === 'Pending').length;
-  const openTix = tickets.filter(r => ['Open', 'In Progress'].includes(r.status)).length;
+function EmployeeDashboard({ myHours, myExpenses, pendingTimesheets, myTickets, recentTimesheets, recentExpenses }) {
+  const myHrs = myHours?.hours || 0;
+  const billableHrs = myHours?.billable_hours || 0;
+  const myExpAmt = myExpenses?.amount || 0;
+  const expCount = myExpenses?.count || 0;
+  const pendingTs = pendingTimesheets?.count || 0;
+  const openTix = myTickets?.open || 0;
+  const totalTix = myTickets?.total || 0;
 
   return (
     <>
       <div className="stats-row">
         <StatCard label="My Hours (All Time)" value={myHrs + 'h'} sub={`${billableHrs}h billable`} color="#16A36C" icon={Clock} />
-        <StatCard label="My Expenses" value={'₹' + num(myExpAmt)} sub={`${expenses.length} submissions`} color="#F59E0B" icon={Receipt} />
+        <StatCard label="My Expenses" value={'₹' + num(myExpAmt)} sub={`${expCount} submissions`} color="#F59E0B" icon={Receipt} />
         <StatCard label="Pending Approvals" value={String(pendingTs)} sub="timesheets awaiting review" color="#7357E5" icon={ClipboardCheck} />
-        <StatCard label="Open Tickets" value={String(openTix)} sub={`${tickets.length} raised total`} color="#0086AD" icon={Ticket} />
+        <StatCard label="Open Tickets" value={String(openTix)} sub={`${totalTix} raised total`} color="#0086AD" icon={Ticket} />
       </div>
       <div className="grid-2 mb-4">
         <div className="card">
           <SectionTitle icon={Clock}>My Recent Timesheets</SectionTitle>
-          {previewTable(timesheets.slice(0, 6), [
+          {previewTable(recentTimesheets, [
             { key: 'date', header: 'Date', render: r => date(r.entry_date) },
             { key: 'project_id', header: 'Project' },
             { key: 'hours', header: 'Hours', align: 'right', bold: true, render: r => `${r.hours}h` },
@@ -174,7 +170,7 @@ function EmployeeDashboard({ employee }) {
         </div>
         <div className="card">
           <SectionTitle icon={Receipt}>My Expenses</SectionTitle>
-          {previewTable(expenses.slice(0, 6), [
+          {previewTable(recentExpenses, [
             { key: 'date', header: 'Date', render: r => date(r.expense_date) },
             { key: 'category', header: 'Category' },
             { key: 'amount', header: 'Amount', align: 'right', bold: true, render: r => `₹${num(r.amount)}` },
@@ -188,7 +184,8 @@ function EmployeeDashboard({ employee }) {
 
 export default function DashboardPage() {
   const [period, setPeriod] = useState('last_month');
-  const { roleKey, loading, summary, monthly, profit, employee } = useDashboardData(period);
+  const data = useDashboardData(period);
+  const { roleKey, loading, monthly, profit } = data;
 
   return (
     <div>
@@ -205,11 +202,14 @@ export default function DashboardPage() {
       {loading ? (
         <div style={{ padding: 16, color: '#94a3b8', fontSize: 13 }}>Loading…</div>
       ) : roleKey === 'finance' ? (
-        <FinanceDashboard summary={summary} monthly={monthly} profit={profit} />
+        <FinanceDashboard billed={data.billed} received={data.received} outstanding={data.outstanding} expenses={data.expenses} monthly={monthly} profit={profit} />
       ) : roleKey === 'employee' ? (
-        <EmployeeDashboard employee={employee} />
+        <EmployeeDashboard
+          myHours={data.myHours} myExpenses={data.myExpenses} pendingTimesheets={data.pendingTimesheets}
+          myTickets={data.myTickets} recentTimesheets={data.recentTimesheets} recentExpenses={data.recentExpenses}
+        />
       ) : (
-        <AdminDashboard summary={summary} monthly={monthly} profit={profit} />
+        <AdminDashboard revenue={data.revenue} expenses={data.expenses} netProfit={data.netProfit} pendingApprovals={data.pendingApprovals} billableHours={data.billableHours} monthly={monthly} profit={profit} />
       )}
     </div>
   );

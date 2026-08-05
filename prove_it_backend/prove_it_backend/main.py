@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.database import client
+from app.core.database import client, ensure_indexes
 from app.routers import (
     auth,
     users,
@@ -28,6 +28,7 @@ from app.routers import (
     access_control,
     role_permissions,
     reports,
+    dashboard,
     audit_log,
     settings,
     notifications,
@@ -36,6 +37,7 @@ from app.routers import (
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     client.admin.command("ping")  # fail fast if Atlas is unreachable
+    ensure_indexes()
     yield
     client.close()
 
@@ -73,6 +75,7 @@ app.include_router(approvals.router,      prefix="/api/approvals",      tags=["A
 app.include_router(access_control.router, prefix="/api/access-control", tags=["Access Control"])
 app.include_router(role_permissions.router, prefix="/api/role-permissions", tags=["Roles & Permissions"])
 app.include_router(reports.router,        prefix="/api/reports",        tags=["Reports"])
+app.include_router(dashboard.router,      prefix="/api/dashboard",      tags=["Dashboard"])
 app.include_router(audit_log.router,      prefix="/api/audit-log",      tags=["Audit Log"])
 app.include_router(settings.router,       prefix="/api/settings",       tags=["Settings"])
 app.include_router(notifications.router,  prefix="/api/notifications",  tags=["Notifications"])
