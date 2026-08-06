@@ -1,34 +1,23 @@
-import React, { useEffect, useRef } from 'react';
+import React, { Suspense, useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate, Routes, Route, Navigate } from 'react-router-dom';
 import { appHtml, appScript } from './appMarkup.js';
 import { initApiBridge } from '../../bridge/index.js';
+import { canViewPage } from '../../bridge/shared/permissions.js';
 import useAuth from '../../hooks/useAuth.jsx';
-import DashboardBridgeMount from './DashboardBridgeMount.jsx';
-import ReportsBridgeMount from './ReportsBridgeMount.jsx';
-import ProjectsBridgeMount from './ProjectsBridgeMount.jsx';
-import CompaniesBridgeMount from './CompaniesBridgeMount.jsx';
-import ProjectCodesBridgeMount from './ProjectCodesBridgeMount.jsx';
-import BillingCodesBridgeMount from './BillingCodesBridgeMount.jsx';
-import ServiceDeskBridgeMount from './ServiceDeskBridgeMount.jsx';
-import EmployeesBridgeMount from './EmployeesBridgeMount.jsx';
-import HourlyCostsBridgeMount from './HourlyCostsBridgeMount.jsx';
-import TimesheetsBridgeMount from './TimesheetsBridgeMount.jsx';
-import LeaveBridgeMount from './LeaveBridgeMount.jsx';
-import PayrollBridgeMount from './PayrollBridgeMount.jsx';
-import PayslipsBridgeMount from './PayslipsBridgeMount.jsx';
-import ExpensesBridgeMount from './ExpensesBridgeMount.jsx';
-import InvoicesBridgeMount from './InvoicesBridgeMount.jsx';
-import CustomersBridgeMount from './CustomersBridgeMount.jsx';
-import ReceivablesBridgeMount from './ReceivablesBridgeMount.jsx';
-import ApprovalsBridgeMount from './ApprovalsBridgeMount.jsx';
-import UsersBridgeMount from './UsersBridgeMount.jsx';
-import RolesBridgeMount from './RolesBridgeMount.jsx';
-import AccessControlBridgeMount from './AccessControlBridgeMount.jsx';
-import AuditLogBridgeMount from './AuditLogBridgeMount.jsx';
-import SettingsBridgeMount from './SettingsBridgeMount.jsx';
+import { PAGE_COMPONENTS } from './pageManifest.js';
 import NoAccessBridgeMount from './NoAccessBridgeMount.jsx';
+
+// canViewPage reads state.currentUser/permissions/pageOverrides, populated only after
+// initApiBridge()'s init sweep — so this can render NoAccess for an instant on first
+// paint before bridgeReady flips, same as the old PageComponent lookup did.
+function GuardedPage({ pageId, children }) {
+  return canViewPage(pageId) ? children : <NoAccessBridgeMount />;
+}
 
 export default function ReplicaPage() {
   const { logout } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   // Survives React 18 StrictMode's dev-only double-invoke of this effect (mount →
   // cleanup → remount, same component instance) without surviving a genuine
   // unmount+remount (e.g. logout then log back in creates a fresh ref). Without
@@ -38,6 +27,36 @@ export default function ReplicaPage() {
   // for ones that just .remove() a class, but broke the report-export menu's
   // classList.toggle('open') (two toggles on the same click net out to nothing).
   const scriptInjectedRef = useRef(false);
+
+  // Mirrors useBridgeMount.js's own wait for the same event — state.currentUser/
+  // permissions/pageOverrides (read by canViewPage below) aren't populated until
+  // initApiBridge()'s init sweep finishes, so the legacy-nav sync effect below must
+  // not fire before then.
+  const [bridgeReady, setBridgeReady] = useState(() => !!window.__bridgeReady);
+
+  // pageId is derived from the URL for the legacy-nav sync effect below — which page
+  // actually renders is now owned by the <Routes> tree, this is just for keeping
+  // appScript's sidebar highlight in sync. Same bare ids used throughout
+  // (bridge/shared/permissions.js, bridge/index.js's NAV_ICON_MAP, appMarkup.js's nav
+  // onclick="navigate('id')").
+  const pageId = location.pathname.replace(/^\//, '').split('/')[0] || 'dashboard';
+
+  useEffect(() => {
+    if (window.__bridgeReady) return;
+    const onReady = () => setBridgeReady(true);
+    document.addEventListener('bridge:ready', onReady, { once: true });
+    return () => document.removeEventListener('bridge:ready', onReady);
+  }, []);
+
+  // Keeps the legacy sidebar's .nav-item.active/.page.active CSS-class highlight
+  // (still owned by appScript's navigate()) in sync with the URL for cases that
+  // don't go through a nav click — back/forward, refresh, deep link. Nav clicks
+  // themselves flow the other way, via the onNavigate callback passed into
+  // initApiBridge() below, which pushes the matching URL.
+  useEffect(() => {
+    if (!bridgeReady) return;
+    if (typeof window.navigate === 'function') window.navigate(pageId);
+  }, [pageId, bridgeReady]);
 
   useEffect(() => {
     if (!scriptInjectedRef.current) {
@@ -56,8 +75,14 @@ export default function ReplicaPage() {
       const loginScreen = document.getElementById('login-screen');
       if (loginScreen) loginScreen.style.display = 'none';
       if (typeof window.doLogin === 'function') window.doLogin();
-      // Init API bridge after appScript has defined all window.* functions
-      setTimeout(() => initApiBridge(), 200);
+      // Init API bridge after appScript has defined all window.* functions.
+      // onNavigate is called from window.navigate() (see bridge/index.js) whenever
+      // a legacy nav click fires — pushes the matching URL so the browser address
+      // bar and history stay in sync with whatever page the sidebar just switched to.
+      setTimeout(() => initApiBridge((id) => {
+        const path = '/' + id;
+        if (window.location.pathname !== path) navigate(path);
+      }), 200);
     }, 50);
 
     // Override doLogout so the Sign out button clears the JWT and returns to React login
@@ -73,7 +98,7 @@ export default function ReplicaPage() {
       // Restore original navigate/openModal if overridden by bridge
       if (window._origCloseModal) { window.closeModal = window._origCloseModal; delete window._origCloseModal; }
     };
-  }, [logout]);
+  }, [logout, navigate]);
 
   return (
     <>
@@ -81,30 +106,19 @@ export default function ReplicaPage() {
         className="prove-it-replica-root"
         dangerouslySetInnerHTML={{ __html: appHtml }}
       />
-      <DashboardBridgeMount />
-      <ReportsBridgeMount />
-      <ProjectsBridgeMount />
-      <CompaniesBridgeMount />
-      <ProjectCodesBridgeMount />
-      <BillingCodesBridgeMount />
-      <ServiceDeskBridgeMount />
-      <EmployeesBridgeMount />
-      <HourlyCostsBridgeMount />
-      <TimesheetsBridgeMount />
-      <LeaveBridgeMount />
-      <PayrollBridgeMount />
-      <PayslipsBridgeMount />
-      <ExpensesBridgeMount />
-      <InvoicesBridgeMount />
-      <CustomersBridgeMount />
-      <ReceivablesBridgeMount />
-      <ApprovalsBridgeMount />
-      <UsersBridgeMount />
-      <RolesBridgeMount />
-      <AccessControlBridgeMount />
-      <AuditLogBridgeMount />
-      <SettingsBridgeMount />
-      <NoAccessBridgeMount />
+      <Suspense fallback={null}>
+        <Routes>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          {Object.entries(PAGE_COMPONENTS).map(([id, Component]) => (
+            <Route
+              key={id}
+              path={`/${id}`}
+              element={<GuardedPage pageId={id}><Component /></GuardedPage>}
+            />
+          ))}
+          <Route path="*" element={<NoAccessBridgeMount />} />
+        </Routes>
+      </Suspense>
     </>
   );
 }

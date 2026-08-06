@@ -215,7 +215,7 @@ function applyStaticTopbarIcons() {
   }
 }
 
-export function initApiBridge() {
+export function initApiBridge(onNavigate) {
   watchNavIcons();
   watchTopbarTitle();
   watchSidebarToggle();
@@ -680,6 +680,7 @@ export function initApiBridge() {
     if (typeof _origNavigate === 'function') {
       window.navigate = function (id) {
         if (!canViewPage(id)) { showNoAccess(id); return; }
+        onNavigate?.(id);
         return _origNavigate(id);
       };
     }
