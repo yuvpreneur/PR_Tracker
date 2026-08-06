@@ -1,18 +1,11 @@
 import React, { Suspense, useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate, Routes, Route, Navigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { appHtml, appScript } from './appMarkup.js';
 import { initApiBridge } from '../../bridge/index.js';
 import { canViewPage } from '../../bridge/shared/permissions.js';
 import useAuth from '../../hooks/useAuth.jsx';
 import { PAGE_COMPONENTS } from './pageManifest.js';
 import NoAccessBridgeMount from './NoAccessBridgeMount.jsx';
-
-// canViewPage reads state.currentUser/permissions/pageOverrides, populated only after
-// initApiBridge()'s init sweep — so this can render NoAccess for an instant on first
-// paint before bridgeReady flips, same as the old PageComponent lookup did.
-function GuardedPage({ pageId, children }) {
-  return canViewPage(pageId) ? children : <NoAccessBridgeMount />;
-}
 
 export default function ReplicaPage() {
   const { logout } = useAuth();
@@ -34,12 +27,16 @@ export default function ReplicaPage() {
   // not fire before then.
   const [bridgeReady, setBridgeReady] = useState(() => !!window.__bridgeReady);
 
-  // pageId is derived from the URL for the legacy-nav sync effect below — which page
-  // actually renders is now owned by the <Routes> tree, this is just for keeping
-  // appScript's sidebar highlight in sync. Same bare ids used throughout
-  // (bridge/shared/permissions.js, bridge/index.js's NAV_ICON_MAP, appMarkup.js's nav
-  // onclick="navigate('id')").
+  // pageId is the single source of truth for which page is mounted — same bare ids
+  // used throughout (bridge/shared/permissions.js, bridge/index.js's NAV_ICON_MAP,
+  // appMarkup.js's nav onclick="navigate('id')").
   const pageId = location.pathname.replace(/^\//, '').split('/')[0] || 'dashboard';
+
+  useEffect(() => {
+    if (location.pathname === '/') navigate('/dashboard', { replace: true });
+    // Intentionally mount-only — this just normalizes the very first landing URL.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (window.__bridgeReady) return;
@@ -100,6 +97,8 @@ export default function ReplicaPage() {
     };
   }, [logout, navigate]);
 
+  const PageComponent = canViewPage(pageId) ? PAGE_COMPONENTS[pageId] : null;
+
   return (
     <>
       <div
@@ -107,17 +106,7 @@ export default function ReplicaPage() {
         dangerouslySetInnerHTML={{ __html: appHtml }}
       />
       <Suspense fallback={null}>
-        <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          {Object.entries(PAGE_COMPONENTS).map(([id, Component]) => (
-            <Route
-              key={id}
-              path={`/${id}`}
-              element={<GuardedPage pageId={id}><Component /></GuardedPage>}
-            />
-          ))}
-          <Route path="*" element={<NoAccessBridgeMount />} />
-        </Routes>
+        {PageComponent ? <PageComponent /> : <NoAccessBridgeMount />}
       </Suspense>
     </>
   );
