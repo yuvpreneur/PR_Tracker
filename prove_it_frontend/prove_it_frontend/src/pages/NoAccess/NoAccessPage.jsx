@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Lock } from 'lucide-react';
 import useNoAccessRequest from './useNoAccessRequest.js';
 import { submitPageAccessRequest } from '../../bridge/pages/accesscontrol.js';
@@ -10,6 +11,7 @@ import Button from '../../components/ui/Button.jsx';
 // write, so it's safe regardless of React owning this page (same pattern as Reports'
 // #reports-period).
 export default function NoAccessPage() {
+  const navigate = useNavigate();
   const { blockedLabel, projects } = useNoAccessRequest();
   const [project, setProject] = useState('');
   const [reason, setReason] = useState('');
@@ -57,7 +59,7 @@ export default function NoAccessPage() {
       <Button variant="primary" onClick={handleSubmit} disabled={submitting}>
         {submitting ? 'Submitting…' : 'Request Access'}
       </Button>
-      <Button variant="ghost" onClick={() => window.navigate?.('dashboard')} style={{ marginLeft: 10 }}>
+      <Button variant="ghost" onClick={() => navigate('/dashboard')} style={{ marginLeft: 10 }}>
         Back to Dashboard
       </Button>
     </div>

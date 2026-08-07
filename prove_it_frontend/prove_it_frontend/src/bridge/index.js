@@ -318,7 +318,12 @@ export function initApiBridge() {
       if (id) { const { name: _, ...u } = body; await patch(`/api/companies/${id}`, u); toast('Company updated'); }
       else { if (!body.name || !body.industry) { toast('Company Name and Industry required', 'error'); return; } await post('/api/companies', body); toast('Company created'); }
       closeModal('modal-company'); startCreate('page-companies'); startCreate('page-customers');
-      if (document.getElementById('page-customers')?.classList.contains('active')) loadCustomers(); else loadCompanies();
+      // Used to branch on #page-customers' .active class to decide which of the two
+      // React pages (CompaniesPage/CustomersPage — same backend records, different
+      // views) needed its 'changed' event; that DOM signal no longer exists now that
+      // AppLayout/react-router own page switching (Phase 1 of the bridge-removal
+      // migration), so just refresh both — same /api/companies data either way.
+      loadCompanies(); loadCustomers();
     });
 
     // Projects
@@ -1303,8 +1308,16 @@ export function initApiBridge() {
       if (opt) handleReportExport(key, opt.dataset.format);
     });
 
-    // Nav click → load fresh data for that page
-    document.getElementById('nav')?.addEventListener('click', e => {
+    // Nav click → load fresh data for that page. Scoped to document rather than
+    // #nav (unlike the gating listener above, deliberately left scoped to #nav —
+    // AppLayout.jsx's real nav links live outside it and already own their own
+    // locked-click handling, which this must not intercept) — AppLayout.jsx's real
+    // <NavLink>s carry the same .nav-item class + data-page attribute #nav's legacy
+    // buildNavigation()-built buttons do, so this still finds them. Without this,
+    // real navigation never re-triggers loadProjects()/etc., and modal dropdowns
+    // that depend on their side effects (populateManagerDropdown, etc.) stay empty
+    // on first "+ New X" until some other trigger (a submit elsewhere) fires it.
+    document.addEventListener('click', e => {
       const item = e.target.closest('.nav-item');
       if (item?.dataset.page) loadPage('page-' + item.dataset.page);
     });
