@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { KeyRound, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { login, getMe, register, checkRegistrationAvailable, forgotPassword, resetPassword } from '../../services/authService';
 import useAuth from '../../hooks/useAuth.jsx';
 import logo from '../../assets/images/company-logo.png';
@@ -183,16 +183,6 @@ export default function Login() {
                 disabled={loading}
               >
                 {loading ? 'Signing in…' : 'Sign in'}
-              </button>
-
-              <div className="divider">
-                <div className="divider-line"></div>
-                <span className="divider-text">or continue with</span>
-                <div className="divider-line"></div>
-              </div>
-
-              <button type="button" className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center' }}>
-                <KeyRound size={15} /> Single Sign-On (SSO)
               </button>
 
               {registerAvailable && (
