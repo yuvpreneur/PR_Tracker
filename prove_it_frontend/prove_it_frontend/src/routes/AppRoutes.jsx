@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import useAuth from '../hooks/useAuth.jsx';
 import usePermissions from '../hooks/usePermissions.js';
 import { state } from '../bridge/core/state.js';
@@ -36,19 +36,91 @@ import NoAccessPage from '../pages/NoAccess/NoAccessPage.jsx';
 // every page has a real path, this guard replicates the same canViewPage() check for
 // that entry point, using the same state.blockedPageId/'no-access:shown' contract
 // AppLayout.jsx's locked-nav-click handler and NoAccessPage.jsx already share.
-function PageGate({ id, label, children }) {
+//
+// `active` distinguishes "this is the page currently being viewed" from "this page is
+// mounted in the background, hidden" (see AllPages below — every page stays mounted
+// permanently once visited, matching the legacy bridge's original behavior, so
+// switching pages doesn't re-fetch and flash a loading state every time). Gating must
+// only redirect for the active page — a locked page sitting mounted-but-hidden in the
+// background must not force-navigate the user away from whatever they're actually
+// looking at.
+function PageGate({ id, label, active, children }) {
   const { canViewPage } = usePermissions();
   const navigate = useNavigate();
   const allowed = canViewPage(id);
 
   useEffect(() => {
-    if (allowed) return;
+    if (!active || allowed) return;
     state.blockedPageId = id;
     document.dispatchEvent(new CustomEvent('no-access:shown', { detail: { pageId: id, label } }));
     navigate('/no-access', { replace: true });
-  }, [allowed, id, label, navigate]);
+  }, [active, allowed, id, label, navigate]);
 
-  return allowed ? children : null;
+  if (active && !allowed) return null;
+  return children;
+}
+
+// Each page mounts once — the first time it's visited — and stays mounted for the
+// rest of the session; the .page/.page.active CSS classes (global.css, unchanged from
+// the legacy shell) just toggle which one is visible. This is what makes navigating
+// back to an already-visited page instant instead of re-triggering its data fetch and
+// loading state from scratch. Deliberately lazy (mount-on-first-visit) rather than
+// mounting all 23 pages immediately on login: mounting everything up front caused a
+// startup stampede of ~23 simultaneous data fetches that could still be in flight if
+// you clicked something (e.g. a table row's Edit button, which reads a legacy
+// state.<entity> mirror populated by that same fetch) in the first second or two —
+// mounting lazily means only the pages you've actually opened are ever fetching at once.
+const PAGES = [
+  { id: 'dashboard', label: 'Dashboard', Component: DashboardPage },
+  { id: 'reports', label: 'Reports', Component: ReportsPage },
+  { id: 'companies', label: 'Companies', Component: CompaniesPage },
+  { id: 'projects', label: 'Projects', Component: ProjectsPage },
+  { id: 'project-codes', label: 'Project Codes', Component: ProjectCodesPage },
+  { id: 'billing-codes', label: 'Billing Codes', Component: BillingCodesPage },
+  { id: 'service-desk', label: 'Service Desk', Component: ServiceDeskPage },
+  { id: 'employees', label: 'Employees', Component: EmployeesPage },
+  { id: 'hourly-cost', label: 'Hourly Cost', Component: HourlyCostsPage },
+  { id: 'timesheets', label: 'Timesheets', Component: TimesheetsPage },
+  { id: 'leave', label: 'Leave', Component: LeavePage },
+  { id: 'payroll', label: 'Payroll', Component: PayrollPage },
+  { id: 'payslips', label: 'My Payslips', Component: PayslipsPage },
+  { id: 'expenses', label: 'Expenses', Component: ExpensesPage },
+  { id: 'invoices', label: 'Invoices', Component: InvoicesPage },
+  { id: 'customers', label: 'Customers', Component: CustomersPage },
+  { id: 'receivables', label: 'Receivables', Component: ReceivablesPage },
+  { id: 'approvals', label: 'Approvals', Component: ApprovalsPage },
+  { id: 'users', label: 'Users', Component: UsersPage },
+  { id: 'roles', label: 'Roles & Perms', Component: RolesPage },
+  { id: 'access-control', label: 'Access Control', Component: AccessControlPage },
+  { id: 'audit', label: 'Audit Log', Component: AuditLogPage },
+  { id: 'settings', label: 'Settings', Component: SettingsPage },
+];
+const PAGE_IDS = new Set(PAGES.map(p => p.id));
+
+function AllPages() {
+  const location = useLocation();
+  const activeId = location.pathname.replace(/^\//, '');
+  const [visited, setVisited] = useState(() => new Set(PAGE_IDS.has(activeId) ? [activeId] : []));
+
+  useEffect(() => {
+    if (PAGE_IDS.has(activeId) && !visited.has(activeId)) {
+      setVisited(prev => new Set(prev).add(activeId));
+    }
+  }, [activeId, visited]);
+
+  if (!PAGE_IDS.has(activeId)) return <Navigate to="/dashboard" replace />;
+
+  return (
+    <>
+      {PAGES.filter(p => visited.has(p.id)).map(({ id, label, Component }) => (
+        <div key={id} id={`page-${id}`} className={`page${id === activeId ? ' active' : ''}`}>
+          <PageGate id={id} label={label} active={id === activeId}>
+            <Component />
+          </PageGate>
+        </div>
+      ))}
+    </>
+  );
 }
 
 function LoadingScreen() {
@@ -78,31 +150,8 @@ function AuthGate() {
       <Routes>
         <Route path="/" element={<AppLayout />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<PageGate id="dashboard" label="Dashboard"><DashboardPage /></PageGate>} />
-          <Route path="reports" element={<PageGate id="reports" label="Reports"><ReportsPage /></PageGate>} />
-          <Route path="companies" element={<PageGate id="companies" label="Companies"><CompaniesPage /></PageGate>} />
-          <Route path="projects" element={<PageGate id="projects" label="Projects"><ProjectsPage /></PageGate>} />
-          <Route path="project-codes" element={<PageGate id="project-codes" label="Project Codes"><ProjectCodesPage /></PageGate>} />
-          <Route path="billing-codes" element={<PageGate id="billing-codes" label="Billing Codes"><BillingCodesPage /></PageGate>} />
-          <Route path="service-desk" element={<PageGate id="service-desk" label="Service Desk"><ServiceDeskPage /></PageGate>} />
-          <Route path="employees" element={<PageGate id="employees" label="Employees"><EmployeesPage /></PageGate>} />
-          <Route path="hourly-cost" element={<PageGate id="hourly-cost" label="Hourly Cost"><HourlyCostsPage /></PageGate>} />
-          <Route path="timesheets" element={<PageGate id="timesheets" label="Timesheets"><TimesheetsPage /></PageGate>} />
-          <Route path="leave" element={<PageGate id="leave" label="Leave"><LeavePage /></PageGate>} />
-          <Route path="payroll" element={<PageGate id="payroll" label="Payroll"><PayrollPage /></PageGate>} />
-          <Route path="payslips" element={<PageGate id="payslips" label="My Payslips"><PayslipsPage /></PageGate>} />
-          <Route path="expenses" element={<PageGate id="expenses" label="Expenses"><ExpensesPage /></PageGate>} />
-          <Route path="invoices" element={<PageGate id="invoices" label="Invoices"><InvoicesPage /></PageGate>} />
-          <Route path="customers" element={<PageGate id="customers" label="Customers"><CustomersPage /></PageGate>} />
-          <Route path="receivables" element={<PageGate id="receivables" label="Receivables"><ReceivablesPage /></PageGate>} />
-          <Route path="approvals" element={<PageGate id="approvals" label="Approvals"><ApprovalsPage /></PageGate>} />
-          <Route path="users" element={<PageGate id="users" label="Users"><UsersPage /></PageGate>} />
-          <Route path="roles" element={<PageGate id="roles" label="Roles & Perms"><RolesPage /></PageGate>} />
-          <Route path="access-control" element={<PageGate id="access-control" label="Access Control"><AccessControlPage /></PageGate>} />
-          <Route path="audit" element={<PageGate id="audit" label="Audit Log"><AuditLogPage /></PageGate>} />
-          <Route path="settings" element={<PageGate id="settings" label="Settings"><SettingsPage /></PageGate>} />
           <Route path="no-access" element={<NoAccessPage />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<AllPages />} />
         </Route>
       </Routes>
     </>

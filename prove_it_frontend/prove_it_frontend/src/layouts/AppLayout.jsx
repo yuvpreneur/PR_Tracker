@@ -169,9 +169,11 @@ export default function AppLayout() {
           </div>
         </div>
         <div id="content">
-          <div className="page active">
-            <Outlet />
-          </div>
+          {/* AppRoutes.jsx's AllPages keeps every page mounted and owns the .page/
+              .page.active toggling itself now (one wrapper per page, not one here) —
+              this just hosts whichever route element is current (AllPages, or
+              NoAccessPage which isn't part of that always-mounted set). */}
+          <Outlet />
         </div>
       </div>
     </div>
