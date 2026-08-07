@@ -117,7 +117,7 @@ export default function AppLayout() {
       </div>
 
       <div id="main">
-        <div className="topbar">
+        <div id="topbar">
           <span className="topbar-title">{title}</span>
           <div className="topbar-right">
             <button className="btn btn-ghost btn-sm notif-btn" id="notif-btn" data-lucide-icon="1" style={{ position: 'relative' }}>
