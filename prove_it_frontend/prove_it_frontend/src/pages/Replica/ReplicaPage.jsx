@@ -28,27 +28,37 @@ export default function ReplicaPage() {
       const existing = document.getElementById('prove-it-catalysts-runtime');
       if (existing) existing.remove();
 
+      // A classic inline <script> (no type="module"/async/defer) runs synchronously
+      // the moment it's inserted — appScript's entire IIFE, including every
+      // window.doLogin/openModal/closeModal/navigate/etc. assignment at its end, has
+      // already executed by the time appendChild() returns below. doLogin() and
+      // initApiBridge() used to be scheduled 50ms/250ms out via setTimeout — that was
+      // never actually necessary for this reason, and became actively harmful once
+      // AllPages (routes/AppRoutes.jsx) started mounting every page's data-fetching
+      // hook at once: that burst of synchronous render + effect work can (especially
+      // under Vite dev-mode's on-demand module compilation) delay a mere setTimeout
+      // by seconds, not ms — leaving initApiBridge()'s click delegation (the entire
+      // legacy modal/table-action system) unregistered and silently eating clicks
+      // for however long that takes. Running both synchronously, right here, means
+      // the click handlers exist before this effect even returns.
       const script = document.createElement('script');
       script.id = 'prove-it-catalysts-runtime';
       script.text = appScript;
       document.body.appendChild(script);
-    }
 
-    const timer = setTimeout(() => {
       // doLogin() (appScript) still does its own nav/dashboard/permission-demo DOM
       // painting (buildNavigation() et al) — all now targeting elements that no
       // longer exist since AppLayout.jsx owns the real shell, so it's expected to
-      // throw partway through. Catch it rather than let that stop the
-      // initApiBridge() scheduling below, which is what still matters (modals,
-      // table-row actions, notifications, reports export).
+      // throw partway through. Catch it rather than let that stop initApiBridge()
+      // below, which is what still matters (modals, table-row actions,
+      // notifications, reports export).
       try {
         if (typeof window.doLogin === 'function') window.doLogin();
       } catch (e) {
         console.warn('[legacy runtime] doLogin() partial failure (expected — nav/shell now owned by React):', e);
       }
-      // Init API bridge after appScript has defined all window.* functions
-      setTimeout(() => initApiBridge(), 200);
-    }, 50);
+      initApiBridge();
+    }
 
     // Override doLogout so the Sign out button clears the JWT and returns to React login
     window.doLogout = () => {
@@ -56,7 +66,6 @@ export default function ReplicaPage() {
     };
 
     return () => {
-      clearTimeout(timer);
       const runtime = document.getElementById('prove-it-catalysts-runtime');
       if (runtime) runtime.remove();
       delete window.doLogout;

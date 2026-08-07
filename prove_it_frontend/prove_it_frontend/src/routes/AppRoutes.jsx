@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import useAuth from '../hooks/useAuth.jsx';
 import usePermissions from '../hooks/usePermissions.js';
@@ -38,12 +38,11 @@ import NoAccessPage from '../pages/NoAccess/NoAccessPage.jsx';
 // AppLayout.jsx's locked-nav-click handler and NoAccessPage.jsx already share.
 //
 // `active` distinguishes "this is the page currently being viewed" from "this page is
-// mounted in the background, hidden" (see AllPages below — every page stays mounted
-// permanently once visited, matching the legacy bridge's original behavior, so
-// switching pages doesn't re-fetch and flash a loading state every time). Gating must
-// only redirect for the active page — a locked page sitting mounted-but-hidden in the
-// background must not force-navigate the user away from whatever they're actually
-// looking at.
+// mounted in the background, hidden" (see AllPages below — every page mounts
+// immediately on login and stays mounted, so switching pages doesn't re-fetch and
+// flash a loading state every time). Gating must only redirect for the active page —
+// a locked page sitting mounted-but-hidden in the background must not force-navigate
+// the user away from whatever they're actually looking at.
 function PageGate({ id, label, active, children }) {
   const { canViewPage } = usePermissions();
   const navigate = useNavigate();
@@ -60,16 +59,11 @@ function PageGate({ id, label, active, children }) {
   return children;
 }
 
-// Each page mounts once — the first time it's visited — and stays mounted for the
-// rest of the session; the .page/.page.active CSS classes (global.css, unchanged from
-// the legacy shell) just toggle which one is visible. This is what makes navigating
-// back to an already-visited page instant instead of re-triggering its data fetch and
-// loading state from scratch. Deliberately lazy (mount-on-first-visit) rather than
-// mounting all 23 pages immediately on login: mounting everything up front caused a
-// startup stampede of ~23 simultaneous data fetches that could still be in flight if
-// you clicked something (e.g. a table row's Edit button, which reads a legacy
-// state.<entity> mirror populated by that same fetch) in the first second or two —
-// mounting lazily means only the pages you've actually opened are ever fetching at once.
+// Every page mounts immediately on login and stays mounted for the rest of the
+// session — the .page/.page.active CSS classes (global.css, unchanged from the legacy
+// shell) just toggle which one is visible. This means every page's data fetch starts
+// right away instead of waiting for its first visit, so by the time you click a nav
+// item its data is already loaded (or loading) rather than starting from scratch.
 const PAGES = [
   { id: 'dashboard', label: 'Dashboard', Component: DashboardPage },
   { id: 'reports', label: 'Reports', Component: ReportsPage },
@@ -100,19 +94,12 @@ const PAGE_IDS = new Set(PAGES.map(p => p.id));
 function AllPages() {
   const location = useLocation();
   const activeId = location.pathname.replace(/^\//, '');
-  const [visited, setVisited] = useState(() => new Set(PAGE_IDS.has(activeId) ? [activeId] : []));
-
-  useEffect(() => {
-    if (PAGE_IDS.has(activeId) && !visited.has(activeId)) {
-      setVisited(prev => new Set(prev).add(activeId));
-    }
-  }, [activeId, visited]);
 
   if (!PAGE_IDS.has(activeId)) return <Navigate to="/dashboard" replace />;
 
   return (
     <>
-      {PAGES.filter(p => visited.has(p.id)).map(({ id, label, Component }) => (
+      {PAGES.map(({ id, label, Component }) => (
         <div key={id} id={`page-${id}`} className={`page${id === activeId ? ' active' : ''}`}>
           <PageGate id={id} label={label} active={id === activeId}>
             <Component />
