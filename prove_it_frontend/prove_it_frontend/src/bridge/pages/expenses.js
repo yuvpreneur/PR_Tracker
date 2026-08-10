@@ -14,7 +14,7 @@ function expRowGuard(row) {
   };
 }
 
-function populateExpenseModalDropdowns() {
+export function populateExpenseModalDropdowns() {
   const projSel = field('modal-expense', 'project');
   if (projSel && projSel.tagName === 'SELECT') {
     const prev = projSel.value;

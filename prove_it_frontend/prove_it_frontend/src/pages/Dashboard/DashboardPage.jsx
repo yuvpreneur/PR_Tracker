@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { LayoutDashboard, IndianRupee, Receipt, TrendingUp, ClipboardCheck, FileText, AlertCircle, Clock, Ticket, FolderKanban, PieChart } from 'lucide-react';
+import { LayoutDashboard, IndianRupee, Receipt, TrendingUp, ClipboardCheck, FileText, AlertCircle, Clock, Ticket, FolderKanban, PieChart, Building2, Users, Percent } from 'lucide-react';
 import useDashboardData from './useDashboardData.js';
 import StatCard from '../../components/ui/StatCard.jsx';
 import SectionTitle from '../../components/ui/SectionTitle.jsx';
@@ -31,7 +31,7 @@ function ProjectListCard({ title, profit, roleKey }) {
   );
 }
 
-function AdminDashboard({ revenue, expenses, netProfit, pendingApprovals, billableHours, monthly, profit }) {
+function AdminDashboard({ revenue, expenses, netProfit, pendingApprovals, billableHours, companies, activeProjects, headcount, monthly, profit }) {
   const rev = revenue?.total_revenue || 0;
   const exp = expenses?.total_expenses || 0;
   const net = netProfit?.net_profit ?? (rev - exp);
@@ -47,6 +47,12 @@ function AdminDashboard({ revenue, expenses, netProfit, pendingApprovals, billab
         <StatCard label="Total Expenses" value={'₹' + num(exp)} sub={`${expenses?.active_projects || 0} projects active`} color="#F59E0B" icon={Receipt} />
         <StatCard label="Net Profit" value={'₹' + num(Math.abs(net))} sub={`Margin ${margin}%${netProfit?.is_loss ? ' (loss)' : ''}`} color="#0086AD" icon={TrendingUp} />
         <StatCard label="Pending Approvals" value={String(pendingApprovals?.pending_approvals || 0)} sub={`${pendingApprovals?.pending_timesheets || 0} timesheets pending`} color="#E14D56" icon={ClipboardCheck} />
+      </div>
+      <div className="stats-row">
+        <StatCard label="Companies" value={String(companies?.total_companies || 0)} sub={`${companies?.active_companies || 0} active`} color="#7357E5" icon={Building2} />
+        <StatCard label="Active Projects" value={String(activeProjects?.active_projects || 0)} sub={`${activeProjects?.total_projects || 0} total projects`} color="#0086AD" icon={FolderKanban} />
+        <StatCard label="Headcount" value={String(headcount?.headcount || 0)} sub={`${headcount?.billable_count || 0} billable`} color="#16A36C" icon={Users} />
+        <StatCard label="Billable Utilisation" value={`${bPct}%`} sub={`${bHrs.toLocaleString('en-IN')} billable hrs`} color="#F59E0B" icon={Percent} />
       </div>
       <div className="grid-2 mb-4">
         <RevenueCostChart monthly={monthly} />
@@ -209,7 +215,11 @@ export default function DashboardPage() {
           myTickets={data.myTickets} recentTimesheets={data.recentTimesheets} recentExpenses={data.recentExpenses}
         />
       ) : (
-        <AdminDashboard revenue={data.revenue} expenses={data.expenses} netProfit={data.netProfit} pendingApprovals={data.pendingApprovals} billableHours={data.billableHours} monthly={monthly} profit={profit} />
+        <AdminDashboard
+          revenue={data.revenue} expenses={data.expenses} netProfit={data.netProfit} pendingApprovals={data.pendingApprovals}
+          billableHours={data.billableHours} companies={data.companies} activeProjects={data.activeProjects} headcount={data.headcount}
+          monthly={monthly} profit={profit}
+        />
       )}
     </div>
   );

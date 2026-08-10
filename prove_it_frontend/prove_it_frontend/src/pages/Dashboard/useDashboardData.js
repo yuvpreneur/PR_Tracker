@@ -20,6 +20,9 @@ export default function useDashboardData(period) {
   const [netProfit, setNetProfit] = useState(null);
   const [pendingApprovals, setPendingApprovals] = useState(null);
   const [billableHours, setBillableHours] = useState(null);
+  const [companies, setCompanies] = useState(null);
+  const [activeProjects, setActiveProjects] = useState(null);
+  const [headcount, setHeadcount] = useState(null);
   const [monthly, setMonthly] = useState([]);
   const [profit, setProfit] = useState([]);
 
@@ -75,17 +78,21 @@ export default function useDashboardData(period) {
     }
 
     // Admin / Manager
-    const [rev, exp, net, pending, bh, monthlyData, profitData] = await Promise.all([
+    const [rev, exp, net, pending, bh, cos, actProj, hc, monthlyData, profitData] = await Promise.all([
       get('/api/dashboard/admin/total-revenue' + p).catch(() => null),
       get('/api/dashboard/admin/total-expenses' + p).catch(() => null),
       get('/api/dashboard/admin/net-profit' + p).catch(() => null),
       get('/api/dashboard/admin/pending-approvals').catch(() => null),
       get('/api/dashboard/admin/billable-hours' + p).catch(() => null),
+      get('/api/dashboard/admin/companies-count').catch(() => null),
+      get('/api/dashboard/admin/active-projects').catch(() => null),
+      get('/api/dashboard/admin/headcount').catch(() => null),
       get('/api/reports/monthly-revenue' + p).catch(() => null),
       get('/api/reports/project-profitability').catch(() => null),
     ]);
     setRevenue(rev); setExpenses(exp); setNetProfit(net);
     setPendingApprovals(pending); setBillableHours(bh);
+    setCompanies(cos); setActiveProjects(actProj); setHeadcount(hc);
     setMonthly(monthlyData || []); setProfit(profitData || []);
     // Combines this module's pending-approvals count with the user's own personal
     // decision notifications — see refreshNotifBadge() — rather than setting the badge
@@ -100,6 +107,7 @@ export default function useDashboardData(period) {
   return {
     roleKey, loading, monthly, profit,
     revenue, expenses, netProfit, pendingApprovals, billableHours,
+    companies, activeProjects, headcount,
     billed, received, outstanding,
     myHours, myExpenses, pendingTimesheets, myTickets, recentTimesheets, recentExpenses,
   };

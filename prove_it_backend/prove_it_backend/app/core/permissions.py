@@ -72,10 +72,16 @@ DEFAULT_PERMS = {
 
     # Employee — self-service only. Every module below is intentionally all-false:
     # self create/view-own/edit-own-pending is handled per-router, outside this matrix.
+    # Companies/Projects/Project Codes have no blanket "view" right by default either —
+    # an Employee's actual visibility into those three is per-employee, via Access
+    # Control's Assigned Projects grants (assigned_project_ids() in this file), not a
+    # role-wide default. An Admin can still additionally grant one of those modules'
+    # nav/page visibility to a specific employee via Access Control's Page Access
+    # override, independent of this row.
     "Employee": {
-        "Companies":        _flags(view=True),
-        "Projects":         _flags(view=True),
-        "Project Codes":    _flags(view=True),
+        "Companies":        _flags(),
+        "Projects":         _flags(),
+        "Project Codes":    _flags(),
         "Billing Codes":    _flags(),
         "Employees":        _flags(),
         "Hourly Costs":     _flags(),

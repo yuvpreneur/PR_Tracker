@@ -25,7 +25,7 @@ export async function loadEmployees() {
   document.dispatchEvent(new CustomEvent('employees:changed'));
 }
 
-function populateCostEmployeeDropdown() {
+export function populateCostEmployeeDropdown() {
   const sel = field('modal-cost', 'employee');
   if (!sel || sel.tagName !== 'SELECT') return;
   const prev = sel.value;

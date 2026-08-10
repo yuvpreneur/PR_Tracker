@@ -6,7 +6,7 @@ import { refreshCaches, username } from './core/cache.js';
 import { viewAs } from '../services/authService.js';
 import { toast } from './shared/ui.js';
 import { canViewPage, canCreateOnPage, canExportOnPage } from './shared/permissions.js';
-import { wireBtn, closeModal, startCreate, startEdit, editId, openModal, set, val } from './shared/modals.js';
+import { wireBtn, closeModal, startCreate, startEdit, editId, openModal, set, val, field, resetFields } from './shared/modals.js';
 import { ensureNotifPanel, loadNotifications, refreshNotifBadge } from './shared/notifications.js';
 import { populateFilterDropdowns, wireFilters } from './shared/filters.js';
 import { loadDashboard } from './pages/dashboard.js';
@@ -77,6 +77,17 @@ function wireAttachZone(modalId) {
     dt.items.add(f);
     input.files = dt.files;
     showFile(f);
+  });
+}
+
+// Strips anything non-digit as the user types — `type="tel"` alone doesn't block
+// letters in any browser, so this is the actual enforcement for "numbers only" fields.
+function wireNumericInput(modalId, hint) {
+  const input = field(modalId, hint);
+  if (!input) return;
+  input.addEventListener('input', () => {
+    const digits = input.value.replace(/\D/g, '');
+    if (digits !== input.value) input.value = digits;
   });
 }
 
@@ -306,6 +317,7 @@ export function initApiBridge() {
   // ── Modal form submissions ──────────────────────────────────────────────────
   function wireSubmits() {
     // Companies / Customers (shared modal-company — Customers is a finance-facing view of the same records)
+    wireNumericInput('modal-company', 'phone');
     wireBtn('modal-company', async () => {
       const id = editId('page-companies') || editId('page-customers');
       const body = {
@@ -313,11 +325,18 @@ export function initApiBridge() {
         industry: val('modal-company', 'industry'),
         primary_contact: val('modal-company', 'primary contact') || null,
         email: val('modal-company', 'email') || null,
+        phone: val('modal-company', 'phone') || null,
+        gstin: val('modal-company', 'gstin') || null,
+        billing_address: val('modal-company', 'billing address') || null,
         status: val('modal-company', 'status') || 'Active',
       };
+      console.log('[DEBUG modal-company submit]', { id, body }); // TEMP — remove after diagnosing
       if (id) { const { name: _, ...u } = body; await patch(`/api/companies/${id}`, u); toast('Company updated'); }
       else { if (!body.name || !body.industry) { toast('Company Name and Industry required', 'error'); return; } await post('/api/companies', body); toast('Company created'); }
-      closeModal('modal-company'); startCreate('page-companies'); startCreate('page-customers');
+      // Belt-and-suspenders: clear fields the moment a save completes, not only right
+      // before the next "+ New X" open — closes the window where an edit's leftover
+      // values could leak into whatever opens this modal next.
+      closeModal('modal-company'); resetFields('modal-company'); startCreate('page-companies'); startCreate('page-customers');
       // Used to branch on #page-customers' .active class to decide which of the two
       // React pages (CompaniesPage/CustomersPage — same backend records, different
       // views) needed its 'changed' event; that DOM signal no longer exists now that
@@ -776,6 +795,9 @@ export function initApiBridge() {
         set('modal-company', 'industry', row.industry);
         set('modal-company', 'primary contact', row.primary_contact || '');
         set('modal-company', 'email', row.email || '');
+        set('modal-company', 'phone', row.phone || '');
+        set('modal-company', 'gstin', row.gstin || '');
+        set('modal-company', 'billing address', row.billing_address || '');
         set('modal-company', 'status', row.status);
         startEdit('page-companies', row.id);
         openModal('modal-company');
@@ -800,6 +822,9 @@ export function initApiBridge() {
         set('modal-company', 'industry', row.industry);
         set('modal-company', 'primary contact', row.primary_contact || '');
         set('modal-company', 'email', row.email || '');
+        set('modal-company', 'phone', row.phone || '');
+        set('modal-company', 'gstin', row.gstin || '');
+        set('modal-company', 'billing address', row.billing_address || '');
         set('modal-company', 'status', row.status);
         startEdit('page-customers', row.id);
         openModal('modal-company');

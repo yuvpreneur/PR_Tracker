@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { get } from '../../services/httpClient.js';
 import { state } from '../../bridge/core/state.js';
+import { populateProjectClientDropdown } from '../../bridge/pages/projects.js';
 
 // Mirrors src/pages/Projects/useProjects.js's pattern: the legacy
 // bridge/pages/companies.js loadCompanies() still runs (nav clicks, modal save/delete
@@ -17,6 +18,11 @@ export default function useCompanies() {
     // Keeps the legacy `.bridge-edit`/`.bridge-delete` delegation's row lookup
     // (bridge/index.js, reads state.companies) in sync with what's actually on screen.
     state.companies = rows || [];
+    // Every page (and its modal) mounts immediately on login regardless of which
+    // route is active (see AllPages in AppRoutes.jsx) — refreshing modal-project's
+    // Client dropdown here, rather than only when the legacy nav-click loader
+    // happens to run, is what keeps it from ever showing stale/fake data.
+    populateProjectClientDropdown();
     setLoading(false);
   }, []);
 

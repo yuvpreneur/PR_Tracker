@@ -94,9 +94,12 @@ def stats(db: Database = Depends(get_db), cu=Depends(get_current_user)):
     open_t = [t for t in tickets if t["status"] not in ("Resolved", "Closed", "Cancelled")]
     return {
         "open": len(open_t),
+        "in_progress": sum(1 for t in tickets if t["status"] == "In Progress"),
+        "waiting_approval": sum(1 for t in tickets if t["status"] == "Waiting Approval"),
         "resolved": sum(1 for t in tickets if t["status"] == "Resolved"),
         "cancelled": sum(1 for t in tickets if t["status"] == "Cancelled"),
         "high_priority": sum(1 for t in open_t if t["priority"] in ("High", "Critical")),
+        "critical": sum(1 for t in open_t if t["priority"] == "Critical"),
     }
 
 

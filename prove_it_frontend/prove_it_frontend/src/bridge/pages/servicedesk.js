@@ -10,7 +10,7 @@ function ticketRowGuard(row) {
   return { noEdit: locked || !(can('Service Desk', 'edit') || isMine(row, 'requester')) };
 }
 
-function populateTicketProjectDropdown() {
+export function populateTicketProjectDropdown() {
   const sel = field('modal-ticket', 'project');
   if (!sel || sel.tagName !== 'SELECT') return;
   const prev = sel.value;

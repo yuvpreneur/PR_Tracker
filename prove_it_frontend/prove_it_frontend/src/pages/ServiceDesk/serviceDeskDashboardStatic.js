@@ -6,7 +6,6 @@ export const SERVICE_DESK_HERO_HTML = `<div class="feature-hero">
           <div class="feature-actions">
             <button class="btn btn-primary" onclick="openModal('modal-ticket')">${iconSvg('Plus', { size: 14 })} Create Ticket</button>
             <button class="btn btn-ghost" onclick="openModal('modal-ticket-cancel')">${iconSvg('XCircle', { size: 14 })} Cancel Ticket</button>
-            <button class="btn btn-ghost">${iconSvg('RefreshCw', { size: 14 })} Sync with ServiceNow</button>
           </div>
         </div>
         `;

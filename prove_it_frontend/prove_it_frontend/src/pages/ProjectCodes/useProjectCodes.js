@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { get } from '../../services/httpClient.js';
 import { state } from '../../bridge/core/state.js';
+import { populateBCodeProjectCodeDropdown } from '../../bridge/pages/billing.js';
+import { populateExpenseModalDropdowns } from '../../bridge/pages/expenses.js';
+import { populateTimesheetModalDropdowns } from '../../bridge/pages/timesheets.js';
 
 // Same pattern as useProjects.js/useCompanies.js. Project codes only carry a
 // project_id foreign key, so this also fetches /api/projects (same as the legacy
@@ -20,6 +23,13 @@ export default function useProjectCodes() {
     // Keeps the legacy `.bridge-edit`/`.bridge-delete` delegation's row lookup
     // (bridge/index.js, reads state.pcodes) in sync with what's actually on screen.
     state.pcodes = codes || [];
+    // Every page (and its modal) mounts immediately on login regardless of which
+    // route is active (see AllPages in AppRoutes.jsx) — refreshing these dropdowns
+    // here, rather than only when the legacy nav-click loader happens to run, is
+    // what keeps them from ever showing stale/fake data.
+    populateBCodeProjectCodeDropdown();
+    populateExpenseModalDropdowns();
+    populateTimesheetModalDropdowns();
     setLoading(false);
   }, []);
 

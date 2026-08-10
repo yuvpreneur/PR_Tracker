@@ -1,4 +1,4 @@
-import { Ticket, ClipboardCheck, Clock, XCircle, Check, X } from 'lucide-react';
+import { Ticket, RefreshCw, Hourglass, AlertTriangle, XCircle, Check, X } from 'lucide-react';
 import useServiceDesk from './useServiceDesk.js';
 import { SERVICE_DESK_HERO_HTML, SERVICE_DESK_WORKFLOW_HTML } from './serviceDeskDashboardStatic.js';
 import Badge from '../../components/ui/Badge.jsx';
@@ -30,11 +30,14 @@ export default function ServiceDeskPage() {
   const { can, isMine } = usePermissions();
   const { tickets, loading } = useServiceDesk();
 
-  // Mirrors GET /api/tickets/stats' open/high_priority/cancelled definitions — computed
-  // client-side from the same `tickets` this page already fetched, rather than a second
-  // network call for numbers derivable from data already in hand.
+  // Mirrors GET /api/tickets/stats' open/in_progress/waiting_approval/critical/cancelled
+  // definitions — computed client-side from the same `tickets` this page already fetched,
+  // rather than a second network call for numbers derivable from data already in hand.
   const openTickets = tickets.filter(t => OPEN_STATUSES.includes(t.status));
   const highPriorityCount = openTickets.filter(t => t.priority === 'High' || t.priority === 'Critical').length;
+  const inProgressCount = tickets.filter(t => t.status === 'In Progress').length;
+  const waitingApprovalCount = tickets.filter(t => t.status === 'Waiting Approval').length;
+  const criticalCount = openTickets.filter(t => t.priority === 'Critical').length;
   const cancelledCount = tickets.filter(t => t.status === 'Cancelled').length;
 
   const canEditRow = row => can('Service Desk', 'edit')
@@ -67,14 +70,12 @@ export default function ServiceDeskPage() {
     <div>
       <div dangerouslySetInnerHTML={{ __html: SERVICE_DESK_HERO_HTML }} />
 
-      <div className="mb-5 grid grid-cols-4 gap-4 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1">
+      <div className="mb-5 grid grid-cols-5 gap-4 max-[900px]:grid-cols-3 max-[560px]:grid-cols-1">
         <StatCard label="Open Tickets" value={loading ? '—' : String(openTickets.length)} sub={loading ? '' : `${highPriorityCount} high priority`} color="var(--color-brand)" icon={Ticket} />
-        {/* SLA Compliance / Avg Resolution: no real computation behind these yet
-            (no resolved-at timestamp, no SLA-met definition) — placeholder values kept
-            per request until that data/logic is provided. */}
-        <StatCard label="SLA Compliance" value="0%" sub="+4% this month" color="var(--color-green)" icon={ClipboardCheck} />
-        <StatCard label="Avg Resolution" value="0h" sub="Across all queues" color="var(--color-violet)" icon={Clock} />
-        <StatCard label="Cancelled" value={loading ? '—' : String(cancelledCount)} sub="With audit reason" color="var(--color-red)" icon={XCircle} />
+        <StatCard label="In Progress" value={loading ? '—' : String(inProgressCount)} sub="Being worked on" color="var(--color-accent)" icon={RefreshCw} />
+        <StatCard label="Waiting Approval" value={loading ? '—' : String(waitingApprovalCount)} sub="Needs sign-off" color="var(--color-amber)" icon={Hourglass} />
+        <StatCard label="Critical" value={loading ? '—' : String(criticalCount)} sub="Open & critical priority" color="var(--color-red)" icon={AlertTriangle} />
+        <StatCard label="Cancelled" value={loading ? '—' : String(cancelledCount)} sub="With audit reason" color="var(--color-text2)" icon={XCircle} />
       </div>
 
       <div dangerouslySetInnerHTML={{ __html: SERVICE_DESK_WORKFLOW_HTML }} />

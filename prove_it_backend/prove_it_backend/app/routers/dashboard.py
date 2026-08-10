@@ -84,6 +84,30 @@ def billable_hours(period: Optional[str] = Query(None), db: Database = Depends(g
     }
 
 
+@router.get("/admin/companies-count", dependencies=[Depends(require_permission("Reports", "view"))])
+def companies_count(db: Database = Depends(get_db)):
+    return {
+        "total_companies": db[collections.COMPANIES].count_documents({}),
+        "active_companies": db[collections.COMPANIES].count_documents({"status": "Active"}),
+    }
+
+
+@router.get("/admin/active-projects", dependencies=[Depends(require_permission("Reports", "view"))])
+def active_projects_card(db: Database = Depends(get_db)):
+    return {
+        "active_projects": db[collections.PROJECTS].count_documents({"status": "In Progress"}),
+        "total_projects": db[collections.PROJECTS].count_documents({}),
+    }
+
+
+@router.get("/admin/headcount", dependencies=[Depends(require_permission("Reports", "view"))])
+def headcount_card(db: Database = Depends(get_db)):
+    return {
+        "headcount": db[collections.EMPLOYEES].count_documents({"status": "Active"}),
+        "billable_count": db[collections.EMPLOYEES].count_documents({"status": "Active", "billable": True}),
+    }
+
+
 # ── Finance cards ──────────────────────────────────────────────────────────────
 
 

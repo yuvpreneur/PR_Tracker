@@ -45,6 +45,8 @@ def ensure_indexes() -> None:
     db[collections.ACCESS_REQUESTS].create_index([("status", ASCENDING)])
     db[collections.LEAVE].create_index([("status", ASCENDING)])
     db[collections.EMPLOYEES].create_index([("emp_id", ASCENDING)])
+    db[collections.EMPLOYEES].create_index([("status", ASCENDING)])
+    db[collections.COMPANIES].create_index([("status", ASCENDING)])
     db[collections.TICKETS].create_index([("requester", ASCENDING)])
     db[collections.TICKETS].create_index([("status", ASCENDING)])
 
