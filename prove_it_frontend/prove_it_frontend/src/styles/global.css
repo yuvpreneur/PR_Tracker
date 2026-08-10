@@ -348,3 +348,15 @@
     .topbar-right .user-chip span { display: none; }
     .proj-row, .approval-item { align-items: flex-start; flex-direction: column; }
   }
+
+  /* Invoice "Print / Save PDF" (InvoiceActions.jsx -> window.print()) — hides the whole
+     app chrome and every .no-print element, then restores only #invoice-print-area
+     (InvoiceDetail.jsx) full-bleed. Standard print-one-element trick: hide everything via
+     visibility (not display:none, so #invoice-print-area's own layout doesn't collapse),
+     then re-reveal just that subtree and lift it out of the hidden flow with position. */
+  @media print {
+    #sidebar, #topbar, .no-print { display: none !important; }
+    body * { visibility: hidden; }
+    #invoice-print-area, #invoice-print-area * { visibility: visible; }
+    #invoice-print-area { position: absolute; top: 0; left: 0; width: 100%; margin: 0; box-shadow: none !important; border: none !important; }
+  }

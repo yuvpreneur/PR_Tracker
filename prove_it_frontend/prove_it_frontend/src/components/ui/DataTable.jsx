@@ -1,3 +1,5 @@
+import { Pencil, Trash2 } from 'lucide-react';
+
 // Edit/Delete buttons intentionally render the legacy `bridge-edit`/`bridge-delete`
 // classes + `data-page`/`data-id` attributes: bridge/index.js still owns a single
 // document-level delegated click listener for these per page, so migrated pages
@@ -46,22 +48,22 @@ export default function DataTable({ columns, rows, getRowId, pageId, canEdit, ca
                   <td className="whitespace-nowrap px-3 py-2">
                     {editAllowed(row) && (
                       <button
-                        className="bridge-edit mr-1 rounded-md px-2.5 py-0.5 text-[11px]"
+                        className="bridge-edit mr-1 inline-flex items-center rounded-md px-2.5 py-1 text-[11px]"
                         data-page={pageId}
                         data-id={id}
                         title="Edit"
                       >
-                        ✏️
+                        <Pencil size={13} />
                       </button>
                     )}
                     {deleteAllowed(row) && (
                       <button
-                        className="bridge-delete rounded-md px-2.5 py-0.5 text-[11px] text-red"
+                        className="bridge-delete inline-flex items-center rounded-md px-2.5 py-1 text-[11px] text-red"
                         data-page={pageId}
                         data-id={id}
                         title="Delete"
                       >
-                        🗑️
+                        <Trash2 size={13} />
                       </button>
                     )}
                     {renderExtraActions && renderExtraActions(row)}

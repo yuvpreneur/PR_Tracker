@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
+import { KeyRound, Plus, IdCard, FolderKanban, Save, Check, X, History, Inbox, ListChecks } from 'lucide-react';
 import usePageAccess, { PAGES } from './usePageAccess.js';
 import useProjectAccess from './useProjectAccess.js';
 import Button from '../../components/ui/Button.jsx';
 import CheckboxDropdown from '../../components/ui/CheckboxDropdown.jsx';
+import SectionTitle from '../../components/ui/SectionTitle.jsx';
 import { get } from '../../services/httpClient.js';
 import { setNavBadge } from '../../bridge/shared/ui.js';
 
@@ -49,20 +51,20 @@ export default function AccessControlPage() {
   return (
     <div>
       <div className="section-header">
-        <h2>Access Control &amp; Project Assignment</h2>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><KeyRound size={22} /> Access Control &amp; Project Assignment</h2>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <Button
             variant="primary"
             onClick={() => { projectCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); empSelectRef.current?.focus(); }}
           >
-            + Assign Project
+            <Plus size={15} /> Assign Project
           </Button>
         </div>
       </div>
 
       <div className="access-grid">
         <div className="access-card">
-          <h4>Employee Page Access</h4>
+          <h4 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><IdCard size={16} /> Employee Page Access</h4>
           <p>Select the pages an employee can open. Pages without permission show a No Access screen with a request button.</p>
           <select
             ref={empSelectRef}
@@ -83,13 +85,13 @@ export default function AccessControlPage() {
           />
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
             <Button variant="primary" onClick={pageAccess.save} disabled={pageAccess.saving}>
-              {pageAccess.saving ? 'Saving…' : 'Save Page Access'}
+              <Save size={15} /> {pageAccess.saving ? 'Saving…' : 'Save Page Access'}
             </Button>
           </div>
         </div>
 
         <div className="access-card" ref={projectCardRef}>
-          <h4>Assigned Projects</h4>
+          <h4 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><FolderKanban size={16} /> Assigned Projects</h4>
           <p>Users only see project records assigned to them. Admins can assign or remove projects at any time.</p>
           <CheckboxDropdown
             options={projects}
@@ -102,7 +104,7 @@ export default function AccessControlPage() {
           />
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
             <Button variant="primary" onClick={() => projectAccess.save(projects)} disabled={projectAccess.saving}>
-              {projectAccess.saving ? 'Saving…' : 'Update Projects'}
+              <Save size={15} /> {projectAccess.saving ? 'Saving…' : 'Update Projects'}
             </Button>
           </div>
         </div>
@@ -110,7 +112,7 @@ export default function AccessControlPage() {
 
       <div className="grid-2">
         <div className="card">
-          <div className="card-section-title">Access Requests</div>
+          <SectionTitle icon={Inbox}>Access Requests</SectionTitle>
           <div>
             {requests.length === 0 && (
               <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8', fontSize: 13 }}>No access requests</div>
@@ -127,11 +129,11 @@ export default function AccessControlPage() {
                 <div>
                   {r.status === 'Pending' ? (
                     <>
-                      <button className="btn btn-success btn-sm bridge-req-approve" data-id={r.id}>Approve</button>{' '}
-                      <button className="btn btn-danger btn-sm bridge-req-reject" data-id={r.id}>Reject</button>
+                      <button className="btn btn-success btn-sm bridge-req-approve" data-id={r.id}><Check size={14} /> Approve</button>{' '}
+                      <button className="btn btn-danger btn-sm bridge-req-reject" data-id={r.id}><X size={14} /> Reject</button>
                     </>
                   ) : (
-                    <button className="btn btn-ghost btn-sm bridge-req-audit" data-requester={r.requester}>Audit</button>
+                    <button className="btn btn-ghost btn-sm bridge-req-audit" data-requester={r.requester}><History size={14} /> Audit</button>
                   )}
                 </div>
               </div>
@@ -142,7 +144,7 @@ export default function AccessControlPage() {
         {/* Static reference copy — no code ever populated this dynamically in the legacy
            version either; it's documentation, not live data. */}
         <div className="card">
-          <div className="card-section-title">Access Rules Summary</div>
+          <SectionTitle icon={ListChecks}>Access Rules Summary</SectionTitle>
           <div className="perm-row"><span>Admin</span><span className="badge badge-green">All pages · All projects</span></div>
           <div className="perm-row"><span>Manager</span><span className="badge badge-accent">Approved pages · Assigned projects</span></div>
           <div className="perm-row"><span>Employee</span><span className="badge badge-accent">Limited pages · Own projects</span></div>

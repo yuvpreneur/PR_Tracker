@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { FolderKanban, Plus, Search, KeyRound, Download, FileText, FileSpreadsheet, FileType, Activity, PauseCircle, Wallet, FolderOpen, X } from 'lucide-react';
 import useProjects from './useProjects.js';
 import { exportProjectsCSV, exportProjectsPDF, exportProjectsXLSX } from './exportProjects.js';
 import StatCard from '../../components/ui/StatCard.jsx';
+import SectionTitle from '../../components/ui/SectionTitle.jsx';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
@@ -91,20 +93,20 @@ export default function ProjectsPage() {
   return (
     <div>
       <div className="section-header">
-        <h2>Projects</h2>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><FolderKanban size={22} /> Projects</h2>
         <div style={{ display: 'flex', gap: 8 }}>
           {canRequestProjectAccess && (
-            <Button variant="ghost" onClick={openRequestPanel}>Request Project Access</Button>
+            <Button variant="ghost" onClick={openRequestPanel}><KeyRound size={15} /> Request Project Access</Button>
           )}
           {canCreateOnPage('projects') && (
-            <Button variant="primary" onClick={handleNewProject}>+ New Project</Button>
+            <Button variant="primary" onClick={handleNewProject}><Plus size={15} /> New Project</Button>
           )}
         </div>
       </div>
 
       {requestOpen && (
         <div className="card" style={{ marginBottom: 20 }}>
-          <div className="card-section-title">Request Project Access</div>
+          <SectionTitle icon={KeyRound}>Request Project Access</SectionTitle>
           <p style={{ color: 'var(--slate)', fontSize: 13, marginBottom: 12 }}>
             Don't see a project you need? Pick it here and submit a request — an Admin will review and grant it.
           </p>
@@ -129,19 +131,20 @@ export default function ProjectsPage() {
           <Button variant="primary" onClick={submitProjectAccessRequest} disabled={submittingRequest}>
             {submittingRequest ? 'Submitting…' : 'Submit Request'}
           </Button>
-          <Button variant="ghost" onClick={() => setRequestOpen(false)} style={{ marginLeft: 10 }}>Cancel</Button>
+          <Button variant="ghost" onClick={() => setRequestOpen(false)} style={{ marginLeft: 10 }}><X size={15} /> Cancel</Button>
         </div>
       )}
 
       <div className="mb-5 grid grid-cols-4 gap-4 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1">
-        <StatCard label="Total Projects" value={String(summary?.total ?? (loading ? '—' : 0))} sub="Across all clients" color="var(--color-brand)" />
-        <StatCard label="Active Now" value={String(summary?.in_progress ?? (loading ? '—' : 0))} sub="Currently in progress" color="var(--color-green)" />
-        <StatCard label="On Hold" value={String(summary?.on_hold ?? (loading ? '—' : 0))} sub="Awaiting resumption" color="var(--color-amber)" />
+        <StatCard label="Total Projects" value={String(summary?.total ?? (loading ? '—' : 0))} sub="Across all clients" color="var(--color-brand)" icon={FolderOpen} />
+        <StatCard label="Active Now" value={String(summary?.in_progress ?? (loading ? '—' : 0))} sub="Currently in progress" color="var(--color-green)" icon={Activity} />
+        <StatCard label="On Hold" value={String(summary?.on_hold ?? (loading ? '—' : 0))} sub="Awaiting resumption" color="var(--color-amber)" icon={PauseCircle} />
         <StatCard
           label="Portfolio Budget"
           value={loading ? '—' : `₹${num(summary?.total_budget || 0)}`}
           sub={`${summary?.total ?? 0} project${summary?.total === 1 ? '' : 's'} total`}
           color="var(--color-violet)"
+          icon={Wallet}
         />
       </div>
 
@@ -157,29 +160,32 @@ export default function ProjectsPage() {
           <option value="">All Clients</option>
           {clients.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
-        <input
-          className="form-control"
-          style={{ flex: 1, minWidth: 180 }}
-          placeholder="🔍 Search…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
+        <div className="relative" style={{ flex: 1, minWidth: 180 }}>
+          <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+          <input
+            className="form-control"
+            style={{ width: '100%', paddingLeft: 32 }}
+            placeholder="Search…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
         {canExportOnPage('projects') && (
           <div className="relative" ref={exportRef}>
-            <Button variant="ghost" onClick={() => setExportOpen(o => !o)}>Export ↓</Button>
+            <Button variant="ghost" onClick={() => setExportOpen(o => !o)}><Download size={15} /> Export</Button>
             {exportOpen && (
               <div className="absolute right-0 top-full z-10 mt-1.5 w-40 rounded-xl border border-line bg-white py-1.5 shadow-card">
                 {[
-                  ['csv', '📄 CSV', exportProjectsCSV],
-                  ['xlsx', '📊 Excel', exportProjectsXLSX],
-                  ['pdf', '🧾 PDF', exportProjectsPDF],
-                ].map(([key, label, fn]) => (
+                  ['csv', FileText, 'CSV', exportProjectsCSV],
+                  ['xlsx', FileSpreadsheet, 'Excel', exportProjectsXLSX],
+                  ['pdf', FileType, 'PDF', exportProjectsPDF],
+                ].map(([key, Icon, label, fn]) => (
                   <button
                     key={key}
-                    className="block w-full px-3.5 py-2 text-left text-[13px] hover:bg-page"
+                    className="flex w-full items-center gap-2 px-3.5 py-2 text-left text-[13px] hover:bg-page"
                     onClick={() => { setExportOpen(false); fn(filtered); }}
                   >
-                    {label}
+                    <Icon size={14} /> {label}
                   </button>
                 ))}
               </div>

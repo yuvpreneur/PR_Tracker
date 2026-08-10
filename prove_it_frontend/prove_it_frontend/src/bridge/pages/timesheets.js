@@ -27,7 +27,7 @@ export function populateTsProjectCodeSelect(projectId, keepValue) {
   pcSel.value = codes.some(c => c.code === prev) ? prev : '';
 }
 
-function populateTimesheetModalDropdowns() {
+export function populateTimesheetModalDropdowns() {
   const projSel = field('modal-timesheet', 'project');
   if (projSel && projSel.tagName === 'SELECT') {
     const prev = projSel.value;

@@ -20,6 +20,9 @@ class CompanyCreate(BaseModel):
     industry: str
     primary_contact: Optional[str] = None
     email: Optional[str] = None
+    phone: Optional[str] = None
+    gstin: Optional[str] = None
+    billing_address: Optional[str] = None
     status: str = "Active"
 
 
@@ -28,6 +31,9 @@ class CompanyUpdate(BaseModel):
     industry: Optional[str] = None
     primary_contact: Optional[str] = None
     email: Optional[str] = None
+    phone: Optional[str] = None
+    gstin: Optional[str] = None
+    billing_address: Optional[str] = None
     status: Optional[str] = None
 
 
@@ -36,7 +42,9 @@ def _out(c: dict, db: Database):
     lifetime_value = sum(r["invoice_amount"] for r in db[collections.RECEIVABLES].find({"client": c["name"]}))
     return {
         "id": c["id"], "name": c["name"], "industry": c["industry"],
-        "primary_contact": c["primary_contact"], "email": c.get("email"), "status": c["status"],
+        "primary_contact": c["primary_contact"], "email": c.get("email"),
+        "phone": c.get("phone"), "gstin": c.get("gstin"), "billing_address": c.get("billing_address"),
+        "status": c["status"],
         "active_projects": active_projects, "lifetime_value": lifetime_value,
     }
 

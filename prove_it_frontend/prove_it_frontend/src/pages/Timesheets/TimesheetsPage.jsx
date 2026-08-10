@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Clock, Plus, Search, Check, X } from 'lucide-react';
 import useTimesheets from './useTimesheets.js';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
@@ -54,8 +55,8 @@ export default function TimesheetsPage() {
     if (!can('Timesheets', 'approve') || isMine(row, 'name')) return null;
     return (
       <>
-        <button className="bridge-approve ml-1 rounded-md px-2.5 py-0.5 text-[11px] text-green" data-page="page-timesheets" data-id={row.id} title="Approve">✓ Approve</button>
-        <button className="bridge-reject ml-1 rounded-md px-2.5 py-0.5 text-[11px] text-red" data-page="page-timesheets" data-id={row.id} title="Reject">✗ Reject</button>
+        <button className="bridge-approve ml-1 rounded-md px-2.5 py-0.5 text-[11px] text-green" data-page="page-timesheets" data-id={row.id} title="Approve"><Check size={14} /> Approve</button>
+        <button className="bridge-reject ml-1 rounded-md px-2.5 py-0.5 text-[11px] text-red" data-page="page-timesheets" data-id={row.id} title="Reject"><X size={14} /> Reject</button>
       </>
     );
   };
@@ -63,9 +64,9 @@ export default function TimesheetsPage() {
   return (
     <div>
       <div className="section-header">
-        <h2>Timesheets</h2>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Clock size={22} /> Timesheets</h2>
         {canCreateOnPage('timesheets') && (
-          <Button variant="primary" onClick={handleNew}>+ Submit Hours</Button>
+          <Button variant="primary" onClick={handleNew}><Plus size={15} /> Submit Hours</Button>
         )}
       </div>
 
@@ -90,13 +91,16 @@ export default function TimesheetsPage() {
           <option value="last_week">Last Week</option>
           <option value="this_month">This Month</option>
         </select>
-        <input
-          className="form-control"
-          style={{ flex: 1 }}
-          placeholder="🔍 Search…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
+        <div className="relative" style={{ flex: 1, minWidth: 180 }}>
+          <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+          <input
+            className="form-control"
+            style={{ width: '100%', paddingLeft: 32 }}
+            placeholder="Search…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className="card table-wrap">

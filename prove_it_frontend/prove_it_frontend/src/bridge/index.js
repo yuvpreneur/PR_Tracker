@@ -1,11 +1,12 @@
 // Bridge entry point — imports all modules and wires everything together
+import { createElement, icons } from 'lucide';
 import { get, post, patch, del, uploadFile } from './core/http.js';
 import { state } from './core/state.js';
 import { refreshCaches, username } from './core/cache.js';
 import { viewAs } from '../services/authService.js';
 import { toast } from './shared/ui.js';
 import { canViewPage, canCreateOnPage, canExportOnPage } from './shared/permissions.js';
-import { wireBtn, closeModal, startCreate, startEdit, editId, openModal, set, val } from './shared/modals.js';
+import { wireBtn, closeModal, startCreate, startEdit, editId, openModal, set, val, field, resetFields } from './shared/modals.js';
 import { ensureNotifPanel, loadNotifications, refreshNotifBadge } from './shared/notifications.js';
 import { populateFilterDropdowns, wireFilters } from './shared/filters.js';
 import { loadDashboard } from './pages/dashboard.js';
@@ -28,6 +29,19 @@ import { openReportView, handleReportExport } from './pages/reports.js';
 const ATTACH_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];
 const ATTACH_MAX_BYTES = 10 * 1024 * 1024; // 10MB — matches the backend's limit
 
+// Renders a lucide icon node as a real inline SVG element (the vanilla `lucide`
+// package's DOM-building API — this file is plain JS run outside React, so
+// lucide-react's <Icon/> components aren't usable here).
+function lucideIcon(iconNode, opts = {}) {
+  return createElement(iconNode, { width: 16, height: 16, 'stroke-width': 2, ...opts });
+}
+
+function setFileLabel(label, defaultText, fileName) {
+  if (!label) return;
+  if (!fileName) { label.textContent = defaultText; return; }
+  label.replaceChildren(lucideIcon(icons.FileText), document.createTextNode(' ' + fileName));
+}
+
 function validAttachment(file) {
   const ext = '.' + (file.name.split('.').pop() || '').toLowerCase();
   if (!ATTACH_EXTENSIONS.includes(ext)) { toast('Only PDF, JPG, PNG or WEBP files are allowed', 'error'); return false; }
@@ -45,7 +59,7 @@ function wireAttachZone(modalId) {
   const input = zone?.querySelector('input[type="file"]');
   if (!zone || !input) return;
   const label = zone.querySelector('[data-attach-label]');
-  const showFile = f => { if (label) label.textContent = f ? `📄 ${f.name}` : zone.dataset.defaultLabel; };
+  const showFile = f => setFileLabel(label, zone.dataset.defaultLabel, f?.name);
   zone.addEventListener('click', e => { if (e.target !== input) input.click(); });
   input.addEventListener('change', () => {
     const f = input.files[0];
@@ -66,7 +80,157 @@ function wireAttachZone(modalId) {
   });
 }
 
+// Strips anything non-digit as the user types — `type="tel"` alone doesn't block
+// letters in any browser, so this is the actual enforcement for "numbers only" fields.
+function wireNumericInput(modalId, hint) {
+  const input = field(modalId, hint);
+  if (!input) return;
+  input.addEventListener('input', () => {
+    const digits = input.value.replace(/\D/g, '');
+    if (digits !== input.value) input.value = digits;
+  });
+}
+
+// Sidebar nav icons — appMarkup.js's NAV_ITEMS carries an emoji `icon` per page
+// (baked into the legacy HTML string as a template literal), which we don't touch
+// directly; instead this maps each page id to a lucide icon and repaints
+// `.nav-icon` in place, whatever (re)builds the nav.
+const NAV_ICON_MAP = {
+  dashboard: icons.LayoutDashboard,
+  reports: icons.ChartColumn,
+  companies: icons.Building2,
+  projects: icons.FolderKanban,
+  'project-codes': icons.Tag,
+  'billing-codes': icons.CreditCard,
+  'service-desk': icons.LifeBuoy,
+  employees: icons.Users,
+  'hourly-cost': icons.Banknote,
+  timesheets: icons.Clock,
+  leave: icons.Palmtree,
+  payroll: icons.Landmark,
+  payslips: icons.Receipt,
+  expenses: icons.Wallet,
+  invoices: icons.FileText,
+  customers: icons.Handshake,
+  receivables: icons.Inbox,
+  approvals: icons.ClipboardCheck,
+  users: icons.UserCog,
+  roles: icons.ShieldCheck,
+  'access-control': icons.KeyRound,
+  audit: icons.ClipboardList,
+  settings: icons.Settings,
+};
+
+// Idempotent by design (skips items already carrying the right icon) so it's
+// safe to call from a MutationObserver without looping — replaceChildren()
+// below is itself a mutation, so a naive version would retrigger forever.
+function applyNavIcons() {
+  document.querySelectorAll('.nav-item[data-page]').forEach(btn => {
+    const iconEl = btn.querySelector('.nav-icon');
+    if (!iconEl) return;
+    const locked = btn.classList.contains('is-locked');
+    const key = locked ? 'locked' : btn.dataset.page;
+    if (iconEl.dataset.lucideIcon === key) return;
+    const iconNode = locked ? icons.Lock : NAV_ICON_MAP[btn.dataset.page];
+    if (!iconNode) return;
+    iconEl.replaceChildren(lucideIcon(iconNode, { width: 18, height: 18 }));
+    iconEl.dataset.lucideIcon = key;
+  });
+}
+
+// appScript's buildNavigation() fully rebuilds #nav (innerHTML = "") whenever it
+// reruns, which would wipe the icons applyNavIcons() just painted in — watching
+// for that keeps them in sync without editing appMarkup.js's markup itself.
+function watchNavIcons() {
+  const navEl = document.getElementById('nav');
+  if (!navEl) return;
+  applyNavIcons();
+  new MutationObserver(applyNavIcons).observe(navEl, { childList: true, subtree: true });
+}
+
+// Topbar page title — appScript's own navigate() rewrites #topbar-title's text to
+// `${item.icon}  ${item.label}` (plain emoji) on every nav click, so like the
+// sidebar this repaints it in place after the fact rather than editing appMarkup.js.
+// Skipped whenever the active nav item is locked — showNoAccess() (below) already
+// owns the Lock-icon "No Access" text for that case and shouldn't be clobbered.
+function applyTopbarTitleIcon() {
+  const titleEl = document.getElementById('topbar-title');
+  const activeBtn = document.querySelector('.nav-item.active');
+  if (!titleEl || !activeBtn || activeBtn.classList.contains('is-locked')) return;
+  const pageId = activeBtn.dataset.page;
+  const iconNode = NAV_ICON_MAP[pageId];
+  if (!iconNode || titleEl.dataset.lucideTopbar === pageId) return;
+  const label = activeBtn.querySelector('.nav-label')?.textContent || pageId;
+  titleEl.replaceChildren(lucideIcon(iconNode, { style: 'vertical-align:-3px;margin-right:8px' }), document.createTextNode(label));
+  titleEl.dataset.lucideTopbar = pageId;
+}
+
+function watchTopbarTitle() {
+  const titleEl = document.getElementById('topbar-title');
+  if (!titleEl) return;
+  applyTopbarTitleIcon();
+  new MutationObserver(applyTopbarTitleIcon).observe(titleEl, { childList: true, characterData: true, subtree: true });
+}
+
+// Sidebar collapse/expand toggle — appScript's toggleSidebar() overwrites the
+// button's textContent on every click ("◀ Collapse" / "▶"), so repaint on mutation
+// the same way as the nav and topbar title above.
+function applySidebarToggleIcon() {
+  const btn = document.querySelector('.sidebar-footer');
+  if (!btn) return;
+  const collapsed = document.getElementById('sidebar')?.classList.contains('collapsed');
+  const key = collapsed ? 'collapsed' : 'expanded';
+  if (btn.dataset.lucideIcon === key) return;
+  if (collapsed) btn.replaceChildren(lucideIcon(icons.PanelLeftOpen));
+  else btn.replaceChildren(lucideIcon(icons.PanelLeftClose), document.createTextNode(' Collapse'));
+  btn.dataset.lucideIcon = key;
+}
+
+function watchSidebarToggle() {
+  const btn = document.querySelector('.sidebar-footer');
+  if (!btn) return;
+  applySidebarToggleIcon();
+  new MutationObserver(applySidebarToggleIcon).observe(btn, { childList: true, characterData: true, subtree: true });
+}
+
+// One-time topbar fixes — none of these elements get rewritten by legacy code after
+// initial render, so unlike the three above they don't need an observer.
+function applyStaticTopbarIcons() {
+  const notifBtn = document.getElementById('notif-btn');
+  if (notifBtn && !notifBtn.dataset.lucideIcon) {
+    const bellText = Array.from(notifBtn.childNodes).find(n => n.nodeType === Node.TEXT_NODE);
+    if (bellText) notifBtn.replaceChild(lucideIcon(icons.Bell), bellText);
+    notifBtn.dataset.lucideIcon = '1';
+  }
+
+  const exitViewBtn = document.getElementById('view-as-exit');
+  if (exitViewBtn && !exitViewBtn.dataset.lucideIcon) {
+    exitViewBtn.replaceChildren(lucideIcon(icons.EyeOff, { width: 14, height: 14 }), document.createTextNode(' Exit view'));
+    exitViewBtn.dataset.lucideIcon = '1';
+  }
+
+  const signOutBtn = document.querySelector('button[onclick="doLogout()"]');
+  if (signOutBtn && !signOutBtn.dataset.lucideIcon) {
+    signOutBtn.replaceChildren(lucideIcon(icons.LogOut, { width: 14, height: 14 }), document.createTextNode(' Sign out'));
+    signOutBtn.dataset.lucideIcon = '1';
+  }
+
+  const roleSwitcher = document.getElementById('role-switcher');
+  if (roleSwitcher && !roleSwitcher.dataset.lucideWrapped) {
+    const wrap = document.createElement('span');
+    wrap.style.cssText = 'display:inline-flex;align-items:center;gap:6px;color:#7c92a1';
+    roleSwitcher.parentNode.insertBefore(wrap, roleSwitcher);
+    wrap.appendChild(lucideIcon(icons.Eye, { width: 14, height: 14 }));
+    wrap.appendChild(roleSwitcher);
+    roleSwitcher.dataset.lucideWrapped = '1';
+  }
+}
+
 export function initApiBridge() {
+  watchNavIcons();
+  watchTopbarTitle();
+  watchSidebarToggle();
+  applyStaticTopbarIcons();
 
   // ── Page loader registry ────────────────────────────────────────────────────
   const loaders = {
@@ -80,20 +244,26 @@ export function initApiBridge() {
     'page-timesheets':    loadTimesheets,
     'page-leave':         loadLeave,
     'page-expenses':      loadExpenses,
-    'page-invoices':      loadInvoices,
     'page-receivables':   loadReceivables,
     'page-service-desk':  loadServiceDesk,
     // page-dashboard/page-approvals/page-roles/page-access-control/page-settings/
-    // page-reports deliberately NOT wired to a loader — those pages are full React
-    // rebuilds (see src/pages/Dashboard, Approvals, Roles, AccessControl, Settings,
-    // Reports) with no remaining dependency on their legacy loadX(); leaving the
-    // entry here would just re-run DOM writes targeting elements React now owns,
-    // corrupting React's fiber tree (see isReactOwned() in shared/table.js for the
-    // underlying "removeChild ... not a child" failure mode this caused when
-    // discovered). openReportView()/handleReportExport() are still imported below
-    // and still wired to real clicks — ReportsPage.jsx reuses them directly via the
-    // same .report-view-btn/.report-export-option classes, it just doesn't need
-    // loadReports() itself (which only toggled visibility of legacy DOM rows).
+    // page-reports/page-invoices deliberately NOT wired to a loader — those pages are
+    // full React rebuilds (see src/pages/Dashboard, Approvals, Roles, AccessControl,
+    // Settings, Reports, Invoices) with no remaining dependency on their legacy
+    // loadX(); leaving the entry here would just re-run DOM writes targeting elements
+    // React now owns, corrupting React's fiber tree (see isReactOwned() in
+    // shared/table.js for the underlying "removeChild ... not a child" failure mode
+    // this caused when discovered) — and for Invoices specifically, loadInvoices()
+    // fetches /api/receivables, which the rewritten InvoicesPage.jsx (now its own
+    // /api/invoices resource) never reads. openReportView()/handleReportExport() are
+    // still imported below and still wired to real clicks — ReportsPage.jsx reuses
+    // them directly via the same .report-view-btn/.report-export-option classes, it
+    // just doesn't need loadReports() itself (which only toggled visibility of legacy
+    // DOM rows). loadInvoices/openInvoiceView remain imported below: the shared
+    // modal-recv submit handler still references loadInvoices() in its (now-dead,
+    // since page-invoices no longer sets that edit-state) invoiceEdit branch, and
+    // openInvoiceView() is unreachable the same way — left in place rather than
+    // unpicking that shared handler for a currently-inert code path.
     'page-users':         loadUsers,
     'page-audit':         loadAudit,
   };
@@ -125,8 +295,9 @@ export function initApiBridge() {
       btn.classList.add('is-locked');
       btn.title = 'No access. Click to request access.';
       const icon = btn.querySelector('.nav-icon');
-      if (icon) { icon.textContent = '🔒'; icon.style.color = ''; }
+      if (icon) icon.style.color = '';
     });
+    applyNavIcons();
   }
 
   function showNoAccess(pageId) {
@@ -135,7 +306,8 @@ export function initApiBridge() {
     document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === 'page-no-access'));
     const nameEl = document.getElementById('blocked-page-name'); if (nameEl) nameEl.textContent = label;
     const reqEl = document.getElementById('request-page-name'); if (reqEl) reqEl.value = label;
-    const titleEl = document.getElementById('topbar-title'); if (titleEl) titleEl.textContent = '🔒  No Access · ' + label;
+    const titleEl = document.getElementById('topbar-title');
+    if (titleEl) titleEl.replaceChildren(lucideIcon(icons.Lock, { style: 'vertical-align:-3px;margin-right:6px' }), document.createTextNode('No Access · ' + label));
     state.blockedPageId = pageId; // read by submitPageAccessRequest() (pages/accesscontrol.js)
     // NoAccessPage.jsx (React) listens for this instead of reading blocked-page-name/
     // request-page-name, which it doesn't render — see src/pages/NoAccess.
@@ -145,6 +317,7 @@ export function initApiBridge() {
   // ── Modal form submissions ──────────────────────────────────────────────────
   function wireSubmits() {
     // Companies / Customers (shared modal-company — Customers is a finance-facing view of the same records)
+    wireNumericInput('modal-company', 'phone');
     wireBtn('modal-company', async () => {
       const id = editId('page-companies') || editId('page-customers');
       const body = {
@@ -152,12 +325,24 @@ export function initApiBridge() {
         industry: val('modal-company', 'industry'),
         primary_contact: val('modal-company', 'primary contact') || null,
         email: val('modal-company', 'email') || null,
+        phone: val('modal-company', 'phone') || null,
+        gstin: val('modal-company', 'gstin') || null,
+        billing_address: val('modal-company', 'billing address') || null,
         status: val('modal-company', 'status') || 'Active',
       };
+      console.log('[DEBUG modal-company submit]', { id, body }); // TEMP — remove after diagnosing
       if (id) { const { name: _, ...u } = body; await patch(`/api/companies/${id}`, u); toast('Company updated'); }
       else { if (!body.name || !body.industry) { toast('Company Name and Industry required', 'error'); return; } await post('/api/companies', body); toast('Company created'); }
-      closeModal('modal-company'); startCreate('page-companies'); startCreate('page-customers');
-      if (document.getElementById('page-customers')?.classList.contains('active')) loadCustomers(); else loadCompanies();
+      // Belt-and-suspenders: clear fields the moment a save completes, not only right
+      // before the next "+ New X" open — closes the window where an edit's leftover
+      // values could leak into whatever opens this modal next.
+      closeModal('modal-company'); resetFields('modal-company'); startCreate('page-companies'); startCreate('page-customers');
+      // Used to branch on #page-customers' .active class to decide which of the two
+      // React pages (CompaniesPage/CustomersPage — same backend records, different
+      // views) needed its 'changed' event; that DOM signal no longer exists now that
+      // AppLayout/react-router own page switching (Phase 1 of the bridge-removal
+      // migration), so just refresh both — same /api/companies data either way.
+      loadCompanies(); loadCustomers();
     });
 
     // Projects
@@ -316,11 +501,14 @@ export function initApiBridge() {
     wireAttachZone('modal-expense');
     wireBtn('modal-expense', async () => {
       const id = editId('page-expenses');
+      const modalEl = document.getElementById('modal-expense');
       // Upload the picked receipt (if any) before touching the expense record itself —
-      // if this fails, bail out without creating/updating anything half-done.
+      // if this fails, bail out without creating/updating anything half-done. A file
+      // already uploaded (and OCR'd) via the "Upload File" flow before the modal opened
+      // takes a back seat to a freshly picked one — the user swapped it on purpose.
       const attachInput = document.querySelector('#modal-expense input[data-attach-input]');
       const attachFile = attachInput?.files?.[0];
-      let receipt_url;
+      let receipt_url = modalEl?.dataset.pendingReceiptUrl || undefined;
       if (attachFile) {
         const uploaded = await uploadFile('/api/expenses/attachments', attachFile).catch(() => null);
         if (!uploaded) return;
@@ -352,6 +540,7 @@ export function initApiBridge() {
         await post('/api/expenses', body);
         toast('Expense submitted');
       }
+      if (modalEl) delete modalEl.dataset.pendingReceiptUrl;
       closeModal('modal-expense'); startCreate('page-expenses'); loadExpenses();
     });
 
@@ -606,6 +795,9 @@ export function initApiBridge() {
         set('modal-company', 'industry', row.industry);
         set('modal-company', 'primary contact', row.primary_contact || '');
         set('modal-company', 'email', row.email || '');
+        set('modal-company', 'phone', row.phone || '');
+        set('modal-company', 'gstin', row.gstin || '');
+        set('modal-company', 'billing address', row.billing_address || '');
         set('modal-company', 'status', row.status);
         startEdit('page-companies', row.id);
         openModal('modal-company');
@@ -630,6 +822,9 @@ export function initApiBridge() {
         set('modal-company', 'industry', row.industry);
         set('modal-company', 'primary contact', row.primary_contact || '');
         set('modal-company', 'email', row.email || '');
+        set('modal-company', 'phone', row.phone || '');
+        set('modal-company', 'gstin', row.gstin || '');
+        set('modal-company', 'billing address', row.billing_address || '');
         set('modal-company', 'status', row.status);
         startEdit('page-customers', row.id);
         openModal('modal-company');
@@ -832,7 +1027,10 @@ export function initApiBridge() {
         const attachInputEl = attachZone?.querySelector('input[type="file"]');
         if (attachInputEl) attachInputEl.value = '';
         const attachLabel = attachZone?.querySelector('[data-attach-label]');
-        if (attachLabel) attachLabel.textContent = row.receipt_url ? '📄 Attachment on file — upload to replace' : attachZone.dataset.defaultLabel;
+        if (attachLabel) {
+          if (row.receipt_url) attachLabel.replaceChildren(lucideIcon(icons.FileText), document.createTextNode(' Attachment on file — upload to replace'));
+          else attachLabel.textContent = attachZone.dataset.defaultLabel;
+        }
         startEdit('page-expenses', row.id);
         openModal('modal-expense');
         return;
@@ -1135,8 +1333,16 @@ export function initApiBridge() {
       if (opt) handleReportExport(key, opt.dataset.format);
     });
 
-    // Nav click → load fresh data for that page
-    document.getElementById('nav')?.addEventListener('click', e => {
+    // Nav click → load fresh data for that page. Scoped to document rather than
+    // #nav (unlike the gating listener above, deliberately left scoped to #nav —
+    // AppLayout.jsx's real nav links live outside it and already own their own
+    // locked-click handling, which this must not intercept) — AppLayout.jsx's real
+    // <NavLink>s carry the same .nav-item class + data-page attribute #nav's legacy
+    // buildNavigation()-built buttons do, so this still finds them. Without this,
+    // real navigation never re-triggers loadProjects()/etc., and modal dropdowns
+    // that depend on their side effects (populateManagerDropdown, etc.) stay empty
+    // on first "+ New X" until some other trigger (a submit elsewhere) fires it.
+    document.addEventListener('click', e => {
       const item = e.target.closest('.nav-item');
       if (item?.dataset.page) loadPage('page-' + item.dataset.page);
     });

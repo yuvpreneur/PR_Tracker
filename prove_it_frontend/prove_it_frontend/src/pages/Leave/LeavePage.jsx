@@ -1,3 +1,4 @@
+import { Palmtree, Plus, Check, X, CalendarDays, ClipboardCheck, History } from 'lucide-react';
 import useLeave from './useLeave.js';
 import StatCard from '../../components/ui/StatCard.jsx';
 import Badge from '../../components/ui/Badge.jsx';
@@ -27,8 +28,8 @@ export default function LeavePage() {
     if (!can('Leave', 'approve') || isMine(row, 'name')) return null;
     return (
       <>
-        <button className="bridge-approve rounded-md px-2.5 py-0.5 text-[11px] text-green" data-page="page-leave" data-id={row.id} title="Approve">✓ Approve</button>
-        <button className="bridge-reject ml-1 rounded-md px-2.5 py-0.5 text-[11px] text-red" data-page="page-leave" data-id={row.id} title="Reject">✗ Reject</button>
+        <button className="bridge-approve rounded-md px-2.5 py-0.5 text-[11px] text-green" data-page="page-leave" data-id={row.id} title="Approve"><Check size={14} /> Approve</button>
+        <button className="bridge-reject ml-1 rounded-md px-2.5 py-0.5 text-[11px] text-red" data-page="page-leave" data-id={row.id} title="Reject"><X size={14} /> Reject</button>
       </>
     );
   };
@@ -36,16 +37,16 @@ export default function LeavePage() {
   return (
     <div>
       <div className="section-header">
-        <h2>Leave</h2>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Palmtree size={22} /> Leave</h2>
         {canCreateOnPage('leave') && (
-          <Button variant="primary" onClick={() => openModal('modal-leave')}>+ Apply Leave</Button>
+          <Button variant="primary" onClick={() => openModal('modal-leave')}><Plus size={15} /> Apply Leave</Button>
         )}
       </div>
 
       <div className="mb-5 grid grid-cols-3 gap-4 max-[700px]:grid-cols-1">
-        <StatCard label="Leave Balance" value={loading ? '—' : `${summary?.balance ?? 0} days`} sub="" color="var(--color-green)" />
-        <StatCard label="Pending Requests" value={loading ? '—' : String(summary?.pending ?? 0)} sub="" color="var(--color-amber)" />
-        <StatCard label="Taken This Year" value={loading ? '—' : `${summary?.taken_this_year ?? 0} days`} sub="" color="var(--color-brand)" />
+        <StatCard label="Leave Balance" value={loading ? '—' : `${summary?.balance ?? 0} days`} sub="" color="var(--color-green)" icon={CalendarDays} />
+        <StatCard label="Pending Requests" value={loading ? '—' : String(summary?.pending ?? 0)} sub="" color="var(--color-amber)" icon={ClipboardCheck} />
+        <StatCard label="Taken This Year" value={loading ? '—' : `${summary?.taken_this_year ?? 0} days`} sub="" color="var(--color-brand)" icon={History} />
       </div>
 
       <div className="card table-wrap">

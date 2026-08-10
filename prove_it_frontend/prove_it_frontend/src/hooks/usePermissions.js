@@ -23,7 +23,7 @@ export const PAGE_MODULE_MAP = {
   'timesheets':     'Timesheets',
   'leave':          'Leave',
   'expenses':       'Expenses',
-  'invoices':       'Receivables',   // shares the Receivables backend
+  'invoices':       'Invoices',
   'receivables':    'Receivables',
   'approvals':      'Approvals',
 };

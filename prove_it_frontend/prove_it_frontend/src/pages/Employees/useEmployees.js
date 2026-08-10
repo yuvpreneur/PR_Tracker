@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { get } from '../../services/httpClient.js';
 import { state } from '../../bridge/core/state.js';
+import { populateManagerDropdown } from '../../bridge/pages/projects.js';
+import { populateCostEmployeeDropdown } from '../../bridge/pages/employees.js';
 
 // Same pattern as useCompanies.js — plain client-side filtering over a single
 // unfiltered fetch, no join needed.
@@ -14,6 +16,12 @@ export default function useEmployees() {
     // Keeps the legacy `.bridge-edit`/`.bridge-delete` delegation's row lookup
     // (bridge/index.js, reads state.employees) in sync with what's on screen.
     state.employees = rows || [];
+    // Every page (and its modal) mounts immediately on login regardless of which
+    // route is active (see AllPages in AppRoutes.jsx) — refreshing these dropdowns
+    // here, rather than only when the legacy nav-click loader happens to run, is
+    // what keeps them from ever showing stale/fake data.
+    populateManagerDropdown();
+    populateCostEmployeeDropdown();
     setLoading(false);
   }, []);
 

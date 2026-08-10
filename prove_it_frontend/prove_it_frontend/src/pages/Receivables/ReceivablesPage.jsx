@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Inbox, Plus, Search, IndianRupee, Wallet, Clock, AlertTriangle } from 'lucide-react';
 import useReceivables from './useReceivables.js';
 import StatCard from '../../components/ui/StatCard.jsx';
 import Badge from '../../components/ui/Badge.jsx';
@@ -63,17 +64,17 @@ export default function ReceivablesPage() {
   return (
     <div>
       <div className="section-header">
-        <h2>Receivables</h2>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Inbox size={22} /> Receivables</h2>
         {canCreateOnPage('receivables') && (
-          <Button variant="primary" onClick={handleNew}>+ Add Receivable</Button>
+          <Button variant="primary" onClick={handleNew}><Plus size={15} /> Add Receivable</Button>
         )}
       </div>
 
       <div className="mb-5 grid grid-cols-4 gap-4 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1">
-        <StatCard label="Total Billed" value={loading ? '—' : `₹${num(totalBilled)}`} sub="" color="var(--color-accent)" />
-        <StatCard label="Received" value={loading ? '—' : `₹${num(received)}`} sub="" color="var(--color-green)" />
-        <StatCard label="Outstanding" value={loading ? '—' : `₹${num(outstanding)}`} sub="" color="var(--color-amber)" />
-        <StatCard label="Overdue" value={loading ? '—' : `₹${num(overdue)}`} sub="" color="var(--color-red)" />
+        <StatCard label="Total Billed" value={loading ? '—' : `₹${num(totalBilled)}`} sub="" color="var(--color-accent)" icon={IndianRupee} />
+        <StatCard label="Received" value={loading ? '—' : `₹${num(received)}`} sub="" color="var(--color-green)" icon={Wallet} />
+        <StatCard label="Outstanding" value={loading ? '—' : `₹${num(outstanding)}`} sub="" color="var(--color-amber)" icon={Clock} />
+        <StatCard label="Overdue" value={loading ? '—' : `₹${num(overdue)}`} sub="" color="var(--color-red)" icon={AlertTriangle} />
       </div>
 
       <div className="filter-bar">
@@ -92,13 +93,16 @@ export default function ReceivablesPage() {
           <option>Paid</option>
           <option>Overdue</option>
         </select>
-        <input
-          className="form-control"
-          style={{ flex: 1 }}
-          placeholder="🔍 Search…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
+        <div className="relative" style={{ flex: 1, minWidth: 180 }}>
+          <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+          <input
+            className="form-control"
+            style={{ width: '100%', paddingLeft: 32 }}
+            placeholder="Search…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className="card table-wrap">

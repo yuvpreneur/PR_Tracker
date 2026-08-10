@@ -1,12 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { Wallet, Plus, Search, Upload, Paperclip, Check, X } from 'lucide-react';
 import useExpenses from './useExpenses.js';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
 import { date } from '../../utils/format.js';
-import { viewAttachment } from '../../services/httpClient.js';
+import { viewAttachment, uploadFile } from '../../services/httpClient.js';
 import usePermissions from '../../hooks/usePermissions.js';
-import { openModal, startCreate, resetFields } from '../../bridge/shared/modals.js';
+import { openModal, startCreate, resetFields, set, setPendingReceipt } from '../../bridge/shared/modals.js';
+import { extractReceiptFields } from './receiptOcr.js';
 
 const CATEGORIES = ['Travel', 'Software', 'Vendor', 'Material', 'Misc'];
 
@@ -17,6 +19,8 @@ export default function ExpensesPage() {
   const [category, setCategory] = useState('');
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
+  const [extracting, setExtracting] = useState(false);
+  const uploadInputRef = useRef(null);
 
   const projectName = id => projects.find(p => p.id === id)?.name;
 
@@ -32,7 +36,7 @@ export default function ExpensesPage() {
       key: 'receipt_url',
       header: 'Receipt',
       render: r => (r.receipt_url ? (
-        <button type="button" className="text-[12px] underline" onClick={() => viewAttachment(r.receipt_url)}>📎 View</button>
+        <button type="button" className="text-[12px] underline" onClick={() => viewAttachment(r.receipt_url)}><Paperclip size={13} /> View</button>
       ) : '—'),
     },
     { key: 'status', header: 'Status', render: r => <Badge status={r.status} /> },
@@ -63,6 +67,37 @@ export default function ExpensesPage() {
     openModal('modal-expense');
   };
 
+  const handleUploadClick = () => uploadInputRef.current?.click();
+
+  const handleFileSelected = async e => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setExtracting(true);
+    try {
+      // OCR runs entirely client-side (tesseract.js/WASM) so it can go in parallel with
+      // the attachment upload — neither depends on the other's result.
+      const [fields, uploaded] = await Promise.all([
+        extractReceiptFields(file),
+        uploadFile('/api/expenses/attachments', file),
+      ]);
+      if (!uploaded) return;
+      resetFields('modal-expense');
+      startCreate('page-expenses');
+      if (fields.category) set('modal-expense', 'expense category', fields.category);
+      if (fields.expense_date) set('modal-expense', 'expense date', fields.expense_date);
+      if (fields.amount != null) set('modal-expense', 'amount', fields.amount);
+      if (fields.vendor) set('modal-expense', 'vendor name', fields.vendor);
+      if (fields.description) set('modal-expense', 'description', fields.description);
+      setPendingReceipt('modal-expense', uploaded.receipt_url, uploaded.filename);
+      openModal('modal-expense');
+    } catch {
+      // toast already shown by uploadFile on failure
+    } finally {
+      setExtracting(false);
+    }
+  };
+
   // Expenses is self-service again — the submitter can edit their own Pending entry,
   // matching expenses.py's update() (no self-service delete, even for your own pending
   // entry — that stays permission-gated, same as the backend).
@@ -86,8 +121,8 @@ export default function ExpensesPage() {
     if (isMine(row, 'submitted_by') || !canActOnStage(row)) return null;
     return (
       <>
-        <button className="bridge-approve ml-1 rounded-md px-2.5 py-0.5 text-[11px] text-green" data-page="page-expenses" data-id={row.id} title="Approve">✓ Approve</button>
-        <button className="bridge-reject ml-1 rounded-md px-2.5 py-0.5 text-[11px] text-red" data-page="page-expenses" data-id={row.id} title="Reject">✗ Reject</button>
+        <button className="bridge-approve ml-1 rounded-md px-2.5 py-0.5 text-[11px] text-green" data-page="page-expenses" data-id={row.id} title="Approve"><Check size={14} /> Approve</button>
+        <button className="bridge-reject ml-1 rounded-md px-2.5 py-0.5 text-[11px] text-red" data-page="page-expenses" data-id={row.id} title="Reject"><X size={14} /> Reject</button>
       </>
     );
   };
@@ -95,9 +130,21 @@ export default function ExpensesPage() {
   return (
     <div>
       <div className="section-header">
-        <h2>Expenses</h2>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Wallet size={22} /> Expenses</h2>
         {canCreateOnPage('expenses') && (
-          <Button variant="primary" onClick={handleNew}>+ Add Expense</Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" onClick={handleUploadClick} disabled={extracting}>
+              {extracting ? 'Analyzing…' : (<><Upload size={14} /> Upload File</>)}
+            </Button>
+            <input
+              ref={uploadInputRef}
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png,.webp"
+              className="hidden"
+              onChange={handleFileSelected}
+            />
+            <Button variant="primary" onClick={handleNew}><Plus size={15} /> Add Expense</Button>
+          </div>
         )}
       </div>
 
@@ -117,13 +164,16 @@ export default function ExpensesPage() {
           <option>Approved</option>
           <option>Rejected</option>
         </select>
-        <input
-          className="form-control"
-          style={{ flex: 1 }}
-          placeholder="🔍 Search…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
+        <div className="relative" style={{ flex: 1, minWidth: 180 }}>
+          <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+          <input
+            className="form-control"
+            style={{ width: '100%', paddingLeft: 32 }}
+            placeholder="Search…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className="card table-wrap">

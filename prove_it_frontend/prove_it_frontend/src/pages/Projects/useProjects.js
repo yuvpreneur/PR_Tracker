@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { get } from '../../services/httpClient.js';
 import { state } from '../../bridge/core/state.js';
+import { populateProjectClientDropdown, populatePCodeProjectDropdown } from '../../bridge/pages/projects.js';
+import { populateReceivableModalDropdowns } from '../../bridge/pages/billing.js';
+import { populateExpenseModalDropdowns } from '../../bridge/pages/expenses.js';
+import { populateTimesheetModalDropdowns } from '../../bridge/pages/timesheets.js';
+import { populateTicketProjectDropdown } from '../../bridge/pages/servicedesk.js';
 
 // The legacy bridge/pages/projects.js loadProjects() still runs too (nav clicks,
 // modal save/delete all trigger it) and dispatches 'projects:changed' once it's done —
@@ -21,6 +26,16 @@ export default function useProjects() {
     // Keeps the legacy `.bridge-edit`/`.bridge-delete` delegation's row lookup
     // (bridge/index.js, reads state.projects) in sync with what's actually on screen.
     state.projects = rows || [];
+    // Every page (and its modal) mounts immediately on login regardless of which
+    // route is active (see AllPages in AppRoutes.jsx) — refreshing every Project
+    // dropdown here, rather than only when the legacy nav-click loader happens to
+    // run, is what keeps them from ever showing stale/fake data.
+    populateProjectClientDropdown();
+    populatePCodeProjectDropdown();
+    populateReceivableModalDropdowns();
+    populateExpenseModalDropdowns();
+    populateTimesheetModalDropdowns();
+    populateTicketProjectDropdown();
     setLoading(false);
   }, []);
 

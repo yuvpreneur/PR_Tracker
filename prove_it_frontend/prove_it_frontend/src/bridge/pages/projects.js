@@ -51,7 +51,7 @@ async function renderProjectStats() {
 // Union of real Companies + any client string already used on an existing project (so
 // editing an older project whose client isn't a registered Company still shows correctly
 // instead of silently blanking — and losing that value — when the modal is saved).
-function populateProjectClientDropdown() {
+export function populateProjectClientDropdown() {
   const modal = document.getElementById('modal-project');
   if (!modal) return;
   const sel = Array.from(modal.querySelectorAll('select')).find(s => (s.options[0]?.text || '').toLowerCase().includes('select client'));
@@ -64,7 +64,7 @@ function populateProjectClientDropdown() {
   if (prev) sel.value = prev;
 }
 
-function populateManagerDropdown() {
+export function populateManagerDropdown() {
   const modal = document.getElementById('modal-project');
   if (!modal) return;
   const sel = Array.from(modal.querySelectorAll('select')).find(s => (s.options[0]?.text || '').toLowerCase().includes('select manager'));

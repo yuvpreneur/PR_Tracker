@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { login, getMe, register, checkRegistrationAvailable, forgotPassword, resetPassword } from '../../services/authService';
 import useAuth from '../../hooks/useAuth.jsx';
 import logo from '../../assets/images/company-logo.png';
@@ -184,16 +185,6 @@ export default function Login() {
                 {loading ? 'Signing in…' : 'Sign in'}
               </button>
 
-              <div className="divider">
-                <div className="divider-line"></div>
-                <span className="divider-text">or continue with</span>
-                <div className="divider-line"></div>
-              </div>
-
-              <button type="button" className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center' }}>
-                🔑 Single Sign-On (SSO)
-              </button>
-
               {registerAvailable && (
                 <p style={{ textAlign: 'center', fontSize: '13px', margin: 0, color: 'var(--slate)' }}>
                   First time setting up?{' '}
@@ -271,7 +262,7 @@ export default function Login() {
 
               <p style={{ textAlign: 'center', fontSize: '13px', margin: 0 }}>
                 <a href="#" onClick={e => { e.preventDefault(); switchMode('login'); }} style={{ color: 'var(--accent)' }}>
-                  ← Back to sign in
+                  <ArrowLeft size={12} style={{ verticalAlign: '-2px' }} /> Back to sign in
                 </a>
               </p>
             </form>
@@ -294,7 +285,7 @@ export default function Login() {
 
                 <p style={{ textAlign: 'center', fontSize: '13px', margin: 0 }}>
                   <a href="#" onClick={e => { e.preventDefault(); setForgotSubmitted(false); setForgotEmail(''); setForgotResetLink(''); switchMode('login'); }} style={{ color: 'var(--accent)' }}>
-                    ← Back to sign in
+                    <ArrowLeft size={12} style={{ verticalAlign: '-2px' }} /> Back to sign in
                   </a>
                 </p>
               </div>
@@ -333,7 +324,7 @@ export default function Login() {
 
                 <p style={{ textAlign: 'center', fontSize: '13px', margin: 0 }}>
                   <a href="#" onClick={e => { e.preventDefault(); switchMode('login'); }} style={{ color: 'var(--accent)' }}>
-                    ← Back to sign in
+                    <ArrowLeft size={12} style={{ verticalAlign: '-2px' }} /> Back to sign in
                   </a>
                 </p>
               </form>
@@ -384,7 +375,7 @@ export default function Login() {
 
               <p style={{ textAlign: 'center', fontSize: '13px', margin: 0 }}>
                 <a href="#" onClick={e => { e.preventDefault(); navigate('/', { replace: true }); switchMode('forgot'); }} style={{ color: 'var(--accent)' }}>
-                  Request a new link
+                  <ArrowLeft size={12} style={{ verticalAlign: '-2px' }} /> Request a new link
                 </a>
               </p>
             </form>

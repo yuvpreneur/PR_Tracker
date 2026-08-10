@@ -8,8 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.database import client
-from app.core import seed
+from app.core.database import client, ensure_indexes
 from app.routers import (
     auth,
     users,
@@ -22,12 +21,14 @@ from app.routers import (
     timesheets,
     expenses,
     receivables,
+    invoices,
     leave,
     tickets,
     approvals,
     access_control,
     role_permissions,
     reports,
+    dashboard,
     audit_log,
     settings,
     notifications,
@@ -36,11 +37,7 @@ from app.routers import (
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     client.admin.command("ping")  # fail fast if Atlas is unreachable
-    # Demo-data seeding only runs in development — allowlisted (not "!= production")
-    # so an unset/misspelled ENVIRONMENT in a real deployment fails closed instead of
-    # silently seeding known-password accounts into a real database.
-    if os.environ.get("ENVIRONMENT", "development") == "development":
-        seed.run()
+    ensure_indexes()
     yield
     client.close()
 
@@ -71,12 +68,14 @@ app.include_router(hourly_costs.router,   prefix="/api/hourly-costs",   tags=["H
 app.include_router(timesheets.router,     prefix="/api/timesheets",     tags=["Timesheets"])
 app.include_router(expenses.router,       prefix="/api/expenses",       tags=["Expenses"])
 app.include_router(receivables.router,    prefix="/api/receivables",    tags=["Receivables"])
+app.include_router(invoices.router,       prefix="/api/invoices",       tags=["Invoices"])
 app.include_router(leave.router,          prefix="/api/leave",          tags=["Leave"])
 app.include_router(tickets.router,        prefix="/api/tickets",        tags=["Service Desk"])
 app.include_router(approvals.router,      prefix="/api/approvals",      tags=["Approvals"])
 app.include_router(access_control.router, prefix="/api/access-control", tags=["Access Control"])
 app.include_router(role_permissions.router, prefix="/api/role-permissions", tags=["Roles & Permissions"])
 app.include_router(reports.router,        prefix="/api/reports",        tags=["Reports"])
+app.include_router(dashboard.router,      prefix="/api/dashboard",      tags=["Dashboard"])
 app.include_router(audit_log.router,      prefix="/api/audit-log",      tags=["Audit Log"])
 app.include_router(settings.router,       prefix="/api/settings",       tags=["Settings"])
 app.include_router(notifications.router,  prefix="/api/notifications",  tags=["Notifications"])

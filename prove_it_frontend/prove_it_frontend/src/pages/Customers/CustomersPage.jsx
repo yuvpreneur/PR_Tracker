@@ -1,3 +1,4 @@
+import { Handshake, Plus } from 'lucide-react';
 import useCustomers from './useCustomers.js';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
@@ -8,6 +9,8 @@ const COLUMNS = [
   { key: 'name', header: 'Customer', render: r => <strong>{r.name}</strong> },
   { key: 'primary_contact', header: 'Contact', render: r => r.primary_contact || '—' },
   { key: 'email', header: 'Email', render: r => r.email || '—' },
+  { key: 'phone', header: 'Phone', render: r => r.phone || '—' },
+  { key: 'gstin', header: 'GSTIN', render: r => r.gstin || '—' },
   { key: 'active_projects', header: 'Active Projects' },
   { key: 'lifetime_value', header: 'Lifetime Value', render: r => `₹${r.lifetime_value.toLocaleString('en-IN')}` },
 ];
@@ -25,9 +28,9 @@ export default function CustomersPage() {
   return (
     <div>
       <div className="section-header">
-        <h2>Customers</h2>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Handshake size={22} /> Customers</h2>
         {canCreateOnPage('customers') && (
-          <Button variant="primary" onClick={handleNew}>+ New Customer</Button>
+          <Button variant="primary" onClick={handleNew}><Plus size={15} /> New Customer</Button>
         )}
       </div>
 

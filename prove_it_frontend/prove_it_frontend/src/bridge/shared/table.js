@@ -1,5 +1,6 @@
 import { badge } from './ui.js';
 import { can, isMine } from './permissions.js';
+import { iconSvg } from './icons.js';
 
 // True once a DOM node has been rendered/claimed by React (it stamps a
 // `__reactFiber$…`/`__reactProps$…`/`__reactContainer$…` property directly onto
@@ -44,8 +45,8 @@ export function renderTable(pageId, rows, cols, idFn, extraBtns = () => '', tabl
       return `<tr data-id="${id}" style="border-bottom:1px solid #f1f5f9">${cells}</tr>`;
     }
     const actions =
-      (rowOpts.noEdit ? '' : `<button class="btn btn-xs bridge-edit" data-page="${pageId}" data-id="${id}" title="Edit" style="padding:3px 9px;font-size:11px;margin-right:3px;border-radius:6px">✏️</button>`) +
-      (rowOpts.noDelete ? '' : `<button class="btn btn-xs bridge-delete" data-page="${pageId}" data-id="${id}" title="Delete" style="padding:3px 9px;font-size:11px;color:#ef4444;border-radius:6px">🗑️</button>`) +
+      (rowOpts.noEdit ? '' : `<button class="btn btn-xs bridge-edit" data-page="${pageId}" data-id="${id}" title="Edit" style="padding:3px 9px;font-size:11px;margin-right:3px;border-radius:6px">${iconSvg('Pencil')}</button>`) +
+      (rowOpts.noDelete ? '' : `<button class="btn btn-xs bridge-delete" data-page="${pageId}" data-id="${id}" title="Delete" style="padding:3px 9px;font-size:11px;color:#ef4444;border-radius:6px">${iconSvg('Trash2')}</button>`) +
       extraBtns(row, id, pageId);
     return `<tr data-id="${id}" style="border-bottom:1px solid #f1f5f9">${cells}<td style="padding:8px 12px;white-space:nowrap">${actions}</td></tr>`;
   }).join('');
@@ -60,8 +61,8 @@ export function approveBtns(module, ownerField = 'name') {
     const s = row.status || row.approval_status || '';
     if (s !== 'Pending') return '';
     if (!can(module, 'approve') || isMine(row, ownerField)) return '';
-    return `<button class="btn btn-xs bridge-approve" data-page="${pageId}" data-id="${id}" style="padding:3px 9px;font-size:11px;color:#22c55e;margin-left:3px;border-radius:6px">✓ Approve</button>` +
-           `<button class="btn btn-xs bridge-reject"  data-page="${pageId}" data-id="${id}" style="padding:3px 9px;font-size:11px;color:#ef4444;border-radius:6px">✗ Reject</button>`;
+    return `<button class="btn btn-xs bridge-approve" data-page="${pageId}" data-id="${id}" style="padding:3px 9px;font-size:11px;color:#22c55e;margin-left:3px;border-radius:6px">${iconSvg('Check')} Approve</button>` +
+           `<button class="btn btn-xs bridge-reject"  data-page="${pageId}" data-id="${id}" style="padding:3px 9px;font-size:11px;color:#ef4444;border-radius:6px">${iconSvg('X')} Reject</button>`;
   };
 }
 
@@ -70,7 +71,7 @@ export function ticketBtns(row, id, pageId) {
   const mine = isMine(row, 'requester');
   if (['Open', 'In Progress', 'Waiting Approval'].includes(row.status)) {
     if (!canManage) return '';
-    return `<button class="btn btn-xs bridge-resolve" data-page="${pageId}" data-id="${id}" style="padding:3px 9px;font-size:11px;color:#22c55e;margin-left:3px;border-radius:6px">✓ Resolve</button>`;
+    return `<button class="btn btn-xs bridge-resolve" data-page="${pageId}" data-id="${id}" style="padding:3px 9px;font-size:11px;color:#22c55e;margin-left:3px;border-radius:6px">${iconSvg('Check')} Resolve</button>`;
   }
   if (row.status === 'Resolved') {
     if (!canManage && !mine) return '';
