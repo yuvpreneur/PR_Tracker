@@ -21,12 +21,6 @@ SECRET_KEY = os.environ["SECRET_KEY"]
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 12  # 12 hours
 
-# Dedicated secret for the PR Manager (pm.proveit.in) SSO handoff — deliberately not
-# SECRET_KEY, so a leak of one can't be replayed against the other system. Shared only
-# with PR Manager's sso-login Supabase Edge Function, never sent to a browser.
-SSO_SHARED_SECRET = os.environ["SSO_SHARED_SECRET"]
-SSO_TICKET_TTL = timedelta(seconds=60)
-
 pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
@@ -44,18 +38,6 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-
-
-def create_sso_ticket(email: str) -> str:
-    """Short-lived, single-purpose token PR Manager's sso-login Edge Function exchanges
-    for a Supabase session for this same email — see POST /api/auth/sso-ticket. Not a
-    session token itself: it only proves "this is `email`, right now"."""
-    payload = {
-        "email": email,
-        "iss": "pr-tracker",
-        "exp": datetime.utcnow() + SSO_TICKET_TTL,
-    }
-    return jwt.encode(payload, SSO_SHARED_SECRET, algorithm=ALGORITHM)
 
 
 def hash_reset_token(raw_token: str) -> str:

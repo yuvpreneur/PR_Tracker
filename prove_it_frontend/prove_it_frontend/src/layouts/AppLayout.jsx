@@ -5,7 +5,6 @@ import { NAV } from './nav.config.js';
 import useAuth from '../hooks/useAuth.jsx';
 import usePermissions from '../hooks/usePermissions.js';
 import { state } from '../bridge/core/state.js';
-import { getSsoTicket } from '../services/authService';
 
 // Real React sidebar/topbar/router, replacing appMarkup.js's injected shell as part of
 // the bridge-removal migration (Phase 1) — see usePermissions.js/useReferenceData.jsx
@@ -73,18 +72,6 @@ export default function AppLayout() {
     navigate('/no-access');
   };
 
-  // Opens a blank tab synchronously (survives popup blockers) and points it at PR
-  // Manager once the SSO ticket is back, so Projects doesn't require logging in again
-  // there. Falls back to the plain link (PR Manager's normal login) if the ticket fetch
-  // fails, instead of leaving a dead blank tab.
-  const handleSsoClick = (e, item) => {
-    e.preventDefault();
-    const win = window.open('', '_blank');
-    getSsoTicket()
-      .then(ticket => { if (win) win.location.href = `${item.href}sso?ticket=${encodeURIComponent(ticket)}`; })
-      .catch(() => { if (win) win.location.href = item.href; });
-  };
-
   const initials = user?.name
     ? user.name.trim().split(/\s+/).map(p => p[0]).slice(0, 2).join('').toUpperCase()
     : '';
@@ -112,7 +99,6 @@ export default function AppLayout() {
                       rel="noopener noreferrer"
                       data-page={item.id}
                       className="nav-item"
-                      onClick={item.sso ? e => handleSsoClick(e, item) : undefined}
                     >
                       <span className="nav-icon" data-lucide-icon={item.id}>
                         <Icon size={15} />
