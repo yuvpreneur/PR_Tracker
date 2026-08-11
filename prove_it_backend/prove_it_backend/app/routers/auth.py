@@ -11,7 +11,7 @@ from app.core import collections
 from app.core.database import get_db
 from app.core.security import (
     verify_password, create_access_token, get_current_user, require_role, hash_password,
-    generate_reset_token, hash_reset_token,
+    generate_reset_token, hash_reset_token, create_sso_ticket,
 )
 from app.core.audit import log_action
 from app.core.email import send_email
@@ -180,6 +180,16 @@ def view_as(
             "initials": target["initials"],
         },
     }
+
+
+@router.post("/sso-ticket")
+def sso_ticket(current_user=Depends(get_current_user)):
+    """Mints a 60s ticket PR Manager's sso-login Edge Function exchanges for a Supabase
+    session, so clicking Projects doesn't require logging in again there — see
+    create_sso_ticket()."""
+    if not current_user.email:
+        raise HTTPException(status_code=400, detail="Account has no email on file")
+    return {"ticket": create_sso_ticket(current_user.email)}
 
 
 # Generic response for /forgot-password regardless of outcome — never reveals whether

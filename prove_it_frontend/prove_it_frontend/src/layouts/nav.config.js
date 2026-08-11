@@ -17,7 +17,7 @@ export const NAV = [
   ] },
   { group: 'Delivery', items: [
     { id: 'companies', label: 'Companies', icon: Building2 },
-    { id: 'projects', label: 'Projects', icon: FolderKanban },
+    { id: 'projects', label: 'Projects', icon: FolderKanban, external: true, sso: true, href: 'https://pm.proveit.in/' },
     { id: 'project-codes', label: 'Project Codes', icon: Tag },
     { id: 'billing-codes', label: 'Billing Codes', icon: CreditCard },
   ] },
