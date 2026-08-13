@@ -51,6 +51,38 @@ export async function register({ username, password, name, email }) {
   return data;
 }
 
+// Bootstrap-only, platform-wide: lets the sign-in page decide whether to show "Create
+// Super Admin account". Unlike checkRegistrationAvailable() above (which closes the
+// moment ANY user exists), this only closes once a Super Admin specifically exists —
+// see app/routers/auth.py's super_admin_status().
+export async function checkSuperAdminAvailable() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/auth/super-admin-status`);
+    if (!res.ok) return false;
+    const data = await res.json();
+    return !!data.available;
+  } catch {
+    return false;
+  }
+}
+
+export async function registerSuperAdmin({ username, password, name, email, setupToken }) {
+  const res = await fetch(`${API_BASE_URL}/api/auth/register-super-admin`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password, name, email, setup_token: setupToken }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Registration failed' }));
+    throw new Error(err.detail || 'Registration failed');
+  }
+
+  const data = await res.json();
+  localStorage.setItem('token', data.access_token);
+  return data;
+}
+
 export async function getMe() {
   const token = localStorage.getItem('token');
   if (!token) throw new Error('No token');

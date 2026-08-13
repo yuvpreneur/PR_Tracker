@@ -6,7 +6,7 @@ from datetime import date, timedelta
 
 from app.core import collections
 from app.core.database import get_db
-from app.core.mongo_utils import next_id, like
+from app.core.mongo_utils import next_id, like, get_or_404
 from app.core.security import get_current_user, require_permission
 from app.core.audit import log_action
 
@@ -122,7 +122,7 @@ def list_invoices(
     search:     Optional[str] = Query(None),
     db: Database = Depends(get_db), cu=Depends(get_current_user),
 ):
-    query = {}
+    query = {"org_id": cu.org_id}
     if project_id: query["project_id"] = project_id
     if client:     query["client"] = like(client)
     if status:     query["status"] = status
@@ -143,7 +143,7 @@ def list_invoices(
 
 @router.get("/summary")
 def summary(db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    rows = [_out(r) for r in db[collections.INVOICES].find()]
+    rows = [_out(r) for r in db[collections.INVOICES].find({"org_id": cu.org_id})]
     return {
         "total_billed": sum(r["total"] for r in rows),
         "total_received": sum(r["received_amount"] for r in rows),
@@ -154,8 +154,7 @@ def summary(db: Database = Depends(get_db), cu=Depends(get_current_user)):
 
 @router.get("/{invoice_id}")
 def get_invoice(invoice_id: int, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    inv = db[collections.INVOICES].find_one({"_id": invoice_id})
-    if not inv: raise HTTPException(404, "Not found")
+    inv = get_or_404(db, collections.INVOICES, invoice_id, cu.org_id, "Not found")
     return _out(inv)
 
 
@@ -165,17 +164,16 @@ def create(payload: InvoiceCreate, db: Database = Depends(get_db), cu=Depends(ge
         raise HTTPException(400, "Status must be draft or sent at creation")
     if not payload.line_items:
         raise HTTPException(400, "At least one line item is required")
-    if db[collections.INVOICES].find_one({"invoice_no": payload.invoice_no}):
+    if db[collections.INVOICES].find_one({"invoice_no": payload.invoice_no, "org_id": cu.org_id}):
         raise HTTPException(400, "Invoice number already exists")
     if payload.project_id:
-        proj = db[collections.PROJECTS].find_one({"_id": payload.project_id})
-        if not proj:
-            raise HTTPException(404, "Project not found")
+        get_or_404(db, collections.PROJECTS, payload.project_id, cu.org_id, "Project not found")
 
     due_date = _resolve_due_date(payload.issue_date, payload.payment_terms, payload.due_date)
     iid = next_id(db, collections.INVOICES)
     doc = {
         "_id": iid, "id": iid,
+        "org_id": cu.org_id,
         "project_id": payload.project_id,
         "client": payload.client,
         "invoice_no": payload.invoice_no,
@@ -192,14 +190,13 @@ def create(payload: InvoiceCreate, db: Database = Depends(get_db), cu=Depends(ge
         "payments": [],
     }
     db[collections.INVOICES].insert_one(doc)
-    log_action(db, user=cu.name, action="CREATE", module="Invoices", record_id=doc["invoice_no"], detail=f"Invoice for {doc['client']}")
+    log_action(db, user=cu.name, action="CREATE", module="Invoices", org_id=cu.org_id, record_id=doc["invoice_no"], detail=f"Invoice for {doc['client']}")
     return _out(doc)
 
 
 @router.patch("/{invoice_id}", dependencies=[Depends(require_permission("Invoices", "edit"))])
 def update(invoice_id: int, payload: InvoiceUpdate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    inv = db[collections.INVOICES].find_one({"_id": invoice_id})
-    if not inv: raise HTTPException(404, "Not found")
+    inv = get_or_404(db, collections.INVOICES, invoice_id, cu.org_id, "Not found")
     if inv["status"] != "draft":
         raise HTTPException(400, "Only draft invoices can be edited")
 
@@ -207,11 +204,10 @@ def update(invoice_id: int, payload: InvoiceUpdate, db: Database = Depends(get_d
     if "line_items" in patch:
         patch["line_items"] = [li if isinstance(li, dict) else li.dict() for li in patch["line_items"]]
     if "invoice_no" in patch and patch["invoice_no"] != inv["invoice_no"]:
-        if db[collections.INVOICES].find_one({"invoice_no": patch["invoice_no"]}):
+        if db[collections.INVOICES].find_one({"invoice_no": patch["invoice_no"], "org_id": cu.org_id}):
             raise HTTPException(400, "Invoice number already exists")
     if "project_id" in patch and patch["project_id"]:
-        if not db[collections.PROJECTS].find_one({"_id": patch["project_id"]}):
-            raise HTTPException(404, "Project not found")
+        get_or_404(db, collections.PROJECTS, patch["project_id"], cu.org_id, "Project not found")
 
     issue_date = patch.get("issue_date", date.fromisoformat(inv["issue_date"]))
     payment_terms = patch.get("payment_terms", inv.get("payment_terms", "net30"))
@@ -222,28 +218,26 @@ def update(invoice_id: int, payload: InvoiceUpdate, db: Database = Depends(get_d
         patch["issue_date"] = patch["issue_date"].isoformat()
 
     if patch:
-        db[collections.INVOICES].update_one({"_id": invoice_id}, {"$set": patch})
-        inv = db[collections.INVOICES].find_one({"_id": invoice_id})
-    log_action(db, user=cu.name, action="UPDATE", module="Invoices", record_id=inv["invoice_no"])
+        db[collections.INVOICES].update_one({"_id": invoice_id, "org_id": cu.org_id}, {"$set": patch})
+        inv = db[collections.INVOICES].find_one({"_id": invoice_id, "org_id": cu.org_id})
+    log_action(db, user=cu.name, action="UPDATE", module="Invoices", org_id=cu.org_id, record_id=inv["invoice_no"])
     return _out(inv)
 
 
 @router.post("/{invoice_id}/send", dependencies=[Depends(require_permission("Invoices", "edit"))])
 def send_invoice(invoice_id: int, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    inv = db[collections.INVOICES].find_one({"_id": invoice_id})
-    if not inv: raise HTTPException(404, "Not found")
+    inv = get_or_404(db, collections.INVOICES, invoice_id, cu.org_id, "Not found")
     if inv["status"] != "draft":
         raise HTTPException(400, "Only draft invoices can be sent")
-    db[collections.INVOICES].update_one({"_id": invoice_id}, {"$set": {"status": "sent"}})
-    inv = db[collections.INVOICES].find_one({"_id": invoice_id})
-    log_action(db, user=cu.name, action="SEND", module="Invoices", record_id=inv["invoice_no"])
+    db[collections.INVOICES].update_one({"_id": invoice_id, "org_id": cu.org_id}, {"$set": {"status": "sent"}})
+    inv = db[collections.INVOICES].find_one({"_id": invoice_id, "org_id": cu.org_id})
+    log_action(db, user=cu.name, action="SEND", module="Invoices", org_id=cu.org_id, record_id=inv["invoice_no"])
     return _out(inv)
 
 
 @router.post("/{invoice_id}/payments", dependencies=[Depends(require_permission("Invoices", "edit"))])
 def record_payment(invoice_id: int, payload: PaymentCreate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    inv = db[collections.INVOICES].find_one({"_id": invoice_id})
-    if not inv: raise HTTPException(404, "Not found")
+    inv = get_or_404(db, collections.INVOICES, invoice_id, cu.org_id, "Not found")
     if inv["status"] != "sent":
         raise HTTPException(400, "Payments can only be recorded on a sent invoice")
 
@@ -255,32 +249,30 @@ def record_payment(invoice_id: int, payload: PaymentCreate, db: Database = Depen
     new_status = "paid" if received_amount >= out["total"] - 1e-6 else "sent"
     payment_entry = {"amount": payload.amount, "date": date.today().isoformat(), "recorded_by": cu.name}
     db[collections.INVOICES].update_one(
-        {"_id": invoice_id},
+        {"_id": invoice_id, "org_id": cu.org_id},
         {"$set": {"received_amount": received_amount, "status": new_status}, "$push": {"payments": payment_entry}},
     )
-    inv = db[collections.INVOICES].find_one({"_id": invoice_id})
-    log_action(db, user=cu.name, action="RECORD_PAYMENT", module="Invoices", record_id=inv["invoice_no"], detail=f"Payment of {payload.amount} {inv.get('currency','INR')}")
+    inv = db[collections.INVOICES].find_one({"_id": invoice_id, "org_id": cu.org_id})
+    log_action(db, user=cu.name, action="RECORD_PAYMENT", module="Invoices", org_id=cu.org_id, record_id=inv["invoice_no"], detail=f"Payment of {payload.amount} {inv.get('currency','INR')}")
     return _out(inv)
 
 
 @router.post("/{invoice_id}/void", dependencies=[Depends(require_permission("Invoices", "edit"))])
 def void_invoice(invoice_id: int, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    inv = db[collections.INVOICES].find_one({"_id": invoice_id})
-    if not inv: raise HTTPException(404, "Not found")
+    inv = get_or_404(db, collections.INVOICES, invoice_id, cu.org_id, "Not found")
     if inv["status"] in ("paid", "void"):
         raise HTTPException(400, "Paid or already-void invoices cannot be voided")
-    db[collections.INVOICES].update_one({"_id": invoice_id}, {"$set": {"status": "void"}})
-    inv = db[collections.INVOICES].find_one({"_id": invoice_id})
-    log_action(db, user=cu.name, action="VOID", module="Invoices", record_id=inv["invoice_no"])
+    db[collections.INVOICES].update_one({"_id": invoice_id, "org_id": cu.org_id}, {"$set": {"status": "void"}})
+    inv = db[collections.INVOICES].find_one({"_id": invoice_id, "org_id": cu.org_id})
+    log_action(db, user=cu.name, action="VOID", module="Invoices", org_id=cu.org_id, record_id=inv["invoice_no"])
     return _out(inv)
 
 
 @router.delete("/{invoice_id}", dependencies=[Depends(require_permission("Invoices", "delete"))])
 def delete(invoice_id: int, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    inv = db[collections.INVOICES].find_one({"_id": invoice_id})
-    if not inv: raise HTTPException(404, "Not found")
+    inv = get_or_404(db, collections.INVOICES, invoice_id, cu.org_id, "Not found")
     if inv["status"] != "draft":
         raise HTTPException(400, "Only draft invoices can be deleted")
-    db[collections.INVOICES].delete_one({"_id": invoice_id})
-    log_action(db, user=cu.name, action="DELETE", module="Invoices", record_id=str(invoice_id))
+    db[collections.INVOICES].delete_one({"_id": invoice_id, "org_id": cu.org_id})
+    log_action(db, user=cu.name, action="DELETE", module="Invoices", org_id=cu.org_id, record_id=str(invoice_id))
     return {"message": "Deleted"}

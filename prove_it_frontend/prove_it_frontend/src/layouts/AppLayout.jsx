@@ -4,6 +4,7 @@ import { Lock, Bell, EyeOff } from 'lucide-react';
 import { NAV } from './nav.config.js';
 import useAuth from '../hooks/useAuth.jsx';
 import usePermissions from '../hooks/usePermissions.js';
+import useMyOrganization from '../hooks/useMyOrganization.js';
 import { state } from '../bridge/core/state.js';
 
 // Real React sidebar/topbar/router, replacing appMarkup.js's injected shell as part of
@@ -36,6 +37,7 @@ import { state } from '../bridge/core/state.js';
 export default function AppLayout() {
   const { user, logout } = useAuth();
   const { canViewPage } = usePermissions();
+  const { name: orgName, logoUrl: orgLogoUrl } = useMyOrganization();
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -80,8 +82,8 @@ export default function AppLayout() {
     <div id="app" className="visible">
       <div id="sidebar" className={collapsed ? 'collapsed' : ''}>
         <div className="sidebar-logo">
-          <div className="sico"><img className="brand-mark" src="/company-logo.png" alt="Prove IT Catalysts logo" /></div>
-          <span>Prove IT</span>
+          <div className="sico"><img className="brand-mark" src={orgLogoUrl || '/company-logo.png'} alt={orgName ? `${orgName} logo` : 'Organization logo'} /></div>
+          <span>{orgName || 'Prove IT'}</span>
         </div>
         <nav>
           {NAV.map(section => (

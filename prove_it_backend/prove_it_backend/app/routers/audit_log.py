@@ -48,8 +48,9 @@ def list_audit_log(
     limit:     int            = Query(100, le=500),
     offset:    int            = Query(0),
     db: Database = Depends(get_db),
+    cu=Depends(get_current_user),
 ):
-    query = {}
+    query = {"org_id": cu.org_id}
     if module:    query["module"] = module
     if action:    query["action"] = action
     if user:      query["user"] = like(user)
@@ -86,33 +87,34 @@ def create_audit_log(payload: AuditLogCreate, db: Database = Depends(get_db), cu
         "record_id": payload.record_id,
         "detail": payload.detail,
         "timestamp": datetime.utcnow(),
+        "org_id": cu.org_id,
     }
     db[collections.AUDIT_LOG].insert_one(doc)
     log_action(db, user=cu.name, action="CREATE", module="Audit Log", record_id=str(entry_id),
-               detail=f"Added manual audit entry: {payload.action} on {payload.module}")
+               detail=f"Added manual audit entry: {payload.action} on {payload.module}", org_id=cu.org_id)
     return _log_out(doc)
 
 
 @router.patch("/{log_id}", dependencies=[Depends(require_role("Admin", "Manager"))])
 def update_audit_log(log_id: int, payload: AuditLogUpdate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    l = db[collections.AUDIT_LOG].find_one({"_id": log_id})
+    l = db[collections.AUDIT_LOG].find_one({"_id": log_id, "org_id": cu.org_id})
     if not l:
         raise HTTPException(404, "Audit log entry not found")
     patch = payload.dict(exclude_none=True)
     if patch:
-        db[collections.AUDIT_LOG].update_one({"_id": log_id}, {"$set": patch})
-        l = db[collections.AUDIT_LOG].find_one({"_id": log_id})
+        db[collections.AUDIT_LOG].update_one({"_id": log_id, "org_id": cu.org_id}, {"$set": patch})
+        l = db[collections.AUDIT_LOG].find_one({"_id": log_id, "org_id": cu.org_id})
     log_action(db, user=cu.name, action="UPDATE", module="Audit Log", record_id=str(log_id),
-               detail=f"Edited audit entry #{log_id}: {l['action']} on {l['module']}")
+               detail=f"Edited audit entry #{log_id}: {l['action']} on {l['module']}", org_id=cu.org_id)
     return _log_out(l)
 
 
 @router.delete("/{log_id}", dependencies=[Depends(require_role("Admin", "Manager"))])
 def delete_audit_log(log_id: int, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    l = db[collections.AUDIT_LOG].find_one({"_id": log_id})
+    l = db[collections.AUDIT_LOG].find_one({"_id": log_id, "org_id": cu.org_id})
     if not l:
         raise HTTPException(404, "Audit log entry not found")
-    db[collections.AUDIT_LOG].delete_one({"_id": log_id})
+    db[collections.AUDIT_LOG].delete_one({"_id": log_id, "org_id": cu.org_id})
     log_action(db, user=cu.name, action="DELETE", module="Audit Log", record_id=str(log_id),
-               detail=f"Deleted audit entry #{log_id}: {l['action']} on {l['module']}")
+               detail=f"Deleted audit entry #{log_id}: {l['action']} on {l['module']}", org_id=cu.org_id)
     return {"message": "Audit log entry deleted"}

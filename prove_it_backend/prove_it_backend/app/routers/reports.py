@@ -14,36 +14,39 @@ router = APIRouter()
 def dashboard_summary(
     period: Optional[str] = Query(None, description="this_month|last_month|q1_2026|fy_2025_26"),
     db: Database = Depends(get_db),
+    cu=Depends(get_current_user),
 ):
     """Top-level KPIs for the dashboard, filtered by period."""
     start, end = _period_range(period)
     start_s, end_s = start.isoformat(), end.isoformat()
 
-    projects = list(db[collections.PROJECTS].find())
-    ts_all   = list(db[collections.TIMESHEETS].find({"status": "Approved"}))
+    projects = list(db[collections.PROJECTS].find({"org_id": cu.org_id}))
+    ts_all   = list(db[collections.TIMESHEETS].find({"status": "Approved", "org_id": cu.org_id}))
 
     # Period-filtered financials
     recvs_period = list(db[collections.RECEIVABLES].find({
         "invoice_date": {"$gte": start_s, "$lte": end_s},
+        "org_id": cu.org_id,
     }))
     expenses_period = list(db[collections.EXPENSES].find({
         "status": "Approved",
         "expense_date": {"$gte": start_s, "$lte": end_s},
+        "org_id": cu.org_id,
     }))
 
     total_received = sum(r["received_amount"] for r in recvs_period)
     total_expenses = sum(e["amount"] for e in expenses_period)
 
     # Outstanding across ALL receivables (not period-filtered)
-    all_recvs = list(db[collections.RECEIVABLES].find())
+    all_recvs = list(db[collections.RECEIVABLES].find({"org_id": cu.org_id}))
     outstanding = sum(r["invoice_amount"] - r["received_amount"] for r in all_recvs if r["status"] != "Paid")
 
     # Pending approvals count
-    pending_ts     = db[collections.TIMESHEETS].count_documents({"status": "Pending"})
+    pending_ts     = db[collections.TIMESHEETS].count_documents({"status": "Pending", "org_id": cu.org_id})
     # Expenses has two pending stages (Pending -> awaiting Manager, Pending Finance ->
     # awaiting Finance) — see expenses.py; both count as "pending" here.
-    pending_exp    = db[collections.EXPENSES].count_documents({"status": {"$in": ["Pending", "Pending Finance"]}})
-    pending_access = db[collections.ACCESS_REQUESTS].count_documents({"status": "Pending"})
+    pending_exp    = db[collections.EXPENSES].count_documents({"status": {"$in": ["Pending", "Pending Finance"]}, "org_id": cu.org_id})
+    pending_access = db[collections.ACCESS_REQUESTS].count_documents({"status": "Pending", "org_id": cu.org_id})
     pending_total  = pending_ts + pending_exp + pending_access
 
     billable_hrs = sum(t["hours"] for t in ts_all if t["billable"])
@@ -80,6 +83,7 @@ def project_profitability(
     project_id: Optional[str] = Query(None),
     period: Optional[str] = Query(None, description="this_month|last_month|q1_2026|fy_2025_26"),
     db: Database = Depends(get_db),
+    cu=Depends(get_current_user),
 ):
     """Revenue vs cost per project."""
     date_filter = None
@@ -87,13 +91,13 @@ def project_profitability(
         start, end = _period_range(period)
         date_filter = {"$gte": start.isoformat(), "$lte": end.isoformat()}
 
-    proj_query = {"id": project_id} if project_id else {}
+    proj_query = {"id": project_id, "org_id": cu.org_id} if project_id else {"org_id": cu.org_id}
     projects = list(db[collections.PROJECTS].find(proj_query))
     project_ids = [p["id"] for p in projects]
 
-    ts_query = {"project_id": {"$in": project_ids}, "status": "Approved"}
-    exp_query = {"project_id": {"$in": project_ids}, "status": "Approved"}
-    recv_query = {"project_id": {"$in": project_ids}}
+    ts_query = {"project_id": {"$in": project_ids}, "status": "Approved", "org_id": cu.org_id}
+    exp_query = {"project_id": {"$in": project_ids}, "status": "Approved", "org_id": cu.org_id}
+    recv_query = {"project_id": {"$in": project_ids}, "org_id": cu.org_id}
     if date_filter:
         ts_query["entry_date"] = date_filter
         exp_query["expense_date"] = date_filter
@@ -107,7 +111,7 @@ def project_profitability(
     ts_by_project = _group_by(db[collections.TIMESHEETS].find(ts_query), "project_id")
     exps_by_project = _group_by(db[collections.EXPENSES].find(exp_query), "project_id")
     recvs_by_project = _group_by(db[collections.RECEIVABLES].find(recv_query), "project_id")
-    hourly_cost_by_emp = _latest_hourly_costs(db)
+    hourly_cost_by_emp = _latest_hourly_costs(db, cu.org_id)
 
     rows = []
     for p in projects:
@@ -140,6 +144,7 @@ def billing_code_summary(
     project_id: Optional[str] = Query(None),
     period: Optional[str] = Query(None, description="this_month|last_month|q1_2026|fy_2025_26"),
     db: Database = Depends(get_db),
+    cu=Depends(get_current_user),
 ):
     """Hours, expenses and revenue grouped by billing code."""
     date_filter = None
@@ -147,14 +152,14 @@ def billing_code_summary(
         start, end = _period_range(period)
         date_filter = {"$gte": start.isoformat(), "$lte": end.isoformat()}
 
-    bc_query = {"project_id": project_id} if project_id else {}
+    bc_query = {"project_id": project_id, "org_id": cu.org_id} if project_id else {"org_id": cu.org_id}
     codes = list(db[collections.BILLING_CODES].find(bc_query))
     rows = []
     for b in codes:
         code = b["code"]
-        ts_query = {"billing_code_id": code, "status": "Approved"}
-        exp_query = {"billing_code_id": code, "status": "Approved"}
-        recv_query = {"billing_code_id": code}
+        ts_query = {"billing_code_id": code, "status": "Approved", "org_id": cu.org_id}
+        exp_query = {"billing_code_id": code, "status": "Approved", "org_id": cu.org_id}
+        recv_query = {"billing_code_id": code, "org_id": cu.org_id}
         if date_filter:
             ts_query["entry_date"] = date_filter
             exp_query["expense_date"] = date_filter
@@ -194,17 +199,17 @@ def employee_utilization(
         start, end = _period_range(period)
         date_filter = {"$gte": start.isoformat(), "$lte": end.isoformat()}
 
-    emp_query = {"status": "Active"}
+    emp_query = {"status": "Active", "org_id": cu.org_id}
     if emp_id:
         emp_query["emp_id"] = emp_id
     employees = list(db[collections.EMPLOYEES].find(emp_query))
     emp_ids = [e["emp_id"] for e in employees]
 
-    ts_query = {"emp_id": {"$in": emp_ids}, "status": "Approved"}
+    ts_query = {"emp_id": {"$in": emp_ids}, "status": "Approved", "org_id": cu.org_id}
     if date_filter:
         ts_query["entry_date"] = date_filter
     ts_by_emp = _group_by(db[collections.TIMESHEETS].find(ts_query), "emp_id")
-    hourly_cost_by_emp = _latest_hourly_costs(db)
+    hourly_cost_by_emp = _latest_hourly_costs(db, cu.org_id)
 
     rows = []
     for e in employees:
@@ -227,9 +232,9 @@ def employee_utilization(
 
 
 @router.get("/receivables-aging", dependencies=[Depends(require_permission("Reports", "view"))])
-def receivables_aging(project_id: Optional[str] = Query(None), db: Database = Depends(get_db)):
+def receivables_aging(project_id: Optional[str] = Query(None), db: Database = Depends(get_db), cu=Depends(get_current_user)):
     today = date.today()
-    query = {"status": {"$ne": "Paid"}}
+    query = {"status": {"$ne": "Paid"}, "org_id": cu.org_id}
     if project_id:
         query["project_id"] = project_id
     recvs = list(db[collections.RECEIVABLES].find(query))
@@ -250,6 +255,7 @@ def monthly_revenue(
     period: Optional[str] = Query(None, description="this_month|last_month|q1_2026|fy_2025_26"),
     year: int = Query(2026),
     db: Database = Depends(get_db),
+    cu=Depends(get_current_user),
 ):
     """Monthly breakdown of receivables received and expenses, over the given period (or full calendar year if no period given)."""
     if period:
@@ -263,8 +269,8 @@ def monthly_revenue(
         months.append((cursor.year, cursor.month))
         cursor = date(cursor.year + 1, 1, 1) if cursor.month == 12 else date(cursor.year, cursor.month + 1, 1)
 
-    recvs = list(db[collections.RECEIVABLES].find())
-    exps  = list(db[collections.EXPENSES].find({"status": "Approved"}))
+    recvs = list(db[collections.RECEIVABLES].find({"org_id": cu.org_id}))
+    exps  = list(db[collections.EXPENSES].find({"status": "Approved", "org_id": cu.org_id}))
     data = []
     for y, m in months:
         rev = sum(

@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(curl -s http://localhost:5173/)",
-      "Bash(netstat -ano)"
+      "Bash(netstat -ano)",
+      "Read(//tmp/**)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://127.0.0.1:8010/)"
     ]
   }
 }

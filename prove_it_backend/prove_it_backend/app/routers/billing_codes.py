@@ -4,8 +4,8 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import date
 from app.core import collections
-from app.core.database import get_db
-from app.core.mongo_utils import like
+from app.core.database import client, get_db
+from app.core.mongo_utils import like, get_or_404
 from app.core.security import get_current_user, require_permission
 from app.core.audit import log_action
 from app.core.permissions import assigned_project_ids
@@ -28,6 +28,8 @@ class BCCreate(BaseModel):
 
 
 class BCUpdate(BaseModel):
+    code: Optional[str] = None
+    project_code_id: Optional[str] = None
     client: Optional[str] = None
     billing_type: Optional[str] = None
     rate: Optional[float] = None
@@ -70,42 +72,69 @@ def list_codes(project_id: Optional[str] = Query(None), billing_type: Optional[s
         else:
             query["project_id"] = {"$in": assigned_ids}
 
+    query["org_id"] = cu.org_id
     return [_out(b) for b in db[collections.BILLING_CODES].find(query)]
 
 
 @router.post("/", dependencies=[Depends(require_permission("Billing Codes", "create"))])
 def create(payload: BCCreate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    if db[collections.BILLING_CODES].find_one({"_id": payload.code}):
+    if db[collections.BILLING_CODES].find_one({"_id": payload.code, "org_id": cu.org_id}):
         raise HTTPException(400, "Billing code already exists")
     if payload.billing_type not in BILLING_TYPES:
         raise HTTPException(400, f"billing_type must be one of {BILLING_TYPES}")
     doc = payload.dict()
     doc["_id"] = doc["code"]
+    doc["org_id"] = cu.org_id
     if doc["effective_from"]: doc["effective_from"] = doc["effective_from"].isoformat()
     if doc["effective_to"]: doc["effective_to"] = doc["effective_to"].isoformat()
     db[collections.BILLING_CODES].insert_one(doc)
-    log_action(db, user=cu.name, action="CREATE", module="Billing Codes", record_id=doc["code"])
+    log_action(db, user=cu.name, action="CREATE", module="Billing Codes", org_id=cu.org_id, record_id=doc["code"])
     return _out(doc)
 
 
 @router.patch("/{code}", dependencies=[Depends(require_permission("Billing Codes", "edit"))])
 def update(code: str, payload: BCUpdate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    b = db[collections.BILLING_CODES].find_one({"_id": code})
-    if not b: raise HTTPException(404, "Not found")
+    b = get_or_404(db, collections.BILLING_CODES, code, cu.org_id, "Not found")
     patch = payload.dict(exclude_none=True)
+    new_code = patch.pop("code", None)
+    if "billing_type" in patch and patch["billing_type"] not in BILLING_TYPES:
+        raise HTTPException(400, f"billing_type must be one of {BILLING_TYPES}")
     if "effective_from" in patch: patch["effective_from"] = patch["effective_from"].isoformat()
     if "effective_to" in patch: patch["effective_to"] = patch["effective_to"].isoformat()
-    if patch:
-        db[collections.BILLING_CODES].update_one({"_id": code}, {"$set": patch})
-        b = db[collections.BILLING_CODES].find_one({"_id": code})
-    log_action(db, user=cu.name, action="UPDATE", module="Billing Codes", record_id=b["code"])
+    if "project_code_id" in patch:
+        # project_id is derived from the project code rather than trusted from the
+        # client, so the two can never drift out of sync when reassigning.
+        pcode = get_or_404(db, collections.PROJECT_CODES, patch["project_code_id"], cu.org_id, "Project code not found")
+        patch["project_id"] = pcode["project_id"]
+
+    if new_code and new_code != code:
+        if db[collections.BILLING_CODES].find_one({"_id": new_code, "org_id": cu.org_id}):
+            raise HTTPException(400, "Billing code already exists")
+        new_doc = {**b, **patch, "_id": new_code, "code": new_code}
+        # Same reasoning as Project Codes' rename: everything that references this
+        # billing code by its old value has to move with it, atomically.
+        with client.start_session() as session:
+            with session.start_transaction():
+                db[collections.BILLING_CODES].insert_one(new_doc, session=session)
+                db[collections.BILLING_CODES].delete_one({"_id": code, "org_id": cu.org_id}, session=session)
+                db[collections.RECEIVABLES].update_many(
+                    {"billing_code_id": code, "org_id": cu.org_id}, {"$set": {"billing_code_id": new_code}}, session=session)
+                db[collections.TIMESHEETS].update_many(
+                    {"billing_code_id": code, "org_id": cu.org_id}, {"$set": {"billing_code_id": new_code}}, session=session)
+                db[collections.EXPENSES].update_many(
+                    {"billing_code_id": code, "org_id": cu.org_id}, {"$set": {"billing_code_id": new_code}}, session=session)
+        b = get_or_404(db, collections.BILLING_CODES, new_code, cu.org_id, "Not found")
+    elif patch:
+        db[collections.BILLING_CODES].update_one({"_id": code, "org_id": cu.org_id}, {"$set": patch})
+        b = get_or_404(db, collections.BILLING_CODES, code, cu.org_id, "Not found")
+
+    log_action(db, user=cu.name, action="UPDATE", module="Billing Codes", org_id=cu.org_id, record_id=b["code"])
     return _out(b)
 
 
 @router.delete("/{code}", dependencies=[Depends(require_permission("Billing Codes", "delete"))])
 def delete(code: str, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    b = db[collections.BILLING_CODES].find_one({"_id": code})
-    if not b: raise HTTPException(404, "Not found")
-    db[collections.BILLING_CODES].delete_one({"_id": code})
-    log_action(db, user=cu.name, action="DELETE", module="Billing Codes", record_id=code)
+    b = get_or_404(db, collections.BILLING_CODES, code, cu.org_id, "Not found")
+    db[collections.BILLING_CODES].delete_one({"_id": code, "org_id": cu.org_id})
+    log_action(db, user=cu.name, action="DELETE", module="Billing Codes", org_id=cu.org_id, record_id=code)
     return {"message": "Deleted"}

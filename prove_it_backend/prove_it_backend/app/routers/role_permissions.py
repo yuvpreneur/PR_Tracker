@@ -36,12 +36,12 @@ class RolePermSave(BaseModel):
 
 
 @router.get("/{role}", dependencies=[Depends(require_role("Admin", "Manager"))])
-def get_role_permissions(role: str, db: Database = Depends(get_db)):
+def get_role_permissions(role: str, db: Database = Depends(get_db), cu=Depends(get_current_user)):
     if role not in ROLES:
         raise HTTPException(400, f"role must be one of {ROLES}")
     # Always the same effective values `require_permission(...)` actually enforces —
     # gaps in a partially-customized role fall back to DEFAULT_PERMS, not blank/false.
-    effective = _effective_perms(db, role)
+    effective = _effective_perms(db, role, cu.org_id)
     return [{"module": m, **effective[m]} for m in MODULES]
 
 
@@ -49,10 +49,10 @@ def get_role_permissions(role: str, db: Database = Depends(get_db)):
 def save_role_permissions(payload: RolePermSave, db: Database = Depends(get_db), cu=Depends(get_current_user)):
     if payload.role not in ROLES:
         raise HTTPException(400, f"role must be one of {ROLES}")
-    db[collections.ROLE_PERMISSIONS].delete_many({"role": payload.role})
+    db[collections.ROLE_PERMISSIONS].delete_many({"role": payload.role, "org_id": cu.org_id})
     for p in payload.permissions:
         pid = next_id(db, collections.ROLE_PERMISSIONS)
-        doc = {"_id": pid, "id": pid, "role": payload.role, **p.dict()}
+        doc = {"_id": pid, "id": pid, "role": payload.role, **p.dict(), "org_id": cu.org_id}
         # Deletion authority stays exclusive to FULL_ACCESS_ROLES, always — reject any
         # attempt to persist delete=True for another role rather than silently accepting
         # then ignoring it (get_role_permissions() forces this too, this just keeps
@@ -61,5 +61,5 @@ def save_role_permissions(payload: RolePermSave, db: Database = Depends(get_db),
             doc["delete"] = False
         db[collections.ROLE_PERMISSIONS].insert_one(doc)
     log_action(db, user=cu.name, action="UPDATE", module="Roles & Permissions", record_id=payload.role,
-               detail=f"Updated permissions for {payload.role}")
+               detail=f"Updated permissions for {payload.role}", org_id=cu.org_id)
     return {"message": "Permissions saved"}

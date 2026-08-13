@@ -5,7 +5,7 @@ from typing import Optional
 from datetime import date, timedelta
 from app.core import collections
 from app.core.database import get_db
-from app.core.mongo_utils import next_id, like
+from app.core.mongo_utils import next_id, like, get_or_404
 from app.core.security import get_current_user, require_permission
 from app.core.audit import log_action
 from app.core.notifications import notify
@@ -52,22 +52,22 @@ def _fmt_hours(h: float) -> str:
     return f"{h:g}h"
 
 
-def _same_day_hours(db: Database, emp_id: str, entry_date: str, exclude_id: Optional[int] = None):
+def _same_day_hours(db: Database, emp_id: str, entry_date: str, org_id, exclude_id: Optional[int] = None):
     """Hours this employee has already logged on this date, across every project.
     A Rejected entry voids that submission, so it's excluded from the running total
     (the employee is expected to fix and resubmit it, not have it count twice)."""
-    query = {"emp_id": emp_id, "entry_date": entry_date, "status": {"$ne": "Rejected"}}
+    query = {"emp_id": emp_id, "entry_date": entry_date, "status": {"$ne": "Rejected"}, "org_id": org_id}
     if exclude_id is not None:
         query["_id"] = {"$ne": exclude_id}
     rows = list(db[collections.TIMESHEETS].find(query))
     return sum(r["hours"] for r in rows), rows
 
 
-def _daily_cap_error(db: Database, rows: list, existing_hours: float, new_hours: float) -> str:
+def _daily_cap_error(db: Database, rows: list, existing_hours: float, new_hours: float, org_id) -> str:
     by_project = {}
     for r in rows:
         by_project[r["project_id"]] = by_project.get(r["project_id"], 0) + r["hours"]
-    names = {p["_id"]: p["name"] for p in db[collections.PROJECTS].find({"_id": {"$in": list(by_project)}})}
+    names = {p["_id"]: p["name"] for p in db[collections.PROJECTS].find({"_id": {"$in": list(by_project)}, "org_id": org_id})}
     breakdown = ", ".join(f"{_fmt_hours(h)} on {names.get(pid, pid)}" for pid, h in by_project.items())
     remaining = max(0.0, MAX_DAILY_HOURS - existing_hours)
     return (
@@ -89,7 +89,7 @@ def list_timesheets(
     search:          Optional[str]  = Query(None),
     db: Database = Depends(get_db), cu=Depends(get_current_user),
 ):
-    query = {}
+    query = {"org_id": cu.org_id}
     # Employee/Finance User are always scoped to their own records here, full stop —
     # unlike every other role, this doesn't fall back to has_permission(view). That flag
     # can be forced True by a per-employee Access Control -> Page Access grant (meant only
@@ -126,7 +126,7 @@ def list_timesheets(
 
 @router.get("/summary")
 def summary(db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    all_ts = list(db[collections.TIMESHEETS].find())
+    all_ts = list(db[collections.TIMESHEETS].find({"org_id": cu.org_id}))
     approved = [t for t in all_ts if t["status"] == "Approved"]
     return {
         "total_entries": len(all_ts),
@@ -148,38 +148,38 @@ def create(payload: TSCreate, db: Database = Depends(get_db), cu=Depends(get_cur
     if cu.role == "Viewer":
         raise HTTPException(403, "Viewers cannot submit timesheets")
     emp_id = own_emp_id(db, cu)
-    emp = db[collections.EMPLOYEES].find_one({"_id": emp_id}) if emp_id else None
+    emp = db[collections.EMPLOYEES].find_one({"_id": emp_id, "org_id": cu.org_id}) if emp_id else None
     if not emp:
         raise HTTPException(403, "No employee record found for your account — timesheets can only be submitted by employees")
 
     if payload.project_code_id:
-        pcode = db[collections.PROJECT_CODES].find_one({"_id": payload.project_code_id})
+        pcode = db[collections.PROJECT_CODES].find_one({"_id": payload.project_code_id, "org_id": cu.org_id})
         if not pcode:
             raise HTTPException(404, "Project code not found")
         if pcode["project_id"] != payload.project_id:
             raise HTTPException(400, "That project code does not belong to the selected project")
 
     entry_date_str = payload.entry_date.isoformat()
-    existing_hours, existing_rows = _same_day_hours(db, emp["emp_id"], entry_date_str)
+    existing_hours, existing_rows = _same_day_hours(db, emp["emp_id"], entry_date_str, cu.org_id)
     if existing_hours + payload.hours > MAX_DAILY_HOURS:
-        raise HTTPException(400, _daily_cap_error(db, existing_rows, existing_hours, payload.hours))
+        raise HTTPException(400, _daily_cap_error(db, existing_rows, existing_hours, payload.hours, cu.org_id))
 
     tid = next_id(db, collections.TIMESHEETS)
     doc = {
         "_id": tid, "id": tid, "emp_id": emp["emp_id"], "name": emp["name"],
         **payload.dict(),
         "status": "Pending", "approved_by": None,
+        "org_id": cu.org_id,
     }
     doc["entry_date"] = doc["entry_date"].isoformat()
     db[collections.TIMESHEETS].insert_one(doc)
-    log_action(db, user=cu.name, action="CREATE", module="Timesheets", record_id=str(tid), detail=f"{doc['hours']}hrs on {doc['project_id']}")
+    log_action(db, user=cu.name, action="CREATE", module="Timesheets", org_id=cu.org_id, record_id=str(tid), detail=f"{doc['hours']}hrs on {doc['project_id']}")
     return _out(doc)
 
 
 @router.patch("/{ts_id}")
 def update(ts_id: int, payload: TSUpdate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    t = db[collections.TIMESHEETS].find_one({"_id": ts_id})
-    if not t: raise HTTPException(404, "Not found")
+    t = get_or_404(db, collections.TIMESHEETS, ts_id, cu.org_id)
     can_edit_any = has_permission(db, cu, "Timesheets", "edit")
     if t["status"] == "Approved" and not can_edit_any:
         raise HTTPException(400, "Cannot edit an approved timesheet")
@@ -187,63 +187,60 @@ def update(ts_id: int, payload: TSUpdate, db: Database = Depends(get_db), cu=Dep
         raise HTTPException(403, "You may only edit your own pending timesheets")
     patch = payload.dict(exclude_none=True)
     if "project_code_id" in patch:
-        pcode = db[collections.PROJECT_CODES].find_one({"_id": patch["project_code_id"]})
+        pcode = db[collections.PROJECT_CODES].find_one({"_id": patch["project_code_id"], "org_id": cu.org_id})
         if not pcode:
             raise HTTPException(404, "Project code not found")
         if pcode["project_id"] != t["project_id"]:
             raise HTTPException(400, "That project code does not belong to this entry's project")
     if "hours" in patch:
-        other_hours, other_rows = _same_day_hours(db, t["emp_id"], t["entry_date"], exclude_id=ts_id)
+        other_hours, other_rows = _same_day_hours(db, t["emp_id"], t["entry_date"], cu.org_id, exclude_id=ts_id)
         if other_hours + patch["hours"] > MAX_DAILY_HOURS:
-            raise HTTPException(400, _daily_cap_error(db, other_rows, other_hours, patch["hours"]))
+            raise HTTPException(400, _daily_cap_error(db, other_rows, other_hours, patch["hours"], cu.org_id))
     patch["status"] = "Pending"
-    db[collections.TIMESHEETS].update_one({"_id": ts_id}, {"$set": patch})
-    t = db[collections.TIMESHEETS].find_one({"_id": ts_id})
-    log_action(db, user=cu.name, action="UPDATE", module="Timesheets", record_id=str(ts_id))
+    db[collections.TIMESHEETS].update_one({"_id": ts_id, "org_id": cu.org_id}, {"$set": patch})
+    t = db[collections.TIMESHEETS].find_one({"_id": ts_id, "org_id": cu.org_id})
+    log_action(db, user=cu.name, action="UPDATE", module="Timesheets", org_id=cu.org_id, record_id=str(ts_id))
     return _out(t)
 
 
 @router.post("/{ts_id}/approve", dependencies=[Depends(require_permission("Timesheets", "approve"))])
 def approve(ts_id: int, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    t = db[collections.TIMESHEETS].find_one({"_id": ts_id})
-    if not t: raise HTTPException(404, "Not found")
+    t = get_or_404(db, collections.TIMESHEETS, ts_id, cu.org_id)
     if is_own_emp_record(db, cu, t["emp_id"]):
         raise HTTPException(403, "You cannot approve your own timesheet")
-    db[collections.TIMESHEETS].update_one({"_id": ts_id}, {"$set": {"status": "Approved", "approved_by": cu.name}})
-    t = db[collections.TIMESHEETS].find_one({"_id": ts_id})
-    log_action(db, user=cu.name, action="APPROVE", module="Timesheets", record_id=str(ts_id))
+    db[collections.TIMESHEETS].update_one({"_id": ts_id, "org_id": cu.org_id}, {"$set": {"status": "Approved", "approved_by": cu.name}})
+    t = db[collections.TIMESHEETS].find_one({"_id": ts_id, "org_id": cu.org_id})
+    log_action(db, user=cu.name, action="APPROVE", module="Timesheets", org_id=cu.org_id, record_id=str(ts_id))
     notify(
         db, recipient=t["name"], module="Timesheets", record_id=ts_id, status="Approved",
-        message=f"Your timesheet entry for {t['project_id']} on {t['entry_date']} ({t['hours']}h) was approved.",
+        message=f"Your timesheet entry for {t['project_id']} on {t['entry_date']} ({t['hours']}h) was approved.", org_id=cu.org_id,
     )
     return _out(t)
 
 
 @router.post("/{ts_id}/reject", dependencies=[Depends(require_permission("Timesheets", "approve"))])
 def reject(ts_id: int, payload: ApprovalAction, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    t = db[collections.TIMESHEETS].find_one({"_id": ts_id})
-    if not t: raise HTTPException(404, "Not found")
+    t = get_or_404(db, collections.TIMESHEETS, ts_id, cu.org_id)
     if is_own_emp_record(db, cu, t["emp_id"]):
         raise HTTPException(403, "You cannot reject your own timesheet")
-    db[collections.TIMESHEETS].update_one({"_id": ts_id}, {"$set": {"status": "Rejected", "approved_by": None}})
-    t = db[collections.TIMESHEETS].find_one({"_id": ts_id})
-    log_action(db, user=cu.name, action="REJECT", module="Timesheets", record_id=str(ts_id), detail=payload.reason)
+    db[collections.TIMESHEETS].update_one({"_id": ts_id, "org_id": cu.org_id}, {"$set": {"status": "Rejected", "approved_by": None}})
+    t = db[collections.TIMESHEETS].find_one({"_id": ts_id, "org_id": cu.org_id})
+    log_action(db, user=cu.name, action="REJECT", module="Timesheets", org_id=cu.org_id, record_id=str(ts_id), detail=payload.reason)
     reason_suffix = f" Reason: {payload.reason}" if payload.reason else ""
     notify(
         db, recipient=t["name"], module="Timesheets", record_id=ts_id, status="Rejected",
-        message=f"Your timesheet entry for {t['project_id']} on {t['entry_date']} ({t['hours']}h) was rejected.{reason_suffix}",
+        message=f"Your timesheet entry for {t['project_id']} on {t['entry_date']} ({t['hours']}h) was rejected.{reason_suffix}", org_id=cu.org_id,
     )
     return _out(t)
 
 
 @router.delete("/{ts_id}")
 def delete(ts_id: int, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    t = db[collections.TIMESHEETS].find_one({"_id": ts_id})
-    if not t: raise HTTPException(404, "Not found")
+    t = get_or_404(db, collections.TIMESHEETS, ts_id, cu.org_id)
     # No self-service delete, even for your own pending entry — once submitted, only
     # someone with Timesheets:delete (Admin by default) can remove it.
     if not has_permission(db, cu, "Timesheets", "delete"):
         raise HTTPException(403, "You do not have permission to delete timesheets")
-    db[collections.TIMESHEETS].delete_one({"_id": ts_id})
-    log_action(db, user=cu.name, action="DELETE", module="Timesheets", record_id=str(ts_id))
+    db[collections.TIMESHEETS].delete_one({"_id": ts_id, "org_id": cu.org_id})
+    log_action(db, user=cu.name, action="DELETE", module="Timesheets", org_id=cu.org_id, record_id=str(ts_id))
     return {"message": "Deleted"}

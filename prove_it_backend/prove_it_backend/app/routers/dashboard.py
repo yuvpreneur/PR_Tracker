@@ -17,11 +17,11 @@ router = APIRouter()
 
 
 @router.get("/admin/total-revenue", dependencies=[Depends(require_permission("Reports", "view"))])
-def total_revenue(period: Optional[str] = Query(None), db: Database = Depends(get_db)):
+def total_revenue(period: Optional[str] = Query(None), db: Database = Depends(get_db), cu=Depends(get_current_user)):
     date_filter = period_date_filter(period)
-    query = {"invoice_date": date_filter} if date_filter else {}
+    query = {"invoice_date": date_filter, "org_id": cu.org_id} if date_filter else {"org_id": cu.org_id}
     recvs = list(db[collections.RECEIVABLES].find(query))
-    active_projects = db[collections.PROJECTS].count_documents({"status": "In Progress"})
+    active_projects = db[collections.PROJECTS].count_documents({"status": "In Progress", "org_id": cu.org_id})
     return {
         "total_revenue": sum(r["received_amount"] for r in recvs),
         "active_projects": active_projects,
@@ -29,13 +29,13 @@ def total_revenue(period: Optional[str] = Query(None), db: Database = Depends(ge
 
 
 @router.get("/admin/total-expenses", dependencies=[Depends(require_permission("Reports", "view"))])
-def total_expenses(period: Optional[str] = Query(None), db: Database = Depends(get_db)):
+def total_expenses(period: Optional[str] = Query(None), db: Database = Depends(get_db), cu=Depends(get_current_user)):
     date_filter = period_date_filter(period)
-    query = {"status": "Approved"}
+    query = {"status": "Approved", "org_id": cu.org_id}
     if date_filter:
         query["expense_date"] = date_filter
     exps = list(db[collections.EXPENSES].find(query))
-    active_projects = db[collections.PROJECTS].count_documents({"status": "In Progress"})
+    active_projects = db[collections.PROJECTS].count_documents({"status": "In Progress", "org_id": cu.org_id})
     return {
         "total_expenses": sum(e["amount"] for e in exps),
         "active_projects": active_projects,
@@ -43,10 +43,10 @@ def total_expenses(period: Optional[str] = Query(None), db: Database = Depends(g
 
 
 @router.get("/admin/net-profit", dependencies=[Depends(require_permission("Reports", "view"))])
-def net_profit(period: Optional[str] = Query(None), db: Database = Depends(get_db)):
+def net_profit(period: Optional[str] = Query(None), db: Database = Depends(get_db), cu=Depends(get_current_user)):
     date_filter = period_date_filter(period)
-    recv_query = {"invoice_date": date_filter} if date_filter else {}
-    exp_query = {"status": "Approved"}
+    recv_query = {"invoice_date": date_filter, "org_id": cu.org_id} if date_filter else {"org_id": cu.org_id}
+    exp_query = {"status": "Approved", "org_id": cu.org_id}
     if date_filter:
         exp_query["expense_date"] = date_filter
     received = sum(r["received_amount"] for r in db[collections.RECEIVABLES].find(recv_query))
@@ -57,10 +57,10 @@ def net_profit(period: Optional[str] = Query(None), db: Database = Depends(get_d
 
 
 @router.get("/admin/pending-approvals", dependencies=[Depends(require_permission("Reports", "view"))])
-def pending_approvals_card(db: Database = Depends(get_db)):
-    pending_ts = db[collections.TIMESHEETS].count_documents({"status": "Pending"})
-    pending_exp = db[collections.EXPENSES].count_documents({"status": {"$in": ["Pending", "Pending Finance"]}})
-    pending_access = db[collections.ACCESS_REQUESTS].count_documents({"status": "Pending"})
+def pending_approvals_card(db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    pending_ts = db[collections.TIMESHEETS].count_documents({"status": "Pending", "org_id": cu.org_id})
+    pending_exp = db[collections.EXPENSES].count_documents({"status": {"$in": ["Pending", "Pending Finance"]}, "org_id": cu.org_id})
+    pending_access = db[collections.ACCESS_REQUESTS].count_documents({"status": "Pending", "org_id": cu.org_id})
     return {
         "pending_approvals": pending_ts + pending_exp + pending_access,
         "pending_timesheets": pending_ts,
@@ -68,9 +68,9 @@ def pending_approvals_card(db: Database = Depends(get_db)):
 
 
 @router.get("/admin/billable-hours", dependencies=[Depends(require_permission("Reports", "view"))])
-def billable_hours(period: Optional[str] = Query(None), db: Database = Depends(get_db)):
+def billable_hours(period: Optional[str] = Query(None), db: Database = Depends(get_db), cu=Depends(get_current_user)):
     date_filter = period_date_filter(period)
-    query = {"status": "Approved"}
+    query = {"status": "Approved", "org_id": cu.org_id}
     if date_filter:
         query["entry_date"] = date_filter
     ts = list(db[collections.TIMESHEETS].find(query))
@@ -85,26 +85,26 @@ def billable_hours(period: Optional[str] = Query(None), db: Database = Depends(g
 
 
 @router.get("/admin/companies-count", dependencies=[Depends(require_permission("Reports", "view"))])
-def companies_count(db: Database = Depends(get_db)):
+def companies_count(db: Database = Depends(get_db), cu=Depends(get_current_user)):
     return {
-        "total_companies": db[collections.COMPANIES].count_documents({}),
-        "active_companies": db[collections.COMPANIES].count_documents({"status": "Active"}),
+        "total_companies": db[collections.COMPANIES].count_documents({"org_id": cu.org_id}),
+        "active_companies": db[collections.COMPANIES].count_documents({"status": "Active", "org_id": cu.org_id}),
     }
 
 
 @router.get("/admin/active-projects", dependencies=[Depends(require_permission("Reports", "view"))])
-def active_projects_card(db: Database = Depends(get_db)):
+def active_projects_card(db: Database = Depends(get_db), cu=Depends(get_current_user)):
     return {
-        "active_projects": db[collections.PROJECTS].count_documents({"status": "In Progress"}),
-        "total_projects": db[collections.PROJECTS].count_documents({}),
+        "active_projects": db[collections.PROJECTS].count_documents({"status": "In Progress", "org_id": cu.org_id}),
+        "total_projects": db[collections.PROJECTS].count_documents({"org_id": cu.org_id}),
     }
 
 
 @router.get("/admin/headcount", dependencies=[Depends(require_permission("Reports", "view"))])
-def headcount_card(db: Database = Depends(get_db)):
+def headcount_card(db: Database = Depends(get_db), cu=Depends(get_current_user)):
     return {
-        "headcount": db[collections.EMPLOYEES].count_documents({"status": "Active"}),
-        "billable_count": db[collections.EMPLOYEES].count_documents({"status": "Active", "billable": True}),
+        "headcount": db[collections.EMPLOYEES].count_documents({"status": "Active", "org_id": cu.org_id}),
+        "billable_count": db[collections.EMPLOYEES].count_documents({"status": "Active", "billable": True, "org_id": cu.org_id}),
     }
 
 
@@ -112,34 +112,34 @@ def headcount_card(db: Database = Depends(get_db)):
 
 
 @router.get("/finance/total-billed", dependencies=[Depends(require_permission("Reports", "view"))])
-def total_billed(period: Optional[str] = Query(None), db: Database = Depends(get_db)):
+def total_billed(period: Optional[str] = Query(None), db: Database = Depends(get_db), cu=Depends(get_current_user)):
     date_filter = period_date_filter(period)
-    query = {"invoice_date": date_filter} if date_filter else {}
+    query = {"invoice_date": date_filter, "org_id": cu.org_id} if date_filter else {"org_id": cu.org_id}
     recvs = list(db[collections.RECEIVABLES].find(query))
     return {"total_billed": sum(r["invoice_amount"] for r in recvs)}
 
 
 @router.get("/finance/total-received", dependencies=[Depends(require_permission("Reports", "view"))])
-def total_received(period: Optional[str] = Query(None), db: Database = Depends(get_db)):
+def total_received(period: Optional[str] = Query(None), db: Database = Depends(get_db), cu=Depends(get_current_user)):
     date_filter = period_date_filter(period)
-    query = {"invoice_date": date_filter} if date_filter else {}
+    query = {"invoice_date": date_filter, "org_id": cu.org_id} if date_filter else {"org_id": cu.org_id}
     recvs = list(db[collections.RECEIVABLES].find(query))
     return {"total_received": sum(r["received_amount"] for r in recvs)}
 
 
 @router.get("/finance/outstanding", dependencies=[Depends(require_permission("Reports", "view"))])
-def outstanding(db: Database = Depends(get_db)):
+def outstanding(db: Database = Depends(get_db), cu=Depends(get_current_user)):
     # Deliberately unfiltered by period, matching the original bundled endpoint —
     # outstanding balance is a point-in-time total, not something scoped to a range.
-    recvs = list(db[collections.RECEIVABLES].find())
+    recvs = list(db[collections.RECEIVABLES].find({"org_id": cu.org_id}))
     total = sum(r["invoice_amount"] - r["received_amount"] for r in recvs if r["status"] != "Paid")
     return {"outstanding": total}
 
 
 @router.get("/finance/total-expenses", dependencies=[Depends(require_permission("Reports", "view"))])
-def finance_total_expenses(period: Optional[str] = Query(None), db: Database = Depends(get_db)):
+def finance_total_expenses(period: Optional[str] = Query(None), db: Database = Depends(get_db), cu=Depends(get_current_user)):
     date_filter = period_date_filter(period)
-    query = {"status": "Approved"}
+    query = {"status": "Approved", "org_id": cu.org_id}
     if date_filter:
         query["expense_date"] = date_filter
     exps = list(db[collections.EXPENSES].find(query))
@@ -155,7 +155,7 @@ def finance_total_expenses(period: Optional[str] = Query(None), db: Database = D
 @router.get("/employee/my-hours")
 def my_hours(db: Database = Depends(get_db), cu=Depends(get_current_user)):
     emp_ids = list(my_emp_ids(db, cu))
-    ts = list(db[collections.TIMESHEETS].find({"emp_id": {"$in": emp_ids}}))
+    ts = list(db[collections.TIMESHEETS].find({"emp_id": {"$in": emp_ids}, "org_id": cu.org_id}))
     return {
         "hours": sum(t["hours"] for t in ts),
         "billable_hours": sum(t["hours"] for t in ts if t["billable"]),
@@ -164,20 +164,20 @@ def my_hours(db: Database = Depends(get_db), cu=Depends(get_current_user)):
 
 @router.get("/employee/my-expenses")
 def my_expenses(db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    exps = list(db[collections.EXPENSES].find({"submitted_by": cu.name}))
+    exps = list(db[collections.EXPENSES].find({"submitted_by": cu.name, "org_id": cu.org_id}))
     return {"amount": sum(e["amount"] for e in exps), "count": len(exps)}
 
 
 @router.get("/employee/pending-timesheets")
 def my_pending_timesheets(db: Database = Depends(get_db), cu=Depends(get_current_user)):
     emp_ids = list(my_emp_ids(db, cu))
-    count = db[collections.TIMESHEETS].count_documents({"emp_id": {"$in": emp_ids}, "status": "Pending"})
+    count = db[collections.TIMESHEETS].count_documents({"emp_id": {"$in": emp_ids}, "status": "Pending", "org_id": cu.org_id})
     return {"count": count}
 
 
 @router.get("/employee/my-tickets")
 def my_tickets(db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    tickets = list(db[collections.TICKETS].find({"requester": cu.name}))
+    tickets = list(db[collections.TICKETS].find({"requester": cu.name, "org_id": cu.org_id}))
     open_count = sum(1 for t in tickets if t["status"] in ("Open", "In Progress"))
     return {"open": open_count, "total": len(tickets)}
 
@@ -185,7 +185,7 @@ def my_tickets(db: Database = Depends(get_db), cu=Depends(get_current_user)):
 @router.get("/employee/my-recent-timesheets")
 def my_recent_timesheets(limit: int = Query(6, le=50), db: Database = Depends(get_db), cu=Depends(get_current_user)):
     emp_ids = list(my_emp_ids(db, cu))
-    rows = db[collections.TIMESHEETS].find({"emp_id": {"$in": emp_ids}}).sort("entry_date", -1).limit(limit)
+    rows = db[collections.TIMESHEETS].find({"emp_id": {"$in": emp_ids}, "org_id": cu.org_id}).sort("entry_date", -1).limit(limit)
     return [
         {
             "entry_date": str(r["entry_date"]) if r["entry_date"] else None,
@@ -199,7 +199,7 @@ def my_recent_timesheets(limit: int = Query(6, le=50), db: Database = Depends(ge
 
 @router.get("/employee/my-recent-expenses")
 def my_recent_expenses(limit: int = Query(6, le=50), db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    rows = db[collections.EXPENSES].find({"submitted_by": cu.name}).sort("expense_date", -1).limit(limit)
+    rows = db[collections.EXPENSES].find({"submitted_by": cu.name, "org_id": cu.org_id}).sort("expense_date", -1).limit(limit)
     return [
         {
             "expense_date": str(r["expense_date"]) if r["expense_date"] else None,

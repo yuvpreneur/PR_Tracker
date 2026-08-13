@@ -12,6 +12,7 @@ from app.core.database import client, ensure_indexes
 from app.routers import (
     auth,
     users,
+    organizations,
     companies,
     projects,
     project_codes,
@@ -32,6 +33,11 @@ from app.routers import (
     audit_log,
     settings,
     notifications,
+    salary_structures,
+    holidays,
+    advances,
+    payroll,
+    payslips,
 )
 
 @asynccontextmanager
@@ -59,6 +65,7 @@ app.add_middleware(
 # ── Routers ──────────────────────────────────────────────────────────────────
 app.include_router(auth.router,           prefix="/api/auth",           tags=["Auth"])
 app.include_router(users.router,          prefix="/api/users",          tags=["Users"])
+app.include_router(organizations.router,  prefix="/api/organizations",  tags=["Organizations"])
 app.include_router(companies.router,      prefix="/api/companies",      tags=["Companies"])
 app.include_router(projects.router,       prefix="/api/projects",       tags=["Projects"])
 app.include_router(project_codes.router,  prefix="/api/project-codes",  tags=["Project Codes"])
@@ -79,6 +86,11 @@ app.include_router(dashboard.router,      prefix="/api/dashboard",      tags=["D
 app.include_router(audit_log.router,      prefix="/api/audit-log",      tags=["Audit Log"])
 app.include_router(settings.router,       prefix="/api/settings",       tags=["Settings"])
 app.include_router(notifications.router,  prefix="/api/notifications",  tags=["Notifications"])
+app.include_router(salary_structures.router, prefix="/api/salary-structures", tags=["Payroll"])
+app.include_router(holidays.router,       prefix="/api/holidays",       tags=["Payroll"])
+app.include_router(advances.router,       prefix="/api/advances",       tags=["Payroll"])
+app.include_router(payroll.router,        prefix="/api/payroll",        tags=["Payroll"])
+app.include_router(payslips.router,       prefix="/api/payslips",       tags=["Payroll"])
 
 
 @app.get("/", tags=["Health"])

@@ -36,10 +36,10 @@ def group_by(docs, key: str) -> dict:
     return groups
 
 
-def latest_hourly_costs(db: Database) -> dict:
+def latest_hourly_costs(db: Database, org_id) -> dict:
     """emp_id → most recent hourly_cost, computed with a single query instead of a
     find_one-per-employee/timesheet-row inside a loop."""
     latest: dict = {}
-    for hc in db[collections.HOURLY_COSTS].find().sort("effective_from", -1):
+    for hc in db[collections.HOURLY_COSTS].find({"org_id": org_id}).sort("effective_from", -1):
         latest.setdefault(hc["emp_id"], hc["hourly_cost"])
     return latest

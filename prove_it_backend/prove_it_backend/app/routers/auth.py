@@ -61,9 +61,66 @@ def register(payload: RegisterRequest, db: Database = Depends(get_db)):
         "role": "Admin",
         "initials": payload.name[:2].upper(),
         "is_active": True,
+        "org_id": None,
     }
     db[collections.USERS].insert_one(doc)
-    log_action(db, user=doc["name"], action="CREATE", module="Auth", detail="Registered as the first Admin account")
+    log_action(db, user=doc["name"], action="CREATE", module="Auth", org_id=None, detail="Registered as the first Admin account")
+
+    token = create_access_token({"sub": doc["username"], "role": doc["role"]})
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": doc["id"], "username": doc["username"], "name": doc["name"],
+            "email": doc["email"], "role": doc["role"], "initials": doc["initials"],
+        },
+    }
+
+
+# Reachable by anyone before a Super Admin exists — the platform-wide equivalent of
+# /register above, but for the one account that can create Organizations rather than
+# just this workspace's first Admin. Since this grants owner-level access to the whole
+# platform (not just one org), it's gated by a second factor beyond "does one exist
+# yet": a secret only whoever runs the deploy knows, set via SUPER_ADMIN_SETUP_TOKEN.
+# Fails closed if that env var isn't configured at all, rather than silently accepting
+# an unprotected bootstrap.
+SUPER_ADMIN_SETUP_TOKEN = os.environ.get("SUPER_ADMIN_SETUP_TOKEN")
+
+
+@router.get("/super-admin-status")
+def super_admin_status(db: Database = Depends(get_db)):
+    return {"available": db[collections.USERS].count_documents({"role": "Super Admin"}) == 0}
+
+
+class SuperAdminRegisterRequest(BaseModel):
+    username: str
+    password: str
+    name: str
+    email: str
+    setup_token: str
+
+
+@router.post("/register-super-admin", response_model=Token)
+def register_super_admin(payload: SuperAdminRegisterRequest, db: Database = Depends(get_db)):
+    if not SUPER_ADMIN_SETUP_TOKEN or payload.setup_token != SUPER_ADMIN_SETUP_TOKEN:
+        raise HTTPException(status_code=403, detail="Invalid setup token")
+    if db[collections.USERS].count_documents({"role": "Super Admin"}) > 0:
+        raise HTTPException(status_code=403, detail="A Super Admin account already exists.")
+
+    uid = uuid.uuid4().hex
+    doc = {
+        "_id": uid, "id": uid,
+        "username": payload.username,
+        "password_hash": hash_password(payload.password),
+        "name": payload.name,
+        "email": payload.email,
+        "role": "Super Admin",
+        "initials": payload.name[:2].upper(),
+        "is_active": True,
+        "org_id": None,
+    }
+    db[collections.USERS].insert_one(doc)
+    log_action(db, user=doc["name"], action="CREATE", module="Auth", org_id=None, detail="Bootstrapped the Super Admin account")
 
     token = create_access_token({"sub": doc["username"], "role": doc["role"]})
     return {
@@ -91,7 +148,7 @@ def login(
         raise HTTPException(status_code=403, detail="Account is inactive")
 
     token = create_access_token({"sub": user["username"], "role": user["role"]})
-    log_action(db, user=user["name"], action="LOGIN", module="Auth", detail=f"Login from {user['role']} account")
+    log_action(db, user=user["name"], action="LOGIN", module="Auth", org_id=user.get("org_id"), detail=f"Login from {user['role']} account")
 
     return {
         "access_token": token,
@@ -121,6 +178,7 @@ def me(current_user=Depends(get_current_user), db: Database = Depends(get_db)):
         "email": current_user.email,
         "role": current_user.role,
         "initials": current_user.initials,
+        "org_id": getattr(current_user, "org_id", None),
         "permissions": get_effective_permissions(db, current_user),
         # Explicit per-employee Page Access grants/denials (app/routers/access_control.py) —
         # these win over the role matrix AND the frontend's self-service nav bypass when set.
@@ -156,7 +214,10 @@ def view_as(
             detail=f"Can only view as one of: {', '.join(sorted(VIEW_AS_ROLES))}",
         )
 
-    target = db[collections.USERS].find_one({"role": body.role}, sort=[("username", 1)])
+    # Scoped to the acting Admin/Manager's own org — an unscoped lookup would risk
+    # handing back another organization's account of that role (see multi-tenant
+    # org_id isolation retrofit).
+    target = db[collections.USERS].find_one({"role": body.role, "org_id": current_user.org_id}, sort=[("username", 1)])
     if not target:
         raise HTTPException(status_code=404, detail=f"No account found with role '{body.role}'")
 
@@ -165,7 +226,7 @@ def view_as(
         expires_delta=timedelta(minutes=60),
     )
     log_action(
-        db, user=current_user.name, action="VIEW_AS", module="Auth",
+        db, user=current_user.name, action="VIEW_AS", module="Auth", org_id=current_user.org_id,
         detail=f"{current_user.name} (Admin) started viewing the app as {body.role} ({target['name']})",
     )
     return {
@@ -269,6 +330,6 @@ def reset_password(payload: ResetPasswordRequest, db: Database = Depends(get_db)
 
     db[collections.USERS].update_one({"_id": user["_id"]}, {"$set": {"password_hash": hash_password(payload.new_password)}})
     db[collections.PASSWORD_RESET_TOKENS].update_one({"_id": token_doc["_id"]}, {"$set": {"used": True}})
-    log_action(db, user=user["name"], action="UPDATE", module="Auth", record_id=user["id"], detail="Password reset via forgot-password flow")
+    log_action(db, user=user["name"], action="UPDATE", module="Auth", org_id=user.get("org_id"), record_id=user["id"], detail="Password reset via forgot-password flow")
 
     return {"message": "Password updated. You can now log in."}

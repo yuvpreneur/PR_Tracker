@@ -5,7 +5,7 @@ from typing import Optional
 from datetime import datetime
 from app.core import collections
 from app.core.database import get_db
-from app.core.mongo_utils import next_id, like
+from app.core.mongo_utils import next_id, like, get_or_404
 from app.core.security import get_current_user
 from app.core.audit import log_action
 from app.core.permissions import has_permission, is_own_record
@@ -68,7 +68,7 @@ def list_tickets(
     search: Optional[str] = Query(None),
     db: Database = Depends(get_db), cu=Depends(get_current_user),
 ):
-    query = {}
+    query = {"org_id": cu.org_id}
     if status: query["status"] = status
     if queue: query["queue"] = queue
     if priority: query["priority"] = priority
@@ -90,7 +90,7 @@ def list_tickets(
 
 @router.get("/stats")
 def stats(db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    tickets = list(db[collections.TICKETS].find())
+    tickets = list(db[collections.TICKETS].find({"org_id": cu.org_id}))
     open_t = [t for t in tickets if t["status"] not in ("Resolved", "Closed", "Cancelled")]
     return {
         "open": len(open_t),
@@ -116,13 +116,13 @@ def create_ticket(payload: TicketCreate, db: Database = Depends(get_db), cu=Depe
     now = datetime.utcnow()
     tid = next_id(db, collections.TICKETS)
     doc = {
-        "_id": tid, "id": tid, **payload.dict(),
+        "_id": tid, "id": tid, "org_id": cu.org_id, **payload.dict(),
         "ticket_no": _ticket_no(), "status": "Open",
         "resolution": None, "cancel_reason": None,
         "created_at": now, "updated_at": now,
     }
     db[collections.TICKETS].insert_one(doc)
-    log_action(db, user=cu.name, action="CREATE", module="Service Desk", record_id=doc["ticket_no"], detail=doc["subject"])
+    log_action(db, user=cu.name, action="CREATE", module="Service Desk", org_id=cu.org_id, record_id=doc["ticket_no"], detail=doc["subject"])
     return _out(doc)
 
 
@@ -130,8 +130,7 @@ def create_ticket(payload: TicketCreate, db: Database = Depends(get_db), cu=Depe
 def get_ticket(ticket_id: int, db: Database = Depends(get_db), cu=Depends(get_current_user)):
     if cu.role == "Finance User":
         raise HTTPException(404, "Ticket not found")
-    t = db[collections.TICKETS].find_one({"_id": ticket_id})
-    if not t: raise HTTPException(404, "Ticket not found")
+    t = get_or_404(db, collections.TICKETS, ticket_id, cu.org_id, "Ticket not found")
     return _out(t)
 
 
@@ -139,8 +138,7 @@ def get_ticket(ticket_id: int, db: Database = Depends(get_db), cu=Depends(get_cu
 def update_ticket(ticket_id: int, payload: TicketUpdate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
     if cu.role == "Finance User":
         raise HTTPException(403, "Finance User does not have access to Service Desk")
-    t = db[collections.TICKETS].find_one({"_id": ticket_id})
-    if not t: raise HTTPException(404, "Ticket not found")
+    t = get_or_404(db, collections.TICKETS, ticket_id, cu.org_id, "Ticket not found")
     can_edit_any = has_permission(db, cu, "Service Desk", "edit")
     if t["status"] in ("Closed", "Cancelled") and not can_edit_any:
         raise HTTPException(400, "Cannot update a closed/cancelled ticket")
@@ -151,9 +149,9 @@ def update_ticket(ticket_id: int, payload: TicketUpdate, db: Database = Depends(
         raise HTTPException(403, "You may only edit your own tickets while they're still open")
     patch = payload.dict(exclude_none=True)
     patch["updated_at"] = datetime.utcnow()
-    db[collections.TICKETS].update_one({"_id": ticket_id}, {"$set": patch})
-    t = db[collections.TICKETS].find_one({"_id": ticket_id})
-    log_action(db, user=cu.name, action="UPDATE", module="Service Desk", record_id=t["ticket_no"])
+    db[collections.TICKETS].update_one({"_id": ticket_id, "org_id": cu.org_id}, {"$set": patch})
+    t = db[collections.TICKETS].find_one({"_id": ticket_id, "org_id": cu.org_id})
+    log_action(db, user=cu.name, action="UPDATE", module="Service Desk", org_id=cu.org_id, record_id=t["ticket_no"])
     return _out(t)
 
 
@@ -161,14 +159,13 @@ def update_ticket(ticket_id: int, payload: TicketUpdate, db: Database = Depends(
 def resolve(ticket_id: int, payload: dict = {}, db: Database = Depends(get_db), cu=Depends(get_current_user)):
     if cu.role == "Finance User":
         raise HTTPException(403, "Finance User does not have access to Service Desk")
-    t = db[collections.TICKETS].find_one({"_id": ticket_id})
-    if not t: raise HTTPException(404, "Not found")
+    t = get_or_404(db, collections.TICKETS, ticket_id, cu.org_id, "Not found")
     if not has_permission(db, cu, "Service Desk", "approve"):
         raise HTTPException(403, "Requires 'approve' permission on Service Desk")
     resolution = payload.get("resolution", "Issue resolved.") if isinstance(payload, dict) else "Issue resolved."
-    db[collections.TICKETS].update_one({"_id": ticket_id}, {"$set": {"status": "Resolved", "updated_at": datetime.utcnow(), "resolution": resolution}})
-    t = db[collections.TICKETS].find_one({"_id": ticket_id})
-    log_action(db, user=cu.name, action="UPDATE", module="Service Desk", record_id=t["ticket_no"], detail="Resolved")
+    db[collections.TICKETS].update_one({"_id": ticket_id, "org_id": cu.org_id}, {"$set": {"status": "Resolved", "updated_at": datetime.utcnow(), "resolution": resolution}})
+    t = db[collections.TICKETS].find_one({"_id": ticket_id, "org_id": cu.org_id})
+    log_action(db, user=cu.name, action="UPDATE", module="Service Desk", org_id=cu.org_id, record_id=t["ticket_no"], detail="Resolved")
     return _out(t)
 
 
@@ -176,15 +173,14 @@ def resolve(ticket_id: int, payload: dict = {}, db: Database = Depends(get_db), 
 def close(ticket_id: int, db: Database = Depends(get_db), cu=Depends(get_current_user)):
     if cu.role == "Finance User":
         raise HTTPException(403, "Finance User does not have access to Service Desk")
-    t = db[collections.TICKETS].find_one({"_id": ticket_id})
-    if not t: raise HTTPException(404, "Not found")
+    t = get_or_404(db, collections.TICKETS, ticket_id, cu.org_id, "Not found")
     if not has_permission(db, cu, "Service Desk", "approve") and not is_own_record(cu, t["requester"]):
         raise HTTPException(403, "You may only close your own tickets")
     if t["status"] != "Resolved":
         raise HTTPException(400, "Only resolved tickets can be closed")
-    db[collections.TICKETS].update_one({"_id": ticket_id}, {"$set": {"status": "Closed", "updated_at": datetime.utcnow()}})
-    t = db[collections.TICKETS].find_one({"_id": ticket_id})
-    log_action(db, user=cu.name, action="UPDATE", module="Service Desk", record_id=t["ticket_no"], detail="Closed")
+    db[collections.TICKETS].update_one({"_id": ticket_id, "org_id": cu.org_id}, {"$set": {"status": "Closed", "updated_at": datetime.utcnow()}})
+    t = db[collections.TICKETS].find_one({"_id": ticket_id, "org_id": cu.org_id})
+    log_action(db, user=cu.name, action="UPDATE", module="Service Desk", org_id=cu.org_id, record_id=t["ticket_no"], detail="Closed")
     return _out(t)
 
 
@@ -192,13 +188,12 @@ def close(ticket_id: int, db: Database = Depends(get_db), cu=Depends(get_current
 def cancel(ticket_id: int, payload: CancelPayload, db: Database = Depends(get_db), cu=Depends(get_current_user)):
     if cu.role == "Finance User":
         raise HTTPException(403, "Finance User does not have access to Service Desk")
-    t = db[collections.TICKETS].find_one({"_id": ticket_id})
-    if not t: raise HTTPException(404, "Not found")
+    t = get_or_404(db, collections.TICKETS, ticket_id, cu.org_id, "Not found")
     if not has_permission(db, cu, "Service Desk", "approve") and not is_own_record(cu, t["requester"]):
         raise HTTPException(403, "You may only cancel your own tickets")
     if t["status"] in ("Closed", "Cancelled"):
         raise HTTPException(400, "Ticket is already closed/cancelled")
-    db[collections.TICKETS].update_one({"_id": ticket_id}, {"$set": {"status": "Cancelled", "cancel_reason": payload.reason, "updated_at": datetime.utcnow()}})
-    t = db[collections.TICKETS].find_one({"_id": ticket_id})
-    log_action(db, user=cu.name, action="CANCEL", module="Service Desk", record_id=t["ticket_no"], detail=payload.reason)
+    db[collections.TICKETS].update_one({"_id": ticket_id, "org_id": cu.org_id}, {"$set": {"status": "Cancelled", "cancel_reason": payload.reason, "updated_at": datetime.utcnow()}})
+    t = db[collections.TICKETS].find_one({"_id": ticket_id, "org_id": cu.org_id})
+    log_action(db, user=cu.name, action="CANCEL", module="Service Desk", org_id=cu.org_id, record_id=t["ticket_no"], detail=payload.reason)
     return _out(t)

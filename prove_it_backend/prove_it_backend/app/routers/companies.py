@@ -5,7 +5,7 @@ from typing import Optional
 
 from app.core import collections
 from app.core.database import get_db
-from app.core.mongo_utils import next_id, like
+from app.core.mongo_utils import next_id, like, get_or_404
 from app.core.security import get_current_user, require_permission
 from app.core.audit import log_action
 from app.core.permissions import assigned_project_ids
@@ -38,8 +38,9 @@ class CompanyUpdate(BaseModel):
 
 
 def _out(c: dict, db: Database):
-    active_projects = db[collections.PROJECTS].count_documents({"client": c["name"]})
-    lifetime_value = sum(r["invoice_amount"] for r in db[collections.RECEIVABLES].find({"client": c["name"]}))
+    org_id = c.get("org_id")
+    active_projects = db[collections.PROJECTS].count_documents({"client": c["name"], "org_id": org_id})
+    lifetime_value = sum(r["invoice_amount"] for r in db[collections.RECEIVABLES].find({"client": c["name"], "org_id": org_id}))
     return {
         "id": c["id"], "name": c["name"], "industry": c["industry"],
         "primary_contact": c["primary_contact"], "email": c.get("email"),
@@ -70,10 +71,11 @@ def list_companies(
     # value), not just the ones tied to their assigned projects.
     assigned_ids = None if cu.role == "Finance User" else assigned_project_ids(db, cu)
     if assigned_ids is not None:
-        clients = db[collections.PROJECTS].find({"_id": {"$in": assigned_ids}}, {"client": 1})
+        clients = db[collections.PROJECTS].find({"_id": {"$in": assigned_ids}, "org_id": cu.org_id}, {"client": 1})
         scope = {"name": {"$in": list({p["client"] for p in clients})}}
         query = {"$and": [query, scope]} if query else scope
 
+    query["org_id"] = cu.org_id
     return [_out(c, db) for c in db[collections.COMPANIES].find(query)]
 
 
@@ -82,30 +84,28 @@ def create(payload: CompanyCreate, db: Database = Depends(get_db), cu=Depends(ge
     if payload.status not in STATUSES:
         raise HTTPException(400, f"status must be one of {STATUSES}")
     cid = f"CO{next_id(db, collections.COMPANIES):03d}"
-    doc = {"_id": cid, "id": cid, **payload.dict()}
+    doc = {"_id": cid, "id": cid, "org_id": cu.org_id, **payload.dict()}
     db[collections.COMPANIES].insert_one(doc)
-    log_action(db, user=cu.name, action="CREATE", module="Companies", record_id=cid, detail=f"Created company: {doc['name']}")
+    log_action(db, user=cu.name, action="CREATE", module="Companies", org_id=cu.org_id, record_id=cid, detail=f"Created company: {doc['name']}")
     return _out(doc, db)
 
 
 @router.patch("/{company_id}", dependencies=[Depends(require_permission("Companies", "edit"))])
 def update(company_id: str, payload: CompanyUpdate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    c = db[collections.COMPANIES].find_one({"_id": company_id})
-    if not c: raise HTTPException(404, "Company not found")
+    c = get_or_404(db, collections.COMPANIES, company_id, cu.org_id, "Company not found")
     patch = payload.dict(exclude_none=True)
     if "status" in patch and patch["status"] not in STATUSES:
         raise HTTPException(400, f"status must be one of {STATUSES}")
     if patch:
-        db[collections.COMPANIES].update_one({"_id": company_id}, {"$set": patch})
-        c = db[collections.COMPANIES].find_one({"_id": company_id})
-    log_action(db, user=cu.name, action="UPDATE", module="Companies", record_id=company_id, detail=f"Updated company: {c['name']}")
+        db[collections.COMPANIES].update_one({"_id": company_id, "org_id": cu.org_id}, {"$set": patch})
+        c = get_or_404(db, collections.COMPANIES, company_id, cu.org_id, "Company not found")
+    log_action(db, user=cu.name, action="UPDATE", module="Companies", org_id=cu.org_id, record_id=company_id, detail=f"Updated company: {c['name']}")
     return _out(c, db)
 
 
 @router.delete("/{company_id}", dependencies=[Depends(require_permission("Companies", "delete"))])
 def delete(company_id: str, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    c = db[collections.COMPANIES].find_one({"_id": company_id})
-    if not c: raise HTTPException(404, "Company not found")
-    db[collections.COMPANIES].delete_one({"_id": company_id})
-    log_action(db, user=cu.name, action="DELETE", module="Companies", record_id=company_id, detail=f"Deleted company: {c['name']}")
+    c = get_or_404(db, collections.COMPANIES, company_id, cu.org_id, "Company not found")
+    db[collections.COMPANIES].delete_one({"_id": company_id, "org_id": cu.org_id})
+    log_action(db, user=cu.name, action="DELETE", module="Companies", org_id=cu.org_id, record_id=company_id, detail=f"Deleted company: {c['name']}")
     return {"message": "Company deleted"}

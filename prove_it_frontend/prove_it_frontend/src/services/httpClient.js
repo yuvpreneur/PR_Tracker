@@ -53,12 +53,10 @@ export const patch = (p, b) => _req('PATCH', p, b);
 export const del   = p      => _req('DELETE', p);
 
 // Multipart upload — no Content-Type header, the browser sets the boundary itself.
-export async function uploadFile(path, file, _retried = false) {
-  const form = new FormData();
-  form.append('file', file);
+export async function postFormData(path, form, _retried = false) {
   const r = await fetch(API_BASE_URL + path, { method: 'POST', headers: { Authorization: `Bearer ${_tok()}` }, body: form });
   if (r.status === 401) {
-    if (!_retried && await _sessionStillValid()) return uploadFile(path, file, true);
+    if (!_retried && await _sessionStillValid()) return postFormData(path, form, true);
     localStorage.removeItem('token');
     location.reload();
     return null;
@@ -66,6 +64,12 @@ export async function uploadFile(path, file, _retried = false) {
   const data = await r.json().catch(() => ({}));
   if (!r.ok) { toast(data.detail || 'Upload failed', 'error'); throw new Error(data.detail); }
   return data;
+}
+
+export function uploadFile(path, file) {
+  const form = new FormData();
+  form.append('file', file);
+  return postFormData(path, form);
 }
 
 // Attachment endpoints require the same Bearer auth as everything else, so a plain
@@ -83,6 +87,23 @@ export async function viewAttachment(path, _retried = false) {
   const url = URL.createObjectURL(blob);
   window.open(url, '_blank');
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+// Fetches an auth-gated binary endpoint (e.g. an Organization logo) and returns an
+// object URL suitable for an <img src>, since a plain <img> tag can't attach the
+// Bearer header these endpoints require. Caller owns revoking it (URL.revokeObjectURL)
+// once done, e.g. on unmount.
+export async function fetchAuthedBlobUrl(path, _retried = false) {
+  const r = await fetch(API_BASE_URL + path, { headers: { Authorization: `Bearer ${_tok()}` } });
+  if (r.status === 401) {
+    if (!_retried && await _sessionStillValid()) return fetchAuthedBlobUrl(path, true);
+    localStorage.removeItem('token');
+    location.reload();
+    return null;
+  }
+  if (!r.ok) return null;
+  const blob = await r.blob();
+  return URL.createObjectURL(blob);
 }
 
 export function qs(params) {

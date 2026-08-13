@@ -17,7 +17,7 @@ from app.core import collections
 MODULES = [
     "Companies", "Projects", "Project Codes", "Billing Codes", "Employees", "Hourly Costs",
     "Timesheets", "Expenses", "Leave", "Service Desk", "Receivables", "Invoices",
-    "Reports", "Approvals",
+    "Reports", "Approvals", "Payroll",
 ]
 
 # Roles that bypass the DB-driven matrix entirely and always get full access
@@ -25,6 +25,16 @@ MODULES = [
 # Manager's only carve-out from true Admin parity is account management for
 # Admin/Manager-role users themselves (app/routers/users.py's PRIVILEGED_ROLES).
 FULL_ACCESS_ROLES = ("Admin", "Manager")
+
+# Platform-level role with no organization of its own (see app/routers/organizations.py)
+# — has zero access to any business module, full stop. Checked explicitly in
+# get_effective_permissions() below rather than left to fall through to
+# get_role_permissions()'s DEFAULT_PERMS.get(role, DEFAULT_PERMS["Viewer"]) fallback:
+# that fallback exists so a genuinely unrecognized *org-level* role degrades to
+# Viewer's read-only access rather than crashing, but Viewer-equivalent access
+# (Employees, Timesheets, etc. all default to view=True) is very much not "no access,"
+# and a Super Admin token hitting has_permission() must never get any of it.
+NO_ORG_ROLES = ("Super Admin",)
 
 
 def _flags(view=False, create=False, edit=False, delete=False, approve=False, export=False):
@@ -68,6 +78,11 @@ DEFAULT_PERMS = {
         "Invoices":         _flags(view=True, create=True, edit=True, export=True),
         "Reports":          _flags(view=True, export=True),
         "Approvals":        _flags(view=True),
+        # Payroll is the one HR-flavored module Finance User does get real access to —
+        # running payroll is money-side work even though it lives next to Employees/Leave.
+        # Delete is still off, same as every other module here (Admin/Manager-exclusive,
+        # enforced role-wide in get_role_permissions() regardless of this flag).
+        "Payroll":          _flags(view=True, create=True, edit=True, export=True),
     },
 
     # Employee — self-service only. Every module below is intentionally all-false:
@@ -93,6 +108,7 @@ DEFAULT_PERMS = {
         "Invoices":         _flags(),
         "Reports":          _flags(),
         "Approvals":        _flags(),
+        "Payroll":          _flags(),
     },
 
     # Viewer — read-only across the board, no approvals, no money-config editing.
@@ -111,12 +127,17 @@ DEFAULT_PERMS = {
         "Invoices":         _flags(view=True, export=True),
         "Reports":          _flags(view=True, export=True),
         "Approvals":        _flags(),
+        "Payroll":          _flags(view=True),
     },
 }
 
 
-def get_role_permissions(db: Database, role: str) -> dict:
-    """Effective {module: {view,create,edit,delete,approve,export}} for a role.
+def get_role_permissions(db: Database, role: str, org_id) -> dict:
+    """Effective {module: {view,create,edit,delete,approve,export}} for a role, within
+    one org. Takes org_id explicitly rather than a current_user, since this is also
+    called to inspect a role that isn't the caller's own (an Admin previewing another
+    role's matrix, or resolving a *target* employee's role) — the org context in every
+    such case is always the caller's own org, never inferred from the role being looked up.
 
     Admin and Manager both always get full access without touching the DB (see
     FULL_ACCESS_ROLES). Any module an Admin hasn't explicitly saved for another
@@ -127,7 +148,7 @@ def get_role_permissions(db: Database, role: str) -> dict:
         return {m: dict(_FULL) for m in MODULES}
 
     defaults = DEFAULT_PERMS.get(role, DEFAULT_PERMS["Viewer"])
-    rows = list(db[collections.ROLE_PERMISSIONS].find({"role": role}))
+    rows = list(db[collections.ROLE_PERMISSIONS].find({"role": role, "org_id": org_id}))
     if not rows:
         return {m: dict(defaults[m]) for m in MODULES}
 
@@ -154,10 +175,15 @@ def my_emp_ids(db: Database, current_user) -> set:
     # found to differ only in case for real accounts (e.g. User "anya" vs Employee "Anya")
     # — an exact match would silently fail to link them, which now that assigned_project_ids()
     # restricts-by-default on no match would incorrectly lock that person out of everything.
+    # org_id scoped too: two different orgs can each have their own "Anya" — a bare name
+    # match without it would resolve to whichever org's Employees doc happens to match.
     pattern = f"^{re.escape(current_user.name)}$"
     return {
         e["emp_id"] for e in
-        db[collections.EMPLOYEES].find({"name": {"$regex": pattern, "$options": "i"}}, {"emp_id": 1})
+        db[collections.EMPLOYEES].find(
+            {"name": {"$regex": pattern, "$options": "i"}, "org_id": current_user.org_id},
+            {"emp_id": 1},
+        )
     }
 
 
@@ -188,7 +214,7 @@ def assigned_project_ids(db: Database, current_user) -> Optional[List[str]]:
     emp_id = own_emp_id(db, current_user)
     if not emp_id:
         return []
-    assigned = list(db[collections.PROJECT_PERMISSIONS].find({"emp_id": emp_id}))
+    assigned = list(db[collections.PROJECT_PERMISSIONS].find({"emp_id": emp_id, "org_id": current_user.org_id}))
     return [a["project_id"] for a in assigned if a["allowed"]]
 
 
@@ -203,7 +229,7 @@ def assigned_project_ids(db: Database, current_user) -> Optional[List[str]]:
 # helper for what an unconfigured Page Access checkbox should default to (see
 # app/routers/access_control.py's GET /pages/{emp_id}) — a *different* question ("does this
 # person currently see this page's nav item at all") from what has_permission() answers.
-SELF_SERVICE_MODULES = {"Timesheets", "Leave", "Service Desk", "Expenses"}
+SELF_SERVICE_MODULES = {"Timesheets", "Leave", "Service Desk", "Expenses", "Payroll"}
 
 
 def effective_view_default(role_perms: dict, role: str, module: str) -> bool:
@@ -223,11 +249,13 @@ def get_effective_permissions(db: Database, current_user) -> dict:
     Deliberately does NOT apply the SELF_SERVICE_MODULES bypass — see the note above."""
     if current_user.role in FULL_ACCESS_ROLES:
         return {m: dict(_FULL) for m in MODULES}
+    if current_user.role in NO_ORG_ROLES:
+        return {m: _flags() for m in MODULES}
 
-    perms = {m: dict(v) for m, v in get_role_permissions(db, current_user.role).items()}
+    perms = {m: dict(v) for m, v in get_role_permissions(db, current_user.role, current_user.org_id).items()}
     emp_id = own_emp_id(db, current_user)
     if emp_id:
-        for row in db[collections.PAGE_PERMISSIONS].find({"emp_id": emp_id}):
+        for row in db[collections.PAGE_PERMISSIONS].find({"emp_id": emp_id, "org_id": current_user.org_id}):
             if row["page"] in perms:
                 perms[row["page"]]["view"] = bool(row["allowed"])
     return perms

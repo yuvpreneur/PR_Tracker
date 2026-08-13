@@ -9,7 +9,7 @@ from datetime import date
 from bson import Binary
 from app.core import collections
 from app.core.database import get_db
-from app.core.mongo_utils import next_id, like
+from app.core.mongo_utils import next_id, like, get_or_404
 from app.core.security import get_current_user
 from app.core.audit import log_action
 from app.core.notifications import notify
@@ -101,7 +101,7 @@ def list_expenses(
         if submitted_by and submitted_by != cu.name:
             raise HTTPException(403, "You may only view your own records")
         submitted_by = cu.name
-    query = {}
+    query = {"org_id": cu.org_id}
     if project_id:   query["project_id"] = project_id
     if category:     query["category"] = category
     if status:       query["status"] = status
@@ -124,7 +124,7 @@ def list_expenses(
 
 @router.get("/summary")
 def summary(db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    expenses = list(db[collections.EXPENSES].find())
+    expenses = list(db[collections.EXPENSES].find({"org_id": cu.org_id}))
     approved = [e for e in expenses if e["status"] == STATUS_APPROVED]
     return {
         "total_amount": sum(e["amount"] for e in expenses),
@@ -146,10 +146,11 @@ def create(payload: ExpCreate, db: Database = Depends(get_db), cu=Depends(get_cu
     doc = {
         "_id": xid, "id": xid, **payload.dict(),
         "status": STATUS_PENDING, "manager_approved_by": None, "approved_by": None, "reject_reason": None,
+        "org_id": cu.org_id,
     }
     doc["expense_date"] = doc["expense_date"].isoformat()
     db[collections.EXPENSES].insert_one(doc)
-    log_action(db, user=cu.name, action="CREATE", module="Expenses", record_id=str(xid), detail=f"₹{doc['amount']} {doc['category']} expense")
+    log_action(db, user=cu.name, action="CREATE", module="Expenses", org_id=cu.org_id, record_id=str(xid), detail=f"₹{doc['amount']} {doc['category']} expense")
     return _out(doc)
 
 
@@ -164,16 +165,14 @@ def upload_attachment(file: UploadFile = File(...), db: Database = Depends(get_d
     aid = uuid.uuid4().hex
     db[collections.EXPENSE_ATTACHMENTS].insert_one({
         "_id": aid, "filename": file.filename, "content_type": file.content_type,
-        "data": Binary(data), "uploaded_by": cu.name,
+        "data": Binary(data), "uploaded_by": cu.name, "org_id": cu.org_id,
     })
     return {"receipt_url": f"/api/expenses/attachments/{aid}", "filename": file.filename}
 
 
 @router.get("/attachments/{attachment_id}")
 def get_attachment(attachment_id: str, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    doc = db[collections.EXPENSE_ATTACHMENTS].find_one({"_id": attachment_id})
-    if not doc:
-        raise HTTPException(404, "Attachment not found")
+    doc = get_or_404(db, collections.EXPENSE_ATTACHMENTS, attachment_id, cu.org_id, "Attachment not found")
     return Response(
         content=bytes(doc["data"]),
         media_type=doc.get("content_type") or "application/octet-stream",
@@ -183,8 +182,7 @@ def get_attachment(attachment_id: str, db: Database = Depends(get_db), cu=Depend
 
 @router.patch("/{exp_id}")
 def update(exp_id: int, payload: ExpUpdate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    e = db[collections.EXPENSES].find_one({"_id": exp_id})
-    if not e: raise HTTPException(404, "Not found")
+    e = get_or_404(db, collections.EXPENSES, exp_id, cu.org_id)
     can_edit_any = has_permission(db, cu, "Expenses", "edit")
     if e["status"] == STATUS_APPROVED and not can_edit_any:
         raise HTTPException(400, "Cannot edit approved expense")
@@ -197,16 +195,15 @@ def update(exp_id: int, payload: ExpUpdate, db: Database = Depends(get_db), cu=D
     patch["status"] = STATUS_PENDING
     patch["manager_approved_by"] = None
     patch["reject_reason"] = None
-    db[collections.EXPENSES].update_one({"_id": exp_id}, {"$set": patch})
-    e = db[collections.EXPENSES].find_one({"_id": exp_id})
-    log_action(db, user=cu.name, action="UPDATE", module="Expenses", record_id=str(exp_id))
+    db[collections.EXPENSES].update_one({"_id": exp_id, "org_id": cu.org_id}, {"$set": patch})
+    e = db[collections.EXPENSES].find_one({"_id": exp_id, "org_id": cu.org_id})
+    log_action(db, user=cu.name, action="UPDATE", module="Expenses", org_id=cu.org_id, record_id=str(exp_id))
     return _out(e)
 
 
 @router.post("/{exp_id}/approve")
 def approve(exp_id: int, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    e = db[collections.EXPENSES].find_one({"_id": exp_id})
-    if not e: raise HTTPException(404, "Not found")
+    e = get_or_404(db, collections.EXPENSES, exp_id, cu.org_id)
     if is_own_record(cu, e["submitted_by"]):
         raise HTTPException(403, "You cannot approve your own expense")
 
@@ -225,24 +222,23 @@ def approve(exp_id: int, db: Database = Depends(get_db), cu=Depends(get_current_
     else:
         raise HTTPException(400, f"Cannot approve an expense with status '{e['status']}'")
 
-    db[collections.EXPENSES].update_one({"_id": exp_id}, {"$set": update})
-    e = db[collections.EXPENSES].find_one({"_id": exp_id})
-    log_action(db, user=cu.name, action=action, module="Expenses", record_id=str(exp_id), detail=detail)
+    db[collections.EXPENSES].update_one({"_id": exp_id, "org_id": cu.org_id}, {"$set": update})
+    e = db[collections.EXPENSES].find_one({"_id": exp_id, "org_id": cu.org_id})
+    log_action(db, user=cu.name, action=action, module="Expenses", org_id=cu.org_id, record_id=str(exp_id), detail=detail)
     # Only the final decision (Finance's APPROVE) is notification-worthy — the
     # intermediate MANAGER_APPROVE just moves the request to Finance's queue, it hasn't
     # been decided yet.
     if action == "APPROVE":
         notify(
             db, recipient=e["submitted_by"], module="Expenses", record_id=exp_id, status="Approved",
-            message=f"Your {e['category']} expense (₹{e['amount']}) was approved.",
+            message=f"Your {e['category']} expense (₹{e['amount']}) was approved.", org_id=cu.org_id,
         )
     return _out(e)
 
 
 @router.post("/{exp_id}/reject")
 def reject(exp_id: int, payload: RejectPayload, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    e = db[collections.EXPENSES].find_one({"_id": exp_id})
-    if not e: raise HTTPException(404, "Not found")
+    e = get_or_404(db, collections.EXPENSES, exp_id, cu.org_id)
     if is_own_record(cu, e["submitted_by"]):
         raise HTTPException(403, "You cannot reject your own expense")
 
@@ -255,27 +251,26 @@ def reject(exp_id: int, payload: RejectPayload, db: Database = Depends(get_db), 
     else:
         raise HTTPException(400, f"Cannot reject an expense with status '{e['status']}'")
 
-    db[collections.EXPENSES].update_one({"_id": exp_id}, {"$set": {"status": STATUS_REJECTED, "approved_by": None, "reject_reason": payload.reason}})
-    e = db[collections.EXPENSES].find_one({"_id": exp_id})
-    log_action(db, user=cu.name, action="REJECT", module="Expenses", record_id=str(exp_id), detail=payload.reason)
+    db[collections.EXPENSES].update_one({"_id": exp_id, "org_id": cu.org_id}, {"$set": {"status": STATUS_REJECTED, "approved_by": None, "reject_reason": payload.reason}})
+    e = db[collections.EXPENSES].find_one({"_id": exp_id, "org_id": cu.org_id})
+    log_action(db, user=cu.name, action="REJECT", module="Expenses", org_id=cu.org_id, record_id=str(exp_id), detail=payload.reason)
     notify(
         db, recipient=e["submitted_by"], module="Expenses", record_id=exp_id, status="Rejected",
-        message=f"Your {e['category']} expense (₹{e['amount']}) was rejected. Reason: {payload.reason}",
+        message=f"Your {e['category']} expense (₹{e['amount']}) was rejected. Reason: {payload.reason}", org_id=cu.org_id,
     )
     return _out(e)
 
 
 @router.delete("/{exp_id}")
 def delete(exp_id: int, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    e = db[collections.EXPENSES].find_one({"_id": exp_id})
-    if not e: raise HTTPException(404, "Not found")
+    e = get_or_404(db, collections.EXPENSES, exp_id, cu.org_id)
     # No self-service delete, even for your own pending entry — once submitted, only
     # someone with Expenses:delete (Admin by default) can remove it.
     if not has_permission(db, cu, "Expenses", "delete"):
         raise HTTPException(403, "You do not have permission to delete expenses")
-    db[collections.EXPENSES].delete_one({"_id": exp_id})
+    db[collections.EXPENSES].delete_one({"_id": exp_id, "org_id": cu.org_id})
     receipt_url = e.get("receipt_url") or ""
     if receipt_url.startswith("/api/expenses/attachments/"):
-        db[collections.EXPENSE_ATTACHMENTS].delete_one({"_id": receipt_url.rsplit("/", 1)[-1]})
-    log_action(db, user=cu.name, action="DELETE", module="Expenses", record_id=str(exp_id))
+        db[collections.EXPENSE_ATTACHMENTS].delete_one({"_id": receipt_url.rsplit("/", 1)[-1], "org_id": cu.org_id})
+    log_action(db, user=cu.name, action="DELETE", module="Expenses", org_id=cu.org_id, record_id=str(exp_id))
     return {"message": "Deleted"}

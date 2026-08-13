@@ -330,8 +330,7 @@ export function initApiBridge() {
         billing_address: val('modal-company', 'billing address') || null,
         status: val('modal-company', 'status') || 'Active',
       };
-      console.log('[DEBUG modal-company submit]', { id, body }); // TEMP — remove after diagnosing
-      if (id) { const { name: _, ...u } = body; await patch(`/api/companies/${id}`, u); toast('Company updated'); }
+      if (id) { await patch(`/api/companies/${id}`, body); toast('Company updated'); }
       else { if (!body.name || !body.industry) { toast('Company Name and Industry required', 'error'); return; } await post('/api/companies', body); toast('Company created'); }
       // Belt-and-suspenders: clear fields the moment a save completes, not only right
       // before the next "+ New X" open — closes the window where an edit's leftover
@@ -384,8 +383,9 @@ export function initApiBridge() {
         description: val('modal-pcode', 'description') || null,
         status: val('modal-pcode', 'status') || 'Active',
       };
-      if (id) { const { code: _, ...u } = body; await patch(`/api/project-codes/${id}`, u); toast('Project code updated'); }
-      else { if (!body.code || !body.project_id) { toast('Code and Project required', 'error'); return; } await post('/api/project-codes', body); toast('Project code created'); }
+      if (!body.code || !body.project_id) { toast('Code and Project required', 'error'); return; }
+      if (id) { await patch(`/api/project-codes/${id}`, body); toast('Project code updated'); }
+      else { await post('/api/project-codes', body); toast('Project code created'); }
       closeModal('modal-pcode'); startCreate('page-project-codes'); loadProjectCodes(); refreshCaches();
     });
 
@@ -405,12 +405,12 @@ export function initApiBridge() {
         effective_to: val('modal-bcode', 'effective to') || null,
         status: val('modal-bcode', 'status') || 'Active',
       };
+      if (!body.code || !body.project_code_id) { toast('Code and Project Code required', 'error'); return; }
       if (id) {
-        const { code: _, project_code_id: __, project_id: ___, ...u } = body;
+        const { project_id: _, ...u } = body;
         await patch(`/api/billing-codes/${id}`, u);
         toast('Billing code updated');
       } else {
-        if (!body.code || !body.project_code_id) { toast('Code and Project Code required', 'error'); return; }
         await post('/api/billing-codes', body);
         toast('Billing code created');
       }
@@ -432,15 +432,12 @@ export function initApiBridge() {
         billable: val('modal-emp', 'billable') !== 'Non-Billable',
         status: val('modal-emp', 'status') || 'Active',
       };
-      if (id) { const { emp_id: _, ...u } = body; await patch(`/api/employees/${id}`, u); toast('Employee updated'); }
-      else {
-        if (!body.emp_id || !body.name || !body.email) {
-          toast('ID, Name and Email required', 'error');
-          return;
-        }
-        await post('/api/employees/', body);
-        toast('Employee created');
+      if (!body.emp_id || !body.name || !body.email) {
+        toast('ID, Name and Email required', 'error');
+        return;
       }
+      if (id) { await patch(`/api/employees/${id}`, body); toast('Employee updated'); }
+      else { await post('/api/employees/', body); toast('Employee created'); }
       closeModal('modal-emp'); startCreate('page-employees'); loadEmployees(); refreshCaches();
     });
 
@@ -559,15 +556,15 @@ export function initApiBridge() {
         received_amount: parseFloat(val('modal-recv', 'received amount')) || 0,
         status: val('modal-recv', 'payment status') || 'Pending',
       };
+      if (!body.project_id || !body.invoice_no) { toast('Project and Invoice No required', 'error'); return; }
+      if (body.billing_code_id && !state.bcodes.some(b => b.code === body.billing_code_id && b.project_id === body.project_id)) {
+        toast('That billing code does not belong to the selected project', 'error');
+        return;
+      }
       if (id) {
-        await patch(`/api/receivables/${id}`, { received_amount: body.received_amount, due_date: body.due_date, status: body.status });
+        await patch(`/api/receivables/${id}`, body);
         toast('Receivable updated');
       } else {
-        if (!body.project_id || !body.invoice_no) { toast('Project and Invoice No required', 'error'); return; }
-        if (body.billing_code_id && !state.bcodes.some(b => b.code === body.billing_code_id && b.project_id === body.project_id)) {
-          toast('That billing code does not belong to the selected project', 'error');
-          return;
-        }
         await post('/api/receivables', body);
         toast('Receivable created');
       }

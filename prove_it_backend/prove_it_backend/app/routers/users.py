@@ -60,6 +60,37 @@ def _user_out(u: dict):
     }
 
 
+def create_user_record(
+    db: Database, *, username: str, password: str, name: str, email: str,
+    role: str, org_id: Optional[str], initials: Optional[str] = None, session=None,
+) -> dict:
+    """Shared account-creation logic for POST / below (Admin/Manager creating a
+    Manager/Employee/etc. within their own org) and POST /api/organizations (Super Admin
+    creating a brand-new org's initial Admin, in the same Mongo transaction as the
+    Organization insert — pass that transaction's `session` through so this participates
+    in it rather than committing separately). Callers own their own role-eligibility
+    checks (e.g. PRIVILEGED_ROLES) before calling this — this only enforces the
+    platform-wide username/email uniqueness both callers need."""
+    if db[collections.USERS].find_one({"username": username}, session=session):
+        raise HTTPException(400, "Username already exists")
+    if db[collections.USERS].find_one({"email": email}, session=session):
+        raise HTTPException(400, "Email already exists")
+    uid = uuid.uuid4().hex
+    doc = {
+        "_id": uid, "id": uid,
+        "username": username,
+        "password_hash": hash_password(password),
+        "name": name,
+        "email": email,
+        "role": role,
+        "initials": initials or name[:2].upper(),
+        "is_active": True,
+        "org_id": org_id,
+    }
+    db[collections.USERS].insert_one(doc, session=session)
+    return doc
+
+
 def _pending_employee_rows(db: Database) -> List[dict]:
     """Active Employees (any role — Manager, Finance User, Employee, Viewer, all created
     only via POST /api/employees, never with a login) that have no matching User account
@@ -88,8 +119,9 @@ def list_users(
     is_active: Optional[str] = Query(None),
     search:    Optional[str] = Query(None),
     db: Database = Depends(get_db),
+    cu=Depends(get_current_user),
 ):
-    query = {}
+    query = {"org_id": cu.org_id}
     if role:
         query["role"] = role
     if is_active is not None:
@@ -119,38 +151,26 @@ def list_users(
 def create_user(payload: UserCreate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
     if cu.role == "Manager" and payload.role in PRIVILEGED_ROLES:
         raise HTTPException(403, "Only Admin can create an Admin or Manager account")
-    if db[collections.USERS].find_one({"username": payload.username}):
-        raise HTTPException(400, "Username already exists")
-    if db[collections.USERS].find_one({"email": payload.email}):
-        raise HTTPException(400, "Email already exists")
     if payload.role not in ROLES:
         raise HTTPException(400, f"Invalid role. Choose from: {ROLES}")
-    uid = uuid.uuid4().hex
-    doc = {
-        "_id": uid, "id": uid,
-        "username": payload.username,
-        "password_hash": hash_password(payload.password),
-        "name": payload.name,
-        "email": payload.email,
-        "role": payload.role,
-        "initials": payload.initials or payload.name[:2].upper(),
-        "is_active": True,
-    }
-    db[collections.USERS].insert_one(doc)
-    log_action(db, user=cu.name, action="CREATE", module="Users", record_id=doc["id"], detail=f"Created user {doc['username']} with role {doc['role']}")
+    doc = create_user_record(
+        db, username=payload.username, password=payload.password, name=payload.name,
+        email=payload.email, role=payload.role, org_id=cu.org_id, initials=payload.initials,
+    )
+    log_action(db, user=cu.name, action="CREATE", module="Users", org_id=cu.org_id, record_id=doc["id"], detail=f"Created user {doc['username']} with role {doc['role']}")
     return _user_out(doc)
 
 
 @router.get("/{user_id}", dependencies=[Depends(require_role("Admin", "Manager"))])
-def get_user(user_id: str, db: Database = Depends(get_db)):
-    u = db[collections.USERS].find_one({"_id": user_id})
+def get_user(user_id: str, db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    u = db[collections.USERS].find_one({"_id": user_id, "org_id": cu.org_id})
     if not u: raise HTTPException(404, "User not found")
     return _user_out(u)
 
 
 @router.patch("/{user_id}", dependencies=[Depends(require_role("Admin", "Manager"))])
 def update_user(user_id: str, payload: UserUpdate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    u = db[collections.USERS].find_one({"_id": user_id})
+    u = db[collections.USERS].find_one({"_id": user_id, "org_id": cu.org_id})
     if not u: raise HTTPException(404, "User not found")
     patch = payload.dict(exclude_none=True)
     if cu.role == "Manager" and _manager_touches_privileged(u["role"], patch):
@@ -158,27 +178,27 @@ def update_user(user_id: str, payload: UserUpdate, db: Database = Depends(get_db
     if patch:
         db[collections.USERS].update_one({"_id": user_id}, {"$set": patch})
         u = db[collections.USERS].find_one({"_id": user_id})
-    log_action(db, user=cu.name, action="UPDATE", module="Users", record_id=u["id"], detail=f"Updated user {u['username']}")
+    log_action(db, user=cu.name, action="UPDATE", module="Users", org_id=cu.org_id, record_id=u["id"], detail=f"Updated user {u['username']}")
     return _user_out(u)
 
 
 @router.post("/{user_id}/change-password", dependencies=[Depends(require_role("Admin", "Manager"))])
 def change_password(user_id: str, payload: PasswordChange, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    u = db[collections.USERS].find_one({"_id": user_id})
+    u = db[collections.USERS].find_one({"_id": user_id, "org_id": cu.org_id})
     if not u: raise HTTPException(404, "User not found")
     if cu.role == "Manager" and u["role"] in PRIVILEGED_ROLES:
         raise HTTPException(403, "Only Admin can reset an Admin or Manager account's password")
     db[collections.USERS].update_one({"_id": user_id}, {"$set": {"password_hash": hash_password(payload.new_password)}})
-    log_action(db, user=cu.name, action="UPDATE", module="Users", record_id=u["id"], detail=f"Password changed for {u['username']}")
+    log_action(db, user=cu.name, action="UPDATE", module="Users", org_id=cu.org_id, record_id=u["id"], detail=f"Password changed for {u['username']}")
     return {"message": "Password updated"}
 
 
 @router.delete("/{user_id}", dependencies=[Depends(require_role("Admin", "Manager"))])
 def delete_user(user_id: str, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    u = db[collections.USERS].find_one({"_id": user_id})
+    u = db[collections.USERS].find_one({"_id": user_id, "org_id": cu.org_id})
     if not u: raise HTTPException(404, "User not found")
     if cu.role == "Manager" and u["role"] in PRIVILEGED_ROLES:
         raise HTTPException(403, "Only Admin can delete an Admin or Manager account")
     db[collections.USERS].delete_one({"_id": user_id})
-    log_action(db, user=cu.name, action="DELETE", module="Users", record_id=user_id, detail=f"Deleted user {u['username']}")
+    log_action(db, user=cu.name, action="DELETE", module="Users", org_id=cu.org_id, record_id=user_id, detail=f"Deleted user {u['username']}")
     return {"message": "User deleted"}

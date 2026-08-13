@@ -6,7 +6,7 @@ from datetime import date
 
 from app.core import collections
 from app.core.database import get_db
-from app.core.mongo_utils import like
+from app.core.mongo_utils import like, get_or_404
 from app.core.security import get_current_user, require_permission
 from app.core.audit import log_action
 from app.core.permissions import assigned_project_ids
@@ -77,12 +77,13 @@ def list_projects(
     if assigned_ids is not None:
         query["_id"] = {"$in": assigned_ids}
 
+    query["org_id"] = cu.org_id
     return [_proj_out(p) for p in db[collections.PROJECTS].find(query)]
 
 
 @router.get("/summary")
 def summary(db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    projects = list(db[collections.PROJECTS].find())
+    projects = list(db[collections.PROJECTS].find({"org_id": cu.org_id}))
     return {
         "total": len(projects),
         "in_progress": sum(1 for p in projects if p["status"] == "In Progress"),
@@ -95,16 +96,17 @@ def summary(db: Database = Depends(get_db), cu=Depends(get_current_user)):
 
 @router.post("/", dependencies=[Depends(require_permission("Projects", "create"))])
 def create_project(payload: ProjectCreate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    if db[collections.PROJECTS].find_one({"_id": payload.id}):
+    if db[collections.PROJECTS].find_one({"_id": payload.id, "org_id": cu.org_id}):
         raise HTTPException(400, "Project ID already exists")
     if payload.status not in STATUSES:
         raise HTTPException(400, f"Invalid status. Choose from: {STATUSES}")
     doc = payload.dict()
     doc["_id"] = doc["id"]
+    doc["org_id"] = cu.org_id
     if doc["start_date"]: doc["start_date"] = doc["start_date"].isoformat()
     if doc["end_date"]: doc["end_date"] = doc["end_date"].isoformat()
     db[collections.PROJECTS].insert_one(doc)
-    log_action(db, user=cu.name, action="CREATE", module="Projects", record_id=doc["id"], detail=f"Created project: {doc['name']}")
+    log_action(db, user=cu.name, action="CREATE", module="Projects", org_id=cu.org_id, record_id=doc["id"], detail=f"Created project: {doc['name']}")
     return _proj_out(doc)
 
 
@@ -113,29 +115,26 @@ def get_project(project_id: str, db: Database = Depends(get_db), cu=Depends(get_
     assigned_ids = None if cu.role == "Finance User" else assigned_project_ids(db, cu)
     if assigned_ids is not None and project_id not in assigned_ids:
         raise HTTPException(404, "Project not found")
-    p = db[collections.PROJECTS].find_one({"_id": project_id})
-    if not p: raise HTTPException(404, "Project not found")
+    p = get_or_404(db, collections.PROJECTS, project_id, cu.org_id, "Project not found")
     return _proj_out(p)
 
 
 @router.patch("/{project_id}", dependencies=[Depends(require_permission("Projects", "edit"))])
 def update_project(project_id: str, payload: ProjectUpdate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    p = db[collections.PROJECTS].find_one({"_id": project_id})
-    if not p: raise HTTPException(404, "Project not found")
+    p = get_or_404(db, collections.PROJECTS, project_id, cu.org_id, "Project not found")
     patch = payload.dict(exclude_none=True)
     if "start_date" in patch: patch["start_date"] = patch["start_date"].isoformat()
     if "end_date" in patch: patch["end_date"] = patch["end_date"].isoformat()
     if patch:
-        db[collections.PROJECTS].update_one({"_id": project_id}, {"$set": patch})
-        p = db[collections.PROJECTS].find_one({"_id": project_id})
-    log_action(db, user=cu.name, action="UPDATE", module="Projects", record_id=p["id"], detail=f"Updated project: {p['name']}")
+        db[collections.PROJECTS].update_one({"_id": project_id, "org_id": cu.org_id}, {"$set": patch})
+        p = get_or_404(db, collections.PROJECTS, project_id, cu.org_id, "Project not found")
+    log_action(db, user=cu.name, action="UPDATE", module="Projects", org_id=cu.org_id, record_id=p["id"], detail=f"Updated project: {p['name']}")
     return _proj_out(p)
 
 
 @router.delete("/{project_id}", dependencies=[Depends(require_permission("Projects", "delete"))])
 def delete_project(project_id: str, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    p = db[collections.PROJECTS].find_one({"_id": project_id})
-    if not p: raise HTTPException(404, "Project not found")
-    db[collections.PROJECTS].delete_one({"_id": project_id})
-    log_action(db, user=cu.name, action="DELETE", module="Projects", record_id=project_id, detail=f"Deleted project: {p['name']}")
+    p = get_or_404(db, collections.PROJECTS, project_id, cu.org_id, "Project not found")
+    db[collections.PROJECTS].delete_one({"_id": project_id, "org_id": cu.org_id})
+    log_action(db, user=cu.name, action="DELETE", module="Projects", org_id=cu.org_id, record_id=project_id, detail=f"Deleted project: {p['name']}")
     return {"message": "Project deleted"}

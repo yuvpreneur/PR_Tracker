@@ -6,6 +6,10 @@ import { state } from '../bridge/core/state.js';
 import Login from '../pages/Login/Login.jsx';
 import ReplicaPage from '../pages/Replica/ReplicaPage.jsx';
 import AppLayout from '../layouts/AppLayout.jsx';
+import SuperAdminLayout from '../layouts/SuperAdminLayout.jsx';
+import OrganizationsPage from '../pages/Organizations/OrganizationsPage.jsx';
+import CreateOrganizationPage from '../pages/Organizations/CreateOrganizationPage.jsx';
+import EditOrganizationPage from '../pages/Organizations/EditOrganizationPage.jsx';
 import DashboardPage from '../pages/Dashboard/DashboardPage.jsx';
 import ReportsPage from '../pages/Reports/ReportsPage.jsx';
 import CompaniesPage from '../pages/Companies/CompaniesPage.jsx';
@@ -128,6 +132,23 @@ function AuthGate() {
   // authenticated app, otherwise the token would be silently dropped.
   const hasResetToken = new URLSearchParams(window.location.search).has('token');
   if (!user || hasResetToken) return <Login />;
+
+  // Super Admin never sees business data or the normal app shell — it gets a wholly
+  // separate route tree (see SuperAdminLayout.jsx), checked before ReplicaPage/AppLayout
+  // mount at all, since neither has any reason to run for this role.
+  if (user.role === 'Super Admin') {
+    return (
+      <Routes>
+        <Route path="/" element={<SuperAdminLayout />}>
+          <Route index element={<Navigate to="/organizations" replace />} />
+          <Route path="organizations" element={<OrganizationsPage />} />
+          <Route path="organizations/new" element={<CreateOrganizationPage />} />
+          <Route path="organizations/:id/edit" element={<EditOrganizationPage />} />
+          <Route path="*" element={<Navigate to="/organizations" replace />} />
+        </Route>
+      </Routes>
+    );
+  }
 
   return (
     <>

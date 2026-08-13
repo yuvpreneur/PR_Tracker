@@ -4,8 +4,8 @@ import { state } from '../core/state.js';
 
 // nav page-id (as used by hasPageAccess/navigate in appScript, e.g. "timesheets",
 // not "page-timesheets") -> backend module name in the dynamic Roles & Permissions matrix.
-// Pages with no entry here (dashboard, payroll, payslips) have no module concept and
-// are always visible — payroll is reverted/static-demo, payslips is self-service.
+// Pages with no entry here (dashboard, payslips) have no module concept and are always
+// visible — payslips is self-service, scoped server-side to the caller's own record(s).
 export const PAGE_MODULE_MAP = {
   'reports':        'Reports',
   'companies':      'Companies',
@@ -22,6 +22,7 @@ export const PAGE_MODULE_MAP = {
   'invoices':       'Receivables',   // shares the Receivables backend
   'receivables':    'Receivables',
   'approvals':      'Approvals',
+  'payroll':        'Payroll',
 };
 
 // Roles that bypass every gate below and always get full access — mirrors
@@ -32,17 +33,16 @@ const FULL_ACCESS_ROLES = new Set(['Admin', 'Manager']);
 // Pages Employee is explicitly cut off from, hardcoded rather than matrix-driven:
 // 'customers' is the finance-facing view of the same Companies records
 // (see useCustomers.js) — Employee keeps plain Companies access as reference data, but not
-// this presentation of it. 'payroll' has no module/matrix concept at all (it's reverted to
-// a static demo page, PAGE_MODULE_MAP has no entry for it, so it'd otherwise fall through
-// to "always visible").
-const EMPLOYEE_EXCLUDED_PAGES = new Set(['customers', 'payroll']);
+// this presentation of it. 'payroll' is now matrix-driven via PAGE_MODULE_MAP above —
+// Employee's all-False DEFAULT_PERMS "Payroll" row already blocks it, no hardcode needed.
+const EMPLOYEE_EXCLUDED_PAGES = new Set(['customers']);
 
-// Finance User is also cut off from Payroll (same static-demo-page reasoning as Employee
-// above — Hourly Costs is their money-side comp data, Payroll is HR's) and Service Desk
-// (no access at all, not even their own tickets — this overrides the OWN_RECORD_PAGES
-// self-service bypass below since this check runs first). Mirrors tickets.py, which
-// blocks Finance User outright rather than falling back to is_own_record().
-const FINANCE_USER_EXCLUDED_PAGES = new Set(['payroll', 'service-desk']);
+// Finance User is cut off from Service Desk (no access at all, not even their own
+// tickets — this overrides the OWN_RECORD_PAGES self-service bypass below since this
+// check runs first). Mirrors tickets.py, which blocks Finance User outright rather than
+// falling back to is_own_record(). Payroll is matrix-driven (Finance User gets real
+// access per DEFAULT_PERMS — see app/core/permissions.py), no hardcode needed here.
+const FINANCE_USER_EXCLUDED_PAGES = new Set(['service-desk']);
 
 // Hardcoded Admin/Manager-only pages — deliberately NOT part of PAGE_MODULE_MAP/the
 // dynamic Roles & Permissions matrix (see usePageAccess.js's PAGES list comment), and every

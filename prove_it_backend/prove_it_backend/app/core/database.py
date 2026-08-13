@@ -52,3 +52,12 @@ def ensure_indexes() -> None:
 
     db[collections.NOTIFICATIONS].create_index([("recipient", ASCENDING), ("is_read", ASCENDING)])
     db[collections.NOTIFICATIONS].create_index([("module", ASCENDING)])
+
+    db[collections.USERS].create_index([("org_id", ASCENDING)])
+    db[collections.ORGANIZATIONS].create_index([("is_default", ASCENDING)])
+
+    db[collections.SALARY_STRUCTURES].create_index([("emp_id", ASCENDING), ("effective_from", DESCENDING)])
+    db[collections.HOLIDAYS].create_index([("org_id", ASCENDING), ("date", ASCENDING)])
+    db[collections.ADVANCES].create_index([("emp_id", ASCENDING), ("status", ASCENDING)])
+    db[collections.PAYROLL_RUNS].create_index([("org_id", ASCENDING), ("period_year", ASCENDING), ("period_month", ASCENDING)])
+    db[collections.PAYROLL_RUN_LINES].create_index([("run_id", ASCENDING), ("emp_id", ASCENDING)])

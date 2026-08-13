@@ -1,14 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { login, getMe, register, checkRegistrationAvailable, forgotPassword, resetPassword } from '../../services/authService';
+import {
+  login, getMe, register, checkRegistrationAvailable,
+  checkSuperAdminAvailable, registerSuperAdmin,
+  forgotPassword, resetPassword,
+} from '../../services/authService';
 import useAuth from '../../hooks/useAuth.jsx';
 import logo from '../../assets/images/company-logo.png';
 import './Login.css';
 
 export default function Login() {
-  const [mode, setMode] = useState('login'); // 'login' | 'register' | 'forgot' | 'reset'
+  const [mode, setMode] = useState('login'); // 'login' | 'register' | 'register-super-admin' | 'forgot' | 'reset'
   const [registerAvailable, setRegisterAvailable] = useState(false);
+  const [superAdminAvailable, setSuperAdminAvailable] = useState(false);
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -17,6 +22,12 @@ export default function Login() {
   const [regEmail, setRegEmail] = useState('');
   const [regUsername, setRegUsername] = useState('');
   const [regPassword, setRegPassword] = useState('');
+
+  const [saName, setSaName] = useState('');
+  const [saEmail, setSaEmail] = useState('');
+  const [saUsername, setSaUsername] = useState('');
+  const [saPassword, setSaPassword] = useState('');
+  const [saSetupToken, setSaSetupToken] = useState('');
 
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSubmitted, setForgotSubmitted] = useState(false);
@@ -37,6 +48,7 @@ export default function Login() {
   // account exists, so this option can only ever be used once across the app's lifetime.
   useEffect(() => {
     checkRegistrationAvailable().then(setRegisterAvailable);
+    checkSuperAdminAvailable().then(setSuperAdminAvailable);
   }, []);
 
   // A forgot-password email links here as /?token=... — jump straight to the
@@ -74,6 +86,23 @@ export default function Login() {
       setUser(user);
     } catch (err) {
       setError(err.message || 'Could not create the admin account.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegisterSuperAdmin = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await registerSuperAdmin({
+        username: saUsername, password: saPassword, name: saName, email: saEmail, setupToken: saSetupToken,
+      });
+      const user = await getMe();
+      setUser(user);
+    } catch (err) {
+      setError(err.message || 'Could not create the Super Admin account.');
     } finally {
       setLoading(false);
     }
@@ -193,6 +222,98 @@ export default function Login() {
                   </a>
                 </p>
               )}
+
+              {superAdminAvailable && (
+                <p style={{ textAlign: 'center', fontSize: '13px', margin: 0, color: 'var(--slate)' }}>
+                  Setting up the platform?{' '}
+                  <a href="#" onClick={e => { e.preventDefault(); switchMode('register-super-admin'); }} style={{ color: 'var(--accent)' }}>
+                    Create the Super Admin account
+                  </a>
+                </p>
+              )}
+            </form>
+          ) : mode === 'register-super-admin' ? (
+            <form onSubmit={handleRegisterSuperAdmin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <p style={{ fontSize: '13px', color: 'var(--slate)', margin: 0 }}>
+                No Super Admin exists yet — set up the one account that can create organizations.
+              </p>
+              <div className="form-group">
+                <label className="form-label">Full Name</label>
+                <input
+                  className="form-control"
+                  type="text"
+                  placeholder="Jane Doe"
+                  value={saName}
+                  onChange={e => setSaName(e.target.value)}
+                  required
+                  autoFocus
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Email</label>
+                <input
+                  className="form-control"
+                  type="email"
+                  placeholder="jane@company.com"
+                  value={saEmail}
+                  onChange={e => setSaEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Username</label>
+                <input
+                  className="form-control"
+                  type="text"
+                  placeholder="jane"
+                  value={saUsername}
+                  onChange={e => setSaUsername(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Password</label>
+                <input
+                  className="form-control"
+                  type="password"
+                  placeholder="••••••••"
+                  value={saPassword}
+                  onChange={e => setSaPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Setup token</label>
+                <input
+                  className="form-control"
+                  type="password"
+                  placeholder="Provided by whoever deployed this instance"
+                  value={saSetupToken}
+                  onChange={e => setSaSetupToken(e.target.value)}
+                  required
+                />
+              </div>
+
+              {error && (
+                <p style={{ color: 'var(--red)', fontSize: '13px', margin: 0, background: 'var(--red-soft)', padding: '8px 12px', borderRadius: '10px' }}>
+                  {error}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                className="btn btn-primary"
+                style={{ width: '100%', justifyContent: 'center', padding: '10px' }}
+                disabled={loading}
+              >
+                {loading ? 'Creating account…' : 'Create Super Admin Account'}
+              </button>
+
+              <p style={{ textAlign: 'center', fontSize: '13px', margin: 0 }}>
+                <a href="#" onClick={e => { e.preventDefault(); switchMode('login'); }} style={{ color: 'var(--accent)' }}>
+                  <ArrowLeft size={12} style={{ verticalAlign: '-2px' }} /> Back to sign in
+                </a>
+              </p>
             </form>
           ) : mode === 'register' ? (
             <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>

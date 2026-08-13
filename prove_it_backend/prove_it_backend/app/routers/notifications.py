@@ -41,7 +41,7 @@ def list_notifications(db: Database = Depends(get_db), cu=Depends(get_current_us
     POST /read-all they stop appearing here, which is what makes them "disappear" client-
     side. Not the Admin/Manager "needs my action" queue — see GET /api/approvals/pending
     for that."""
-    rows = db[collections.NOTIFICATIONS].find({"recipient": _recipient_filter(cu.name), "is_read": False}).sort("_id", -1)
+    rows = db[collections.NOTIFICATIONS].find({"recipient": _recipient_filter(cu.name), "is_read": False, "org_id": cu.org_id}).sort("_id", -1)
     return [_out(n) for n in rows]
 
 
@@ -54,7 +54,7 @@ def mark_module_read(payload: ReadModuleRequest, db: Database = Depends(get_db),
     a regular requester, so its notifications still get marked read via the bell/panel
     opening instead (see loadNotifications() in bridge/shared/notifications.js)."""
     db[collections.NOTIFICATIONS].update_many(
-        {"recipient": _recipient_filter(cu.name), "is_read": False, "module": payload.module},
+        {"recipient": _recipient_filter(cu.name), "is_read": False, "module": payload.module, "org_id": cu.org_id},
         {"$set": {"is_read": True}},
     )
     return {"message": "Marked as read"}
