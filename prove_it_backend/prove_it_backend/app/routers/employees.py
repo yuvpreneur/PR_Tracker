@@ -112,17 +112,15 @@ def update_employee(emp_id: str, payload: EmpUpdate, db: Database = Depends(get_
             raise HTTPException(400, "Employee ID already exists")
         new_doc = {**e, **patch, "_id": new_emp_id, "emp_id": new_emp_id}
         # Every collection that logs an employee by their old ID (permission grants,
-        # hourly cost history, leave, timesheets, pending access requests, salary
-        # structure, advances, payroll run lines) has to move with the rename, or it
-        # silently orphans — one transaction so it's all-or-nothing.
+        # hourly cost history, leave, timesheets, pending access requests) has to move
+        # with the rename, or it silently orphans — one transaction so it's all-or-nothing.
         with client.start_session() as session:
             with session.start_transaction():
                 db[collections.EMPLOYEES].insert_one(new_doc, session=session)
                 db[collections.EMPLOYEES].delete_one({"_id": emp_id, "org_id": cu.org_id}, session=session)
                 for coll in (collections.PAGE_PERMISSIONS, collections.PROJECT_PERMISSIONS,
                              collections.HOURLY_COSTS, collections.LEAVE, collections.TIMESHEETS,
-                             collections.ACCESS_REQUESTS, collections.SALARY_STRUCTURES,
-                             collections.ADVANCES, collections.PAYROLL_RUN_LINES):
+                             collections.ACCESS_REQUESTS):
                     db[coll].update_many(
                         {"emp_id": emp_id, "org_id": cu.org_id}, {"$set": {"emp_id": new_emp_id}}, session=session)
         e = get_or_404(db, collections.EMPLOYEES, new_emp_id, cu.org_id, "Employee not found")

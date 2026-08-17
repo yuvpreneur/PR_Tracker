@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, ChartColumn, Building2, FolderKanban, Tag, CreditCard, LifeBuoy,
-  Users, Banknote, Clock, Palmtree, Landmark, Receipt, Wallet, FileText, Handshake,
+  Users, Banknote, Clock, Palmtree, CalendarDays, Landmark, Receipt, Wallet, FileText, Handshake,
   Inbox, ClipboardCheck, UserCog, ShieldCheck, KeyRound, ClipboardList, Settings,
 } from 'lucide-react';
 
@@ -29,6 +29,7 @@ export const NAV = [
     { id: 'hourly-cost', label: 'Hourly Cost', icon: Banknote },
     { id: 'timesheets', label: 'Timesheets', icon: Clock },
     { id: 'leave', label: 'Leave', icon: Palmtree },
+    { id: 'holidays', label: 'Holidays', icon: CalendarDays },
     { id: 'payroll', label: 'Payroll', icon: Landmark },
     { id: 'payslips', label: 'My Payslips', icon: Receipt },
   ] },

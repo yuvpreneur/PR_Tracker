@@ -1,20 +1,20 @@
 import { useState } from 'react';
 import { Landmark } from 'lucide-react';
-import RunsTab from './RunsTab.jsx';
-import SalaryStructureTab from './SalaryStructureTab.jsx';
-import HolidaysWeeklyOffTab from './HolidaysWeeklyOffTab.jsx';
-import AdvancesTab from './AdvancesTab.jsx';
+import PayRegisterTab from './PayRegisterTab.jsx';
+import EmployeeDetailsTab from './EmployeeDetailsTab.jsx';
+import JobDetailsTab from './JobDetailsTab.jsx';
+import BankStatutoryTab from './BankStatutoryTab.jsx';
 
 const TABS = [
-  { id: 'runs', label: 'Runs', Component: RunsTab },
-  { id: 'salary-structure', label: 'Salary Structure', Component: SalaryStructureTab },
-  { id: 'holidays', label: 'Holidays & Weekly Off', Component: HolidaysWeeklyOffTab },
-  { id: 'advances', label: 'Advances', Component: AdvancesTab },
+  { id: 'register', label: 'Pay Register', Component: PayRegisterTab },
+  { id: 'employee', label: 'Employee Details', Component: EmployeeDetailsTab },
+  { id: 'job', label: 'Job Details', Component: JobDetailsTab },
+  { id: 'bank', label: 'Bank & Statutory Details', Component: BankStatutoryTab },
 ];
 
 export default function PayrollPage() {
-  const [tab, setTab] = useState('runs');
-  const Active = TABS.find(t => t.id === tab)?.Component || RunsTab;
+  const [tab, setTab] = useState('register');
+  const Active = TABS.find(t => t.id === tab)?.Component || PayRegisterTab;
 
   return (
     <div>

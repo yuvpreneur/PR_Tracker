@@ -22,11 +22,8 @@ NOTIFICATIONS = "notifications"
 PASSWORD_RESET_TOKENS = "password_reset_tokens"
 ORGANIZATIONS = "organizations"
 ORG_LOGOS = "org_logos"
-SALARY_STRUCTURES = "salary_structures"
 HOLIDAYS = "holidays"
-ADVANCES = "advances"
-PAYROLL_RUNS = "payroll_runs"
-PAYROLL_RUN_LINES = "payroll_run_lines"
+PAYROLL_REGISTERS = "payroll_registers"
 
 # Every collection that a full database backup/restore should cover (app/routers/settings.py).
 # Deliberately excludes "counters" (handled as its own top-level key since it has no constant here)
@@ -35,6 +32,5 @@ ALL_COLLECTIONS = [
     USERS, COMPANIES, PROJECTS, PROJECT_CODES, BILLING_CODES, EMPLOYEES, HOURLY_COSTS,
     TIMESHEETS, EXPENSES, EXPENSE_ATTACHMENTS, RECEIVABLES, INVOICES, LEAVE, TICKETS,
     PAGE_PERMISSIONS, PROJECT_PERMISSIONS, ROLE_PERMISSIONS, ACCESS_REQUESTS, AUDIT_LOG,
-    SETTINGS, NOTIFICATIONS, SALARY_STRUCTURES, HOLIDAYS, ADVANCES, PAYROLL_RUNS,
-    PAYROLL_RUN_LINES,
+    SETTINGS, NOTIFICATIONS, HOLIDAYS, PAYROLL_REGISTERS,
 ]

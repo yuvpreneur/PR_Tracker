@@ -21,6 +21,7 @@ import EmployeesPage from '../pages/Employees/EmployeesPage.jsx';
 import HourlyCostsPage from '../pages/HourlyCosts/HourlyCostsPage.jsx';
 import TimesheetsPage from '../pages/Timesheets/TimesheetsPage.jsx';
 import LeavePage from '../pages/Leave/LeavePage.jsx';
+import HolidaysPage from '../pages/Holidays/HolidaysPage.jsx';
 import PayrollPage from '../pages/Payroll/PayrollPage.jsx';
 import PayslipsPage from '../pages/Payslips/PayslipsPage.jsx';
 import ExpensesPage from '../pages/Expenses/ExpensesPage.jsx';
@@ -80,6 +81,7 @@ const PAGES = [
   { id: 'hourly-cost', label: 'Hourly Cost', Component: HourlyCostsPage },
   { id: 'timesheets', label: 'Timesheets', Component: TimesheetsPage },
   { id: 'leave', label: 'Leave', Component: LeavePage },
+  { id: 'holidays', label: 'Holidays', Component: HolidaysPage },
   { id: 'payroll', label: 'Payroll', Component: PayrollPage },
   { id: 'payslips', label: 'My Payslips', Component: PayslipsPage },
   { id: 'expenses', label: 'Expenses', Component: ExpensesPage },

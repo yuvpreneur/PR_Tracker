@@ -20,6 +20,18 @@ export const num = n => {
   return String(Math.round(n));
 };
 
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+// 'YYYY-MM' pay period key (Payroll/Payslips) -> 'Month YYYY', e.g. '2026-06' -> 'June 2026'.
+export const payPeriodLabel = p => {
+  if (!p) return '';
+  const [y, m] = p.split('-');
+  return `${MONTH_NAMES[Number(m) - 1] || m} ${y}`;
+};
+
 // Generic period -> {date_from, date_to} — used by audit, timesheets
 export function periodRange(period) {
   const today = new Date();

@@ -33,9 +33,7 @@ from app.routers import (
     audit_log,
     settings,
     notifications,
-    salary_structures,
     holidays,
-    advances,
     payroll,
     payslips,
 )
@@ -86,9 +84,7 @@ app.include_router(dashboard.router,      prefix="/api/dashboard",      tags=["D
 app.include_router(audit_log.router,      prefix="/api/audit-log",      tags=["Audit Log"])
 app.include_router(settings.router,       prefix="/api/settings",       tags=["Settings"])
 app.include_router(notifications.router,  prefix="/api/notifications",  tags=["Notifications"])
-app.include_router(salary_structures.router, prefix="/api/salary-structures", tags=["Payroll"])
 app.include_router(holidays.router,       prefix="/api/holidays",       tags=["Payroll"])
-app.include_router(advances.router,       prefix="/api/advances",       tags=["Payroll"])
 app.include_router(payroll.router,        prefix="/api/payroll",        tags=["Payroll"])
 app.include_router(payslips.router,       prefix="/api/payslips",       tags=["Payroll"])
 

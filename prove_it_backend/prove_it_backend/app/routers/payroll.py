@@ -1,320 +1,391 @@
-import calendar
+import io
+import re
 from datetime import date, datetime
-
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
-from pymongo.database import Database
 from typing import Optional
 
-from app.core import collections
+import openpyxl
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from pydantic import BaseModel
+from pymongo.database import Database
+
+from app.core import collections, pay_register_schema
 from app.core.audit import log_action
-from app.core.database import client, get_db
-from app.core.mongo_utils import get_or_404, next_id
+from app.core.database import get_db
+from app.core.mongo_utils import get_or_404
 from app.core.security import get_current_user, require_permission
-from app.routers.salary_structures import COMPONENT_FIELDS, current_structure
-from app.routers.settings import DEFAULT_WEEKLY_OFF, _get_section
 
 router = APIRouter()
 
-DEDUCTION_FIELDS = ["professional_tax", "esi", "pf", "tds", "medical"]
-CONTRIBUTION_FIELDS = ["pension_cont", "epf_diff", "employer_pf_cont", "employer_esi_cont"]
+_BANK_STATUTORY_KEYS = [c["key"] for c in pay_register_schema.BANK_STATUTORY_FIELDS]
+_JOB_DETAILS_KEYS = [c["key"] for c in pay_register_schema.JOB_DETAILS_FIELDS]
+_EMPLOYEE_DETAILS_EXTRA_KEYS = [c["key"] for c in pay_register_schema.EMPLOYEE_DETAILS_EXTRA_FIELDS]
+
+# designation/department/phone (Job Details) and email (Employee Details) are the exact
+# same field the Employees page already manages — shown on these tabs for full-fidelity
+# display (see pay_register_schema's docstring), but deliberately absent from the
+# corresponding *Update models below so Payroll:edit can't double as a second write path
+# for data Employees:edit already owns.
 
 
-class RunCreate(BaseModel):
-    period_month: int
-    period_year: int
+class BankStatutoryUpdate(BaseModel):
+    pay_mode: Optional[str] = None
+    bank_name: Optional[str] = None
+    bank_branch: Optional[str] = None
+    ifsc: Optional[str] = None
+    bank_ref_no: Optional[str] = None
+    cheque_no: Optional[str] = None
+    cheque_date: Optional[str] = None
+    account_no: Optional[str] = None
+    name_as_per_account: Optional[str] = None
+    aadhaar: Optional[str] = None
+    pf_no: Optional[str] = None
+    pf_date: Optional[str] = None
+    uan: Optional[str] = None
+    esi_no: Optional[str] = None
+    esi_date: Optional[str] = None
+    esi_office: Optional[str] = None
 
 
-class LineUpdate(BaseModel):
-    total_days: Optional[float] = None
-    wk_off: Optional[float] = None
-    holiday: Optional[float] = None
-    abs_lwp: Optional[float] = None
-    net_paid_days: Optional[float] = None
-    present_days: Optional[float] = None
-    professional_tax: Optional[float] = None
-    esi: Optional[float] = None
-    pf: Optional[float] = None
-    tds: Optional[float] = None
-    medical: Optional[float] = None
-    advance_recovery: Optional[float] = None
-    pension_cont: Optional[float] = None
-    epf_diff: Optional[float] = None
-    employer_pf_cont: Optional[float] = None
-    employer_esi_cont: Optional[float] = None
+class JobDetailsUpdate(BaseModel):
+    branch_code: Optional[str] = None
+    branch: Optional[str] = None
+    category: Optional[str] = None
+    scale: Optional[str] = None
+    shift: Optional[str] = None
+    work_location: Optional[str] = None
+    mobile: Optional[str] = None
+    internal_id: Optional[str] = None
+    address_permanent: Optional[str] = None
+    address_correspondence: Optional[str] = None
 
 
-# ── Attendance derivation (Leave + Holidays + weekly-off — never Timesheets, see plan) ──
-
-def _days_in_month(year: int, month: int) -> int:
-    return calendar.monthrange(year, month)[1]
-
-
-def _overlap_days(from_str: str, to_str: str, start_str: str, end_str: str) -> int:
-    start = max(date.fromisoformat(from_str), date.fromisoformat(start_str))
-    end = min(date.fromisoformat(to_str), date.fromisoformat(end_str))
-    return max((end - start).days + 1, 0)
+class EmployeeDetailsUpdate(BaseModel):
+    dor: Optional[str] = None
+    dob: Optional[str] = None
+    notice_period: Optional[str] = None
+    pan: Optional[str] = None
 
 
-def _weekly_off_count(start_day: int, end_day: int, year: int, month: int, weekdays: set) -> int:
-    return sum(1 for d in range(start_day, end_day + 1) if date(year, month, d).weekday() in weekdays)
+class CompanyInfoUpdate(BaseModel):
+    company_name: Optional[str] = None
+    company_address: Optional[str] = None
 
 
-def _build_line(db: Database, org_id, emp: dict, period_month: int, period_year: int, weekdays: set, advances_by_emp: dict):
-    """One employee's payroll_run_lines doc for this period, or None if they weren't
-    employed at all during it (joined after / relieved before the whole month)."""
-    days_in_month = _days_in_month(period_year, period_month)
-    start_day, end_day = 1, days_in_month
+def _out_employee_fields(e: dict, keys) -> dict:
+    out = {"emp_id": e["emp_id"], "name": e["name"]}
+    for key in keys:
+        out[key] = e.get(key)
+    return out
 
-    joining = emp.get("joining_date")
-    if joining:
-        j = date.fromisoformat(joining)
-        if j.year == period_year and j.month == period_month and j.day > start_day:
-            start_day = j.day
 
-    relieving = emp.get("relieving_date")
-    if relieving:
-        r = date.fromisoformat(relieving)
-        if r.year == period_year and r.month == period_month and r.day < end_day:
-            end_day = r.day
+def _normalize(value) -> str:
+    return " ".join(str(value).split())
 
-    total_days = end_day - start_day + 1
-    if total_days <= 0:
+
+def _find_header_anchor(ws):
+    """The Pay Register title/section rows above the real header vary in row count
+    between template exports, so anchor on the 'Code' column header instead of a
+    fixed row number. Returns (header_row, code_column) or None."""
+    for r in range(1, min(ws.max_row, 10) + 1):
+        for c in range(1, ws.max_column + 1):
+            v = ws.cell(row=r, column=c).value
+            if isinstance(v, str) and _normalize(v).lower() == "code":
+                return r, c
+    return None
+
+
+def _build_column_map(code_col: int) -> dict:
+    """Maps schema keys to sheet columns by POSITION relative to the 'Code' column,
+    not by header text — several headers repeat verbatim across sections (e.g.
+    Earnings' "Gross Earning" vs Company Contribution's "GROSS EARNING"), so a
+    text->key lookup would collide and silently drop one of them. SHEET_COLUMNS (the
+    template's full physical layout, including Bank & Statutory Details — see
+    pay_register_schema's docstring for why that section is excluded further downstream
+    instead of here) is defined in the exact left-to-right order the template exports
+    them in, with 'code' at index 1 (right after 's_no'), so every other column's offset
+    from code_col follows from its index in that list."""
+    code_index = next(i for i, c in enumerate(pay_register_schema.SHEET_COLUMNS) if c["key"] == "code")
+    start_col = code_col - code_index
+    return {c["key"]: start_col + i for i, c in enumerate(pay_register_schema.SHEET_COLUMNS)}
+
+
+_MONTH_ABBR = {
+    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
+    "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
+}
+
+
+def _detect_period(ws) -> Optional[str]:
+    """Reads the 'For the Month of <Month>/<Year>' title text near the top of the
+    sheet and turns it into a sortable 'YYYY-MM' period key."""
+    blob = " ".join(
+        ws.cell(row=r, column=c).value
+        for r in range(1, 5) for c in range(1, ws.max_column + 1)
+        if isinstance(ws.cell(row=r, column=c).value, str)
+    )
+    m = re.search(r"for the month of\s+([A-Za-z]+)\s*[/\-]?\s*(\d{4})", blob, re.IGNORECASE)
+    if not m:
         return None
+    month_num = _MONTH_ABBR.get(m.group(1)[:3].lower())
+    if not month_num:
+        return None
+    return f"{m.group(2)}-{month_num:02d}"
 
-    period_start = date(period_year, period_month, start_day).isoformat()
-    period_end = date(period_year, period_month, end_day).isoformat()
 
-    wk_off = _weekly_off_count(start_day, end_day, period_year, period_month, weekdays)
-    holiday = db[collections.HOLIDAYS].count_documents({
-        "org_id": org_id, "date": {"$gte": period_start, "$lte": period_end},
-    })
+def _detect_company_info(ws):
+    """The template's own title block (e.g. row 2) carries the company name and address
+    as one cell, name and address separated by a literal newline — used for the Payslip
+    header so it isn't hardcoded to one org. Returns (company_name, company_address),
+    either of which may be None if the title block doesn't have this cell (upload still
+    succeeds either way; routers/payroll.py's PATCH /{period}/company-info lets it be
+    filled in by hand instead)."""
+    for r in range(1, 5):
+        for c in range(1, ws.max_column + 1):
+            v = ws.cell(row=r, column=c).value
+            if isinstance(v, str) and "\n" in v and "for the month of" not in v.lower():
+                name, _, address = v.partition("\n")
+                return _normalize(name) or None, _normalize(address.replace("\n", " ")) or None
+    return None, None
 
-    unpaid = db[collections.LEAVE].find({
-        "org_id": org_id, "emp_id": emp["emp_id"], "status": "Approved", "leave_type": "Unpaid",
-        "from_date": {"$lte": period_end}, "to_date": {"$gte": period_start},
-    })
-    abs_lwp = sum(_overlap_days(l["from_date"], l["to_date"], period_start, period_end) for l in unpaid)
-    net_paid_days = max(total_days - abs_lwp, 0)
 
-    structure = current_structure(db, org_id, emp["emp_id"], period_end)
-    adv = advances_by_emp.get(emp["emp_id"])
+def _cell_text(v):
+    if v is None:
+        return None
+    if isinstance(v, (datetime, date)):
+        return v.isoformat()
+    if isinstance(v, str):
+        return v.strip() or None
+    return v
 
+
+def _cell_number(v):
+    if v is None:
+        return None
+    if isinstance(v, (int, float)):
+        return v
+    if isinstance(v, str):
+        s = v.strip().replace(",", "")
+        if not s:
+            return None
+        try:
+            f = float(s)
+            return int(f) if f.is_integer() else f
+        except ValueError:
+            return v
+    return v
+
+
+def _parse_rows(ws, header_row: int, col_map: dict):
+    """Only reads the keys in pay_register_schema.COLUMNS — col_map itself has an entry
+    for every SHEET_COLUMNS key (Bank & Statutory Details included), but that section is
+    deliberately never stored on the Pay Register (see pay_register_schema's docstring)."""
+    name_col = col_map["name"]
+    register_keys = [c["key"] for c in pay_register_schema.COLUMNS]
+    employees = []
+    totals = {}
+    for r in range(header_row + 1, ws.max_row + 1):
+        name_val = _cell_text(ws.cell(row=r, column=name_col).value)
+        if not name_val:
+            continue  # blank template row, no employee on it
+        if name_val.lower() == "total":
+            for key in register_keys:
+                if key in pay_register_schema.NUMERIC_KEYS:
+                    totals[key] = _cell_number(ws.cell(row=r, column=col_map[key]).value)
+            break
+        row_data = {}
+        for key in register_keys:
+            v = ws.cell(row=r, column=col_map[key]).value
+            row_data[key] = _cell_number(v) if key in pay_register_schema.NUMERIC_KEYS else _cell_text(v)
+        employees.append(row_data)
+    return employees, totals
+
+
+def _out(doc: dict) -> dict:
     return {
-        "org_id": org_id, "emp_id": emp["emp_id"],
-        "total_days": total_days, "wk_off": wk_off, "holiday": holiday,
-        "abs_lwp": abs_lwp, "net_paid_days": net_paid_days, "present_days": net_paid_days,
-        **{f"actual_{f}": (structure.get(f, 0) if structure else 0) for f in COMPONENT_FIELDS},
-        **{f: 0 for f in DEDUCTION_FIELDS},
-        "advance_id": adv["_id"] if adv else None,
-        "advance_recovery": adv["monthly_recovery"] if adv else 0,
-        **{f: 0 for f in CONTRIBUTION_FIELDS},
+        "period": doc["period"],
+        "uploaded_at": doc["uploaded_at"],
+        "uploaded_by": doc["uploaded_by"],
+        "source_filename": doc["source_filename"],
+        "employee_count": doc.get("employee_count", len(doc.get("employees", []))),
+        "employees": doc.get("employees", []),
+        "totals": doc.get("totals", {}),
+        "company_name": doc.get("company_name"),
+        "company_address": doc.get("company_address"),
     }
 
 
-# ── Output shaping — pro-rated earnings and every total are computed here on every read,
-# never trusted from storage, same rule invoices.py's _out() applies to subtotal/tax/total ──
-
-def _line_out(l: dict, emp: dict = None):
-    total_days = l.get("total_days") or 0
-    ratio = (l["net_paid_days"] / total_days) if total_days else 0
-    pro_rated = {f: round(l.get(f"actual_{f}", 0) * ratio, 2) for f in COMPONENT_FIELDS}
-    gross_earning = round(sum(pro_rated.values()), 2)
-    gross_deduction = round(sum(l.get(f, 0) for f in DEDUCTION_FIELDS) + (l.get("advance_recovery") or 0), 2)
-    net_payable = round(gross_earning - gross_deduction, 2)
-    total_ctc = round(gross_earning + sum(l.get(f, 0) for f in CONTRIBUTION_FIELDS), 2)
-    return {
-        "id": l["id"], "run_id": l["run_id"], "emp_id": l["emp_id"],
-        "name": emp["name"] if emp else l["emp_id"],
-        "department": emp["department"] if emp else "—",
-        "total_days": l["total_days"], "wk_off": l["wk_off"], "holiday": l["holiday"],
-        "abs_lwp": l["abs_lwp"], "net_paid_days": l["net_paid_days"], "present_days": l["present_days"],
-        **{f"actual_{f}": l.get(f"actual_{f}", 0) for f in COMPONENT_FIELDS},
-        **pro_rated,
-        **{f: l.get(f, 0) for f in DEDUCTION_FIELDS},
-        "advance_id": l.get("advance_id"), "advance_recovery": l.get("advance_recovery", 0),
-        **{f: l.get(f, 0) for f in CONTRIBUTION_FIELDS},
-        "gross_earning": gross_earning, "gross_deduction": gross_deduction,
-        "net_payable": net_payable, "total_ctc": total_ctc,
-    }
-
-
-def _run_out(r: dict, lines: list = None):
-    out = {
-        "id": r["id"], "period_month": r["period_month"], "period_year": r["period_year"],
-        "status": r["status"], "created_by": r["created_by"],
-        "finalized_by": r.get("finalized_by"), "finalized_at": r.get("finalized_at"),
-    }
-    if lines is not None:
-        out["employee_count"] = len(lines)
-        out["total_gross_earning"] = round(sum(l["gross_earning"] for l in lines), 2)
-        out["total_gross_deduction"] = round(sum(l["gross_deduction"] for l in lines), 2)
-        out["total_net_payable"] = round(sum(l["net_payable"] for l in lines), 2)
+def _out_meta(doc: dict) -> dict:
+    out = _out(doc)
+    out.pop("employees")
+    out.pop("totals")
     return out
 
 
-def _employees_by_id(db: Database, org_id) -> dict:
-    return {e["emp_id"]: e for e in db[collections.EMPLOYEES].find({"org_id": org_id})}
+@router.post("/upload", dependencies=[Depends(require_permission("Payroll", "edit"))])
+async def upload(
+    file: UploadFile = File(...),
+    period: Optional[str] = Form(None),
+    db: Database = Depends(get_db),
+    cu=Depends(get_current_user),
+):
+    if not file.filename.lower().endswith((".xlsx", ".xlsm")):
+        raise HTTPException(400, "Please upload an Excel (.xlsx) file")
 
+    data = await file.read()
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(data), data_only=True)
+    except Exception:
+        raise HTTPException(400, "Could not read this file — is it a valid Excel workbook?")
+    ws = wb.active
 
-def _lines_out(db: Database, org_id, run_id, employees: dict = None) -> list:
-    employees = employees if employees is not None else _employees_by_id(db, org_id)
-    rows = list(db[collections.PAYROLL_RUN_LINES].find({"run_id": run_id, "org_id": org_id}).sort("emp_id", 1))
-    return [_line_out(l, employees.get(l["emp_id"])) for l in rows]
+    anchor = _find_header_anchor(ws)
+    if anchor is None:
+        raise HTTPException(400, "Could not find the Pay Register header row (expected a 'Code' column) in this file")
+    header_row, code_col = anchor
 
+    col_map = _build_column_map(code_col)
 
-# ── Routes ───────────────────────────────────────────────────────────────────
+    detected_period = period or _detect_period(ws)
+    if not detected_period:
+        raise HTTPException(400, "Could not detect the pay period (month/year) from this file's title row")
 
-@router.get("/runs", dependencies=[Depends(require_permission("Payroll", "view"))])
-def list_runs(db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    employees = _employees_by_id(db, cu.org_id)
-    runs = list(db[collections.PAYROLL_RUNS].find({"org_id": cu.org_id}).sort([("period_year", -1), ("period_month", -1)]))
-    return [_run_out(r, _lines_out(db, cu.org_id, r["id"], employees)) for r in runs]
+    employees, totals = _parse_rows(ws, header_row, col_map)
+    if not employees:
+        raise HTTPException(400, "No employee rows were found in this file")
 
+    # Preserve a previously-set/manually-entered company name/address across re-uploads
+    # if this file's title block doesn't carry one — see PATCH /{period}/company-info.
+    existing = db[collections.PAYROLL_REGISTERS].find_one(
+        {"org_id": cu.org_id, "period": detected_period}, {"company_name": 1, "company_address": 1},
+    )
+    detected_name, detected_address = _detect_company_info(ws)
+    company_name = detected_name or (existing.get("company_name") if existing else None)
+    company_address = detected_address or (existing.get("company_address") if existing else None)
 
-@router.post("/runs", dependencies=[Depends(require_permission("Payroll", "create"))])
-def create_run(payload: RunCreate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    if not (1 <= payload.period_month <= 12):
-        raise HTTPException(400, "period_month must be between 1 and 12")
-    if db[collections.PAYROLL_RUNS].find_one({"org_id": cu.org_id, "period_month": payload.period_month, "period_year": payload.period_year}):
-        raise HTTPException(400, "A payroll run already exists for this period")
-
-    weekly_off = _get_section(db, cu.org_id, "weekly_off", DEFAULT_WEEKLY_OFF)
-    weekdays = set(weekly_off.get("weekdays", DEFAULT_WEEKLY_OFF["weekdays"]))
-
-    employees = _employees_by_id(db, cu.org_id)
-    active_employees = [e for e in employees.values() if e["status"] == "Active"]
-    advances_by_emp = {a["emp_id"]: a for a in db[collections.ADVANCES].find({"org_id": cu.org_id, "status": "Active"})}
-
-    rid = next_id(db, collections.PAYROLL_RUNS)
-    run_doc = {
-        "_id": rid, "id": rid, "org_id": cu.org_id,
-        "period_month": payload.period_month, "period_year": payload.period_year,
-        "status": "Draft", "created_by": cu.name, "finalized_by": None, "finalized_at": None,
+    doc = {
+        "org_id": cu.org_id,
+        "period": detected_period,
+        "uploaded_at": datetime.utcnow().isoformat(),
+        "uploaded_by": cu.name,
+        "source_filename": file.filename,
+        "employee_count": len(employees),
+        "employees": employees,
+        "totals": totals,
+        "company_name": company_name,
+        "company_address": company_address,
     }
-
-    line_docs = []
-    for emp in active_employees:
-        line = _build_line(db, cu.org_id, emp, payload.period_month, payload.period_year, weekdays, advances_by_emp)
-        if line is None:
-            continue
-        lid = next_id(db, collections.PAYROLL_RUN_LINES)
-        line_docs.append({"_id": lid, "id": lid, "run_id": rid, **line})
-
-    db[collections.PAYROLL_RUNS].insert_one(run_doc)
-    if line_docs:
-        db[collections.PAYROLL_RUN_LINES].insert_many(line_docs)
-    log_action(db, user=cu.name, action="CREATE", module="Payroll", org_id=cu.org_id, record_id=str(rid),
-               detail=f"Created payroll run for {payload.period_month}/{payload.period_year} ({len(line_docs)} employees)")
-
-    lines = [_line_out(l, employees.get(l["emp_id"])) for l in line_docs]
-    out = _run_out(run_doc, lines)
-    out["lines"] = lines
+    # One Pay Register per period, full stop — re-uploading the same month overwrites
+    # whatever was there before rather than piling up versions with no UI to see them.
+    db[collections.PAYROLL_REGISTERS].replace_one(
+        {"org_id": cu.org_id, "period": detected_period}, doc, upsert=True,
+    )
+    log_action(
+        db, user=cu.name, action="CREATE", module="Payroll", org_id=cu.org_id, record_id=detected_period,
+        detail=f"Uploaded Pay Register for {detected_period} ({len(employees)} employees)",
+    )
+    out = _out(doc)
+    out["employees"] = _flag_unmatched_employees(out["employees"], db, cu.org_id)
     return out
 
 
-@router.get("/runs/{run_id}", dependencies=[Depends(require_permission("Payroll", "view"))])
-def get_run(run_id: int, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    r = get_or_404(db, collections.PAYROLL_RUNS, run_id, cu.org_id, "Run not found")
-    lines = _lines_out(db, cu.org_id, run_id)
-    out = _run_out(r, lines)
-    out["lines"] = lines
-    return out
+@router.get("/periods", dependencies=[Depends(require_permission("Payroll", "view"))])
+def list_periods(db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    rows = (
+        db[collections.PAYROLL_REGISTERS]
+        .find({"org_id": cu.org_id}, {"employees": 0, "totals": 0})
+        .sort("period", -1)
+    )
+    return [_out_meta(d) for d in rows]
 
 
-@router.patch("/runs/{run_id}/lines/{line_id}", dependencies=[Depends(require_permission("Payroll", "edit"))])
-def update_line(run_id: int, line_id: int, payload: LineUpdate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    r = get_or_404(db, collections.PAYROLL_RUNS, run_id, cu.org_id, "Run not found")
-    if r["status"] != "Draft":
-        raise HTTPException(400, "Cannot edit a run that is not in Draft state")
-    l = get_or_404(db, collections.PAYROLL_RUN_LINES, line_id, cu.org_id, "Payroll line not found")
-    if l["run_id"] != run_id:
-        raise HTTPException(404, "Payroll line not found")
+def _list_employee_fields(db: Database, org_id: str, keys):
+    rows = db[collections.EMPLOYEES].find({"org_id": org_id}).sort("name", 1)
+    return [_out_employee_fields(e, keys) for e in rows]
 
+
+def _update_employee_fields(db: Database, org_id: str, emp_id: str, patch: dict, keys, detail_label: str, cu):
+    e = get_or_404(db, collections.EMPLOYEES, emp_id, org_id, "Employee not found")
+    if patch:
+        db[collections.EMPLOYEES].update_one({"_id": emp_id, "org_id": org_id}, {"$set": patch})
+        e = db[collections.EMPLOYEES].find_one({"_id": emp_id, "org_id": org_id})
+    log_action(db, user=cu.name, action="UPDATE", module="Payroll", org_id=org_id, record_id=emp_id,
+               detail=f"Updated {detail_label} for {e['name']}")
+    return _out_employee_fields(e, keys)
+
+
+@router.get("/bank-details", dependencies=[Depends(require_permission("Payroll", "view"))])
+def list_bank_details(db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    return _list_employee_fields(db, cu.org_id, _BANK_STATUTORY_KEYS)
+
+
+@router.patch("/bank-details/{emp_id}", dependencies=[Depends(require_permission("Payroll", "edit"))])
+def update_bank_details(emp_id: str, payload: BankStatutoryUpdate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    return _update_employee_fields(db, cu.org_id, emp_id, payload.dict(exclude_none=True), _BANK_STATUTORY_KEYS, "bank & statutory details", cu)
+
+
+@router.get("/job-details", dependencies=[Depends(require_permission("Payroll", "view"))])
+def list_job_details(db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    return _list_employee_fields(db, cu.org_id, _JOB_DETAILS_KEYS)
+
+
+@router.patch("/job-details/{emp_id}", dependencies=[Depends(require_permission("Payroll", "edit"))])
+def update_job_details(emp_id: str, payload: JobDetailsUpdate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    return _update_employee_fields(db, cu.org_id, emp_id, payload.dict(exclude_none=True), _JOB_DETAILS_KEYS, "job details", cu)
+
+
+@router.get("/employee-details", dependencies=[Depends(require_permission("Payroll", "view"))])
+def list_employee_details(db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    return _list_employee_fields(db, cu.org_id, _EMPLOYEE_DETAILS_EXTRA_KEYS)
+
+
+@router.patch("/employee-details/{emp_id}", dependencies=[Depends(require_permission("Payroll", "edit"))])
+def update_employee_details(emp_id: str, payload: EmployeeDetailsUpdate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    return _update_employee_fields(db, cu.org_id, emp_id, payload.dict(exclude_none=True), _EMPLOYEE_DETAILS_EXTRA_KEYS, "employee details", cu)
+
+
+@router.patch("/{period}/company-info", dependencies=[Depends(require_permission("Payroll", "edit"))])
+def update_company_info(period: str, payload: CompanyInfoUpdate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    """Manual fallback for when a Pay Register's source file didn't carry a company
+    name/address in its title block (see _detect_company_info) — used on the Payslip
+    header, so this lets it be filled in by hand instead."""
+    doc = db[collections.PAYROLL_REGISTERS].find_one({"org_id": cu.org_id, "period": period})
+    if not doc:
+        raise HTTPException(404, "No Pay Register found for this period")
     patch = payload.dict(exclude_none=True)
     if patch:
-        db[collections.PAYROLL_RUN_LINES].update_one({"_id": line_id, "org_id": cu.org_id}, {"$set": patch})
-        l = db[collections.PAYROLL_RUN_LINES].find_one({"_id": line_id, "org_id": cu.org_id})
-    log_action(db, user=cu.name, action="UPDATE", module="Payroll", org_id=cu.org_id, record_id=str(line_id))
+        db[collections.PAYROLL_REGISTERS].update_one({"org_id": cu.org_id, "period": period}, {"$set": patch})
+        doc = db[collections.PAYROLL_REGISTERS].find_one({"org_id": cu.org_id, "period": period})
+    log_action(db, user=cu.name, action="UPDATE", module="Payroll", org_id=cu.org_id, record_id=period,
+               detail=f"Updated company info for Pay Register {period}")
+    return _out_meta(doc)
 
-    employees = _employees_by_id(db, cu.org_id)
-    return _line_out(l, employees.get(l["emp_id"]))
+
+def _flag_unmatched_employees(employees: list, db: Database, org_id: str) -> list:
+    """Marks each row with whether its Code matches an actual Employee record — computed
+    fresh on every read (never persisted on the stored document) so a Code uploaded before
+    its Employee record existed stops being flagged the moment that record is created,
+    with no need to re-upload."""
+    valid_codes = {e["emp_id"] for e in db[collections.EMPLOYEES].find({"org_id": org_id}, {"emp_id": 1})}
+    for row in employees:
+        row["employee_found"] = row.get("code") in valid_codes
+    return employees
 
 
-@router.post("/runs/{run_id}/finalize", dependencies=[Depends(require_permission("Payroll", "edit"))])
-def finalize_run(run_id: int, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    get_or_404(db, collections.PAYROLL_RUNS, run_id, cu.org_id, "Run not found")
-    lines = list(db[collections.PAYROLL_RUN_LINES].find({"run_id": run_id, "org_id": cu.org_id}))
-
-    # Status-in-filter guard (not read-then-write) closes the double-finalize race; the
-    # advance-balance decrement rides in the same transaction so a run is never marked
-    # Finalized while an advance recovery silently failed, or vice versa.
-    with client.start_session() as session:
-        with session.start_transaction():
-            result = db[collections.PAYROLL_RUNS].update_one(
-                {"_id": run_id, "org_id": cu.org_id, "status": "Draft"},
-                {"$set": {"status": "Finalized", "finalized_by": cu.name, "finalized_at": datetime.utcnow().isoformat()}},
-                session=session,
-            )
-            if result.modified_count != 1:
-                raise HTTPException(400, "Run is not in Draft state")
-            for l in lines:
-                recovery = l.get("advance_recovery") or 0
-                if l.get("advance_id") and recovery > 0:
-                    adv_result = db[collections.ADVANCES].update_one(
-                        {"_id": l["advance_id"], "org_id": cu.org_id, "balance_remaining": {"$gte": recovery}},
-                        {"$inc": {"balance_remaining": -recovery}},
-                        session=session,
-                    )
-                    if adv_result.modified_count != 1:
-                        raise HTTPException(400, f"Advance balance for {l['emp_id']} is insufficient for this run's recovery amount")
-
-    log_action(db, user=cu.name, action="APPROVE", module="Payroll", org_id=cu.org_id, record_id=str(run_id), detail="Payroll run finalized")
-    r = get_or_404(db, collections.PAYROLL_RUNS, run_id, cu.org_id, "Run not found")
-    employees = _employees_by_id(db, cu.org_id)
-    out_lines = [_line_out(l, employees.get(l["emp_id"])) for l in lines]
-    out = _run_out(r, out_lines)
-    out["lines"] = out_lines
+@router.get("/{period}", dependencies=[Depends(require_permission("Payroll", "view"))])
+def get_register(period: str, db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    doc = db[collections.PAYROLL_REGISTERS].find_one({"org_id": cu.org_id, "period": period})
+    if not doc:
+        raise HTTPException(404, "No Pay Register found for this period")
+    out = _out(doc)
+    out["employees"] = _flag_unmatched_employees(out["employees"], db, cu.org_id)
     return out
 
 
-@router.post("/runs/{run_id}/void", dependencies=[Depends(require_permission("Payroll", "edit"))])
-def void_run(run_id: int, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    lines = list(db[collections.PAYROLL_RUN_LINES].find({"run_id": run_id, "org_id": cu.org_id}))
-
-    # Terminal state for a Finalized run — no un-finalize/reopen-for-edit path exists;
-    # reopening a Finalized run for edits is exactly the double-decrement risk this
-    # guards against. Void reverses the advance recovery it made at Finalize, then a
-    # fresh corrective run is the only way forward.
-    with client.start_session() as session:
-        with session.start_transaction():
-            result = db[collections.PAYROLL_RUNS].update_one(
-                {"_id": run_id, "org_id": cu.org_id, "status": "Finalized"},
-                {"$set": {"status": "Void"}},
-                session=session,
-            )
-            if result.modified_count != 1:
-                raise HTTPException(400, "Only a Finalized run can be voided")
-            for l in lines:
-                recovery = l.get("advance_recovery") or 0
-                if l.get("advance_id") and recovery > 0:
-                    db[collections.ADVANCES].update_one(
-                        {"_id": l["advance_id"], "org_id": cu.org_id},
-                        {"$inc": {"balance_remaining": recovery}},
-                        session=session,
-                    )
-
-    log_action(db, user=cu.name, action="REJECT", module="Payroll", org_id=cu.org_id, record_id=str(run_id), detail="Payroll run voided")
-    r = get_or_404(db, collections.PAYROLL_RUNS, run_id, cu.org_id, "Run not found")
-    return _run_out(r)
-
-
-@router.delete("/runs/{run_id}", dependencies=[Depends(require_permission("Payroll", "delete"))])
-def delete_run(run_id: int, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    r = get_or_404(db, collections.PAYROLL_RUNS, run_id, cu.org_id, "Run not found")
-    if r["status"] != "Draft":
-        raise HTTPException(400, "Only a Draft run can be deleted")
-    db[collections.PAYROLL_RUN_LINES].delete_many({"run_id": run_id, "org_id": cu.org_id})
-    db[collections.PAYROLL_RUNS].delete_one({"_id": run_id, "org_id": cu.org_id})
-    log_action(db, user=cu.name, action="DELETE", module="Payroll", org_id=cu.org_id, record_id=str(run_id))
+@router.delete("/{period}", dependencies=[Depends(require_permission("Payroll", "delete"))])
+def delete_register(period: str, db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    result = db[collections.PAYROLL_REGISTERS].delete_one({"org_id": cu.org_id, "period": period})
+    if result.deleted_count == 0:
+        raise HTTPException(404, "No Pay Register found for this period")
+    log_action(db, user=cu.name, action="DELETE", module="Payroll", org_id=cu.org_id, record_id=period,
+               detail=f"Deleted Pay Register for {period}")
     return {"message": "Deleted"}

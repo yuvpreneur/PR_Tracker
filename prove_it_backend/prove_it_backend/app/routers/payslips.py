@@ -1,67 +1,67 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pymongo.database import Database
-from typing import Optional
 
 from app.core import collections
 from app.core.database import get_db
-from app.core.permissions import has_permission, my_emp_ids
+from app.core.payslip_pdf import build_payslip_pdf
+from app.core.permissions import own_emp_id
 from app.core.security import get_current_user
-from app.routers.payroll import _employees_by_id, _line_out
 
 router = APIRouter()
 
-
-def _with_period(line_out: dict, run: dict) -> dict:
-    return {
-        **line_out,
-        "period_month": run["period_month"], "period_year": run["period_year"],
-        "finalized_at": run.get("finalized_at"),
-    }
+# Self-service only, deliberately with no require_permission gate — every role (Employee,
+# Manager, Admin, Finance User) can hit these, but own_emp_id() means the response can
+# only ever be the CALLER's own payslip, never anyone else's, so there's no broader
+# "view all payslips" capability here to restrict in the first place.
 
 
-@router.get("/")
-def list_payslips(
-    emp_id: Optional[str] = Query(None),
-    db: Database = Depends(get_db),
-    cu=Depends(get_current_user),
-):
-    # Self-service scoping, same shape as leave.py/timesheets.py: view=True on the
-    # Payroll module sees everyone, everyone else only ever sees their own record(s) —
-    # a Voided run is deliberately excluded here, it's a reversed/superseded record, not
-    # a real payslip to show an employee.
-    mine = my_emp_ids(db, cu)
-    if emp_id:
-        if emp_id not in mine and not has_permission(db, cu, "Payroll", "view"):
-            raise HTTPException(403, "You may only view your own payslips")
-        target_ids = {emp_id}
-    elif has_permission(db, cu, "Payroll", "view"):
-        target_ids = None
-    else:
-        if not mine:
-            return []
-        target_ids = mine
-
-    runs = {r["id"]: r for r in db[collections.PAYROLL_RUNS].find({"org_id": cu.org_id, "status": "Finalized"})}
-    if not runs:
+@router.get("/periods")
+def list_my_payslip_periods(db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    emp_id = own_emp_id(db, cu)
+    if not emp_id:
         return []
-    query = {"org_id": cu.org_id, "run_id": {"$in": list(runs)}}
-    if target_ids is not None:
-        query["emp_id"] = {"$in": list(target_ids)}
-    lines = list(db[collections.PAYROLL_RUN_LINES].find(query).sort([("run_id", -1), ("emp_id", 1)]))
+    periods = [
+        d["period"] for d in
+        db[collections.PAYROLL_REGISTERS].find({"org_id": cu.org_id}, {"period": 1, "employees.code": 1})
+        if any(e.get("code") == emp_id for e in d.get("employees", []))
+    ]
+    return sorted(periods, reverse=True)
 
-    employees = _employees_by_id(db, cu.org_id)
-    return [_with_period(_line_out(l, employees.get(l["emp_id"])), runs[l["run_id"]]) for l in lines]
 
+@router.get("/{period}")
+def get_my_payslip(period: str, db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    emp_id = own_emp_id(db, cu)
+    if not emp_id:
+        raise HTTPException(404, "No Employee record is linked to your account, so there's no payslip to show")
 
-@router.get("/{line_id}")
-def get_payslip(line_id: int, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    l = db[collections.PAYROLL_RUN_LINES].find_one({"_id": line_id, "org_id": cu.org_id})
-    if not l:
-        raise HTTPException(404, "Payslip not found")
-    if l["emp_id"] not in my_emp_ids(db, cu) and not has_permission(db, cu, "Payroll", "view"):
-        raise HTTPException(403, "You may only view your own payslips")
-    run = db[collections.PAYROLL_RUNS].find_one({"_id": l["run_id"], "org_id": cu.org_id})
-    if not run or run["status"] != "Finalized":
-        raise HTTPException(404, "Payslip not found")
-    employees = _employees_by_id(db, cu.org_id)
-    return _with_period(_line_out(l, employees.get(l["emp_id"])), run)
+    doc = db[collections.PAYROLL_REGISTERS].find_one({"org_id": cu.org_id, "period": period})
+    if not doc:
+        raise HTTPException(404, "No Pay Register found for this period")
+    row = next((e for e in doc.get("employees", []) if e.get("code") == emp_id), None)
+    if not row:
+        raise HTTPException(404, "No payslip found for you in this period")
+
+    employee_doc = db[collections.EMPLOYEES].find_one({"_id": emp_id, "org_id": cu.org_id})
+
+    # Mirrors settings.py's weekly_off section storage ({org_id}:weekly_off), inlined
+    # here rather than importing that router's private helpers — [6] (Sunday-only)
+    # matches WeeklyOffSettings' own default.
+    weekly_off_doc = db[collections.SETTINGS].find_one({"_id": f"{cu.org_id}:weekly_off"})
+    weekly_off_days = weekly_off_doc.get("weekdays", [6]) if weekly_off_doc else [6]
+
+    logo_doc = db[collections.ORG_LOGOS].find_one({"_id": cu.org_id})
+    logo_bytes = bytes(logo_doc["data"]) if logo_doc else None
+
+    pdf_bytes = build_payslip_pdf(
+        company_name=doc.get("company_name"),
+        company_address=doc.get("company_address"),
+        logo_bytes=logo_bytes,
+        period=period,
+        row=row,
+        employee_doc=employee_doc,
+        weekly_off_days=weekly_off_days,
+    )
+    return Response(
+        content=pdf_bytes, media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="Payslip-{emp_id}-{period}.pdf"'},
+    )
