@@ -138,13 +138,17 @@ def _detect_company_info(ws):
     header so it isn't hardcoded to one org. Returns (company_name, company_address),
     either of which may be None if the title block doesn't have this cell (upload still
     succeeds either way; routers/payroll.py's PATCH /{period}/company-info lets it be
-    filled in by hand instead)."""
+    filled in by hand instead). The address's own internal newline (e.g. street line vs
+    city/state line) is preserved rather than flattened, so payslip_pdf.py can render it
+    as separate lines matching the org's reference template."""
     for r in range(1, 5):
         for c in range(1, ws.max_column + 1):
             v = ws.cell(row=r, column=c).value
             if isinstance(v, str) and "\n" in v and "for the month of" not in v.lower():
                 name, _, address = v.partition("\n")
-                return _normalize(name) or None, _normalize(address.replace("\n", " ")) or None
+                address_lines = [_normalize(line) for line in address.split("\n")]
+                address_lines = [line for line in address_lines if line]
+                return _normalize(name) or None, ("\n".join(address_lines) or None)
     return None, None
 
 
