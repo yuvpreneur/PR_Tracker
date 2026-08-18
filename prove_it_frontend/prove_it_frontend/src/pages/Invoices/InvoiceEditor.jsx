@@ -188,7 +188,7 @@ export default function InvoiceEditor({ companies, projects, invoices, initialDa
           ))}
         </div>
         <div className="mt-3">
-          <Button type="button" variant="ghost" className="!px-3 !py-1.5 text-[12px]" onClick={() => setLineItems(ls => [...ls, emptyLine()])}>
+          <Button type="button" variant="ghost" className="px-3 py-1.5 text-[12px]" onClick={() => setLineItems(ls => [...ls, emptyLine()])}>
             <Plus size={14} /> Add line
           </Button>
         </div>
