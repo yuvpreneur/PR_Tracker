@@ -89,6 +89,56 @@ export async function viewAttachment(path, _retried = false) {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
+// Same auth-gated fetch as viewAttachment, but saves the bytes to disk instead of
+// opening a tab — pulls the filename off Content-Disposition (see backup export's
+// same pattern in useSettings.js) rather than hardcoding one per caller.
+export async function downloadAttachment(path, _retried = false) {
+  const r = await fetch(API_BASE_URL + path, { headers: { Authorization: `Bearer ${_tok()}` } });
+  if (r.status === 401) {
+    if (!_retried && await _sessionStillValid()) return downloadAttachment(path, true);
+    localStorage.removeItem('token');
+    location.reload();
+    return;
+  }
+  if (!r.ok) { toast('Could not download attachment', 'error'); return; }
+  const blob = await r.blob();
+  const cd = r.headers.get('Content-Disposition') || '';
+  const match = /filename="([^"]+)"/.exec(cd);
+  const filename = match ? match[1] : 'download';
+  const url = URL.createObjectURL(blob);
+  const a = Object.assign(document.createElement('a'), { href: url, download: filename });
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// Opens the PDF in a hidden iframe and triggers the browser's print dialog once it's
+// loaded — avoids the popup-blocker issues a window.open()+print() approach runs into,
+// and doesn't leave an extra tab open after the user is done.
+export async function printAttachment(path, _retried = false) {
+  const r = await fetch(API_BASE_URL + path, { headers: { Authorization: `Bearer ${_tok()}` } });
+  if (r.status === 401) {
+    if (!_retried && await _sessionStillValid()) return printAttachment(path, true);
+    localStorage.removeItem('token');
+    location.reload();
+    return;
+  }
+  if (!r.ok) { toast('Could not open attachment for printing', 'error'); return; }
+  const blob = await r.blob();
+  const url = URL.createObjectURL(blob);
+  const iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  iframe.src = url;
+  document.body.appendChild(iframe);
+  iframe.onload = () => {
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+  };
+  // The iframe (and its blob: URL) has to outlive the print dialog, so clean up on a
+  // delay rather than immediately after triggering print() — same 60s window
+  // viewAttachment/fetchAuthedBlobUrl already use for their own object URLs.
+  setTimeout(() => { URL.revokeObjectURL(url); iframe.remove(); }, 60_000);
+}
+
 // Fetches an auth-gated binary endpoint (e.g. an Organization logo) and returns an
 // object URL suitable for an <img src>, since a plain <img> tag can't attach the
 // Bearer header these endpoints require. Caller owns revoking it (URL.revokeObjectURL)
@@ -104,6 +154,21 @@ export async function fetchAuthedBlobUrl(path, _retried = false) {
   if (!r.ok) return null;
   const blob = await r.blob();
   return URL.createObjectURL(blob);
+}
+
+// Fetches an auth-gated binary endpoint and returns the raw bytes — for callers that
+// render the content themselves (e.g. PayslipsPage.jsx's canvas-based PDF renderer)
+// rather than handing it to the browser's own viewer via a blob: URL.
+export async function fetchAuthedBytes(path, _retried = false) {
+  const r = await fetch(API_BASE_URL + path, { headers: { Authorization: `Bearer ${_tok()}` } });
+  if (r.status === 401) {
+    if (!_retried && await _sessionStillValid()) return fetchAuthedBytes(path, true);
+    localStorage.removeItem('token');
+    location.reload();
+    return null;
+  }
+  if (!r.ok) return null;
+  return r.arrayBuffer();
 }
 
 export function qs(params) {

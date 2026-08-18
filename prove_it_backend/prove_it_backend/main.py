@@ -58,6 +58,11 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # Without this, browsers only expose a small default set of response headers to
+    # cross-origin fetch() calls — Content-Disposition isn't one of them, so JS-driven
+    # downloads (payslips, the Settings backup export) can read the bytes fine but
+    # silently can't see the real filename and fall back to a generic one.
+    expose_headers=["Content-Disposition"],
 )
 
 # ── Routers ──────────────────────────────────────────────────────────────────

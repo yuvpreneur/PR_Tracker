@@ -1,10 +1,15 @@
-import { Receipt, Eye, Loader2 } from 'lucide-react';
+import { Receipt, Eye, Download, Printer, X, Loader2 } from 'lucide-react';
 import usePayslips from './usePayslips.js';
+import PayslipViewer from './PayslipViewer.jsx';
 import Button from '../../components/ui/Button.jsx';
 import { payPeriodLabel } from '../../utils/format.js';
 
 export default function PayslipsPage() {
-  const { periods, period, setPeriod, loading, opening, view } = usePayslips();
+  const {
+    periods, period, setPeriod, loading,
+    opening, view, downloading, download, printing, print,
+    viewBytes, closeView,
+  } = usePayslips();
 
   return (
     <div>
@@ -31,7 +36,27 @@ export default function PayslipsPage() {
               {opening ? <Loader2 size={15} className="animate-spin" /> : <Eye size={15} />}
               {opening ? 'Opening…' : 'View Payslip'}
             </Button>
+            <Button variant="ghost" onClick={download} disabled={downloading}>
+              {downloading ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+              {downloading ? 'Downloading…' : 'Download'}
+            </Button>
+            <Button variant="ghost" onClick={print} disabled={printing}>
+              {printing ? <Loader2 size={15} className="animate-spin" /> : <Printer size={15} />}
+              {printing ? 'Preparing…' : 'Print'}
+            </Button>
           </div>
+
+          {viewBytes && (
+            <div style={{ marginTop: 16 }}>
+              <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
+                <span className="text-[13px] font-semibold">{payPeriodLabel(period)}</span>
+                <Button variant="ghost" onClick={closeView}><X size={15} /> Close</Button>
+              </div>
+              <div style={{ padding: 12, border: '1px solid var(--line)', borderRadius: 12, background: '#f8fafc' }}>
+                <PayslipViewer bytes={viewBytes} />
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
