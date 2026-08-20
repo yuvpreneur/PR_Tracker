@@ -26,15 +26,17 @@ MODULES = [
 # Admin/Manager-role users themselves (app/routers/users.py's PRIVILEGED_ROLES).
 FULL_ACCESS_ROLES = ("Admin", "Manager")
 
-# Platform-level role with no organization of its own (see app/routers/organizations.py)
-# — has zero access to any business module, full stop. Checked explicitly in
-# get_effective_permissions() below rather than left to fall through to
+# Platform-level roles with no organization of their own (see app/routers/organizations.py,
+# app/routers/sub_admins.py) — zero access to any business module, full stop. Checked
+# explicitly in get_effective_permissions() below rather than left to fall through to
 # get_role_permissions()'s DEFAULT_PERMS.get(role, DEFAULT_PERMS["Viewer"]) fallback:
 # that fallback exists so a genuinely unrecognized *org-level* role degrades to
 # Viewer's read-only access rather than crashing, but Viewer-equivalent access
 # (Employees, Timesheets, etc. all default to view=True) is very much not "no access,"
-# and a Super Admin token hitting has_permission() must never get any of it.
-NO_ORG_ROLES = ("Super Admin",)
+# and neither a Super Admin nor a Sub Admin token hitting has_permission() must ever
+# get any of it — Sub Admin's access is governed entirely by platform_permissions /
+# require_platform_permission() (app/core/security.py), a separate mechanism.
+NO_ORG_ROLES = ("Super Admin", "Sub Admin")
 
 
 def _flags(view=False, create=False, edit=False, delete=False, approve=False, export=False):
@@ -241,29 +243,54 @@ def effective_view_default(role_perms: dict, role: str, module: str) -> bool:
     return module in SELF_SERVICE_MODULES and role != "Viewer"
 
 
+def get_org_plan_features(db: Database, org_id) -> set:
+    """The set of MODULES this org's active Subscription Plan actually grants (see
+    app/routers/subscriptions.py) — empty if the org has no subscription, an inactive
+    one, or no plan_id set at all. Deliberately fails closed: an org with nothing
+    assigned gets zero business-module access, not everything (see
+    app/scripts/backfill_full_access_plan.py, which must run before this is ever
+    live against real data, so no pre-existing organization is locked out by this)."""
+    if not org_id:
+        return set()
+    sub = db[collections.SUBSCRIPTIONS].find_one({"_id": org_id})
+    if not sub or not sub.get("is_active") or not sub.get("plan_id"):
+        return set()
+    plan = db[collections.SUBSCRIPTION_PLANS].find_one({"_id": sub["plan_id"]})
+    if not plan:
+        return set()
+    return set(plan.get("features", []))
+
+
 def get_effective_permissions(db: Database, current_user) -> dict:
     """`get_role_permissions()` with the current user's own per-employee Page Access
-    overrides (app/routers/access_control.py) layered onto "view" — the single place
-    that combines the role matrix with an individual's explicit grants/denials. Only
-    "view" is ever overridden this way; create/edit/delete/approve/export stay role-only.
-    Deliberately does NOT apply the SELF_SERVICE_MODULES bypass — see the note above."""
-    if current_user.role in FULL_ACCESS_ROLES:
-        return {m: dict(_FULL) for m in MODULES}
+    overrides (app/routers/access_control.py) layered onto "view", then intersected
+    with the org's active Subscription Plan features (get_org_plan_features() above) —
+    a module the plan doesn't include comes back all-False regardless of role, Admin
+    included. This is why has_permission() below no longer short-circuits
+    FULL_ACCESS_ROLES on its own: that bypass has to go through this same filter, not
+    around it, or Admin/Manager (who actually use these modules day to day) would
+    never be restricted by the org's plan at all.
+    Only "view" is ever overridden by Page Access; create/edit/delete/approve/export
+    stay role-only. Deliberately does NOT apply the SELF_SERVICE_MODULES bypass — see
+    the note above."""
     if current_user.role in NO_ORG_ROLES:
         return {m: _flags() for m in MODULES}
 
-    perms = {m: dict(v) for m, v in get_role_permissions(db, current_user.role, current_user.org_id).items()}
-    emp_id = own_emp_id(db, current_user)
-    if emp_id:
-        for row in db[collections.PAGE_PERMISSIONS].find({"emp_id": emp_id, "org_id": current_user.org_id}):
-            if row["page"] in perms:
-                perms[row["page"]]["view"] = bool(row["allowed"])
-    return perms
+    if current_user.role in FULL_ACCESS_ROLES:
+        base = {m: dict(_FULL) for m in MODULES}
+    else:
+        base = {m: dict(v) for m, v in get_role_permissions(db, current_user.role, current_user.org_id).items()}
+        emp_id = own_emp_id(db, current_user)
+        if emp_id:
+            for row in db[collections.PAGE_PERMISSIONS].find({"emp_id": emp_id, "org_id": current_user.org_id}):
+                if row["page"] in base:
+                    base[row["page"]]["view"] = bool(row["allowed"])
+
+    allowed_modules = get_org_plan_features(db, current_user.org_id)
+    return {m: (base[m] if m in allowed_modules else _flags()) for m in MODULES}
 
 
 def has_permission(db: Database, current_user, module: str, action: str) -> bool:
-    if current_user.role in FULL_ACCESS_ROLES:
-        return True
     return bool(get_effective_permissions(db, current_user).get(module, {}).get(action))
 
 

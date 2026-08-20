@@ -6,7 +6,7 @@ from datetime import date, datetime, time
 from app.core import collections
 from app.core.database import get_db
 from app.core.mongo_utils import like, next_id
-from app.core.security import require_role, get_current_user
+from app.core.security import require_role, get_current_user, require_platform_permission
 from app.core.audit import log_action
 
 router = APIRouter()
@@ -51,6 +51,50 @@ def list_audit_log(
     cu=Depends(get_current_user),
 ):
     query = {"org_id": cu.org_id}
+    if module:    query["module"] = module
+    if action:    query["action"] = action
+    if user:      query["user"] = like(user)
+    if date_from or date_to:
+        date_filter = {}
+        if date_from: date_filter["$gte"] = datetime.combine(date_from, time.min)
+        if date_to:   date_filter["$lte"] = datetime.combine(date_to, time.max)
+        query["timestamp"] = date_filter
+    if search:
+        query["$or"] = [
+            {"user": like(search)},
+            {"module": like(search)},
+            {"action": like(search)},
+            {"detail": like(search)},
+            {"record_id": like(search)},
+        ]
+    total = db[collections.AUDIT_LOG].count_documents(query)
+    logs = list(db[collections.AUDIT_LOG].find(query).sort("timestamp", -1).skip(offset).limit(limit))
+    return {
+        "total": total,
+        "logs": [_log_out(l) for l in logs],
+    }
+
+
+@router.get("/platform", dependencies=[Depends(require_platform_permission("overview"))])
+def list_platform_audit_log(
+    module:    Optional[str]  = Query(None),
+    action:    Optional[str]  = Query(None),
+    user:      Optional[str]  = Query(None),
+    date_from: Optional[date] = Query(None),
+    date_to:   Optional[date] = Query(None),
+    search:    Optional[str]  = Query(None),
+    limit:     int            = Query(100, le=500),
+    offset:    int            = Query(0),
+    db: Database = Depends(get_db),
+):
+    """Backs the "Recent Audit Log" panel on the platform Overview page (there's no
+    standalone platform Audit Log page/nav item — gated by "overview" rather than its
+    own permission for that reason) — scoped to org_id=None so only actions taken in
+    the platform admin pages themselves (Organizations, Plans, Subscriptions, Free
+    Access, Sub Admins, Platform Settings, Operations, Platform Users) show up here,
+    not every organization's own business audit trail (Companies/Timesheets/etc. stay
+    on that org's own Audit Log page, gated separately by require_role() above)."""
+    query = {"org_id": None}
     if module:    query["module"] = module
     if action:    query["action"] = action
     if user:      query["user"] = like(user)

@@ -1,13 +1,17 @@
 import { useNavigate } from 'react-router-dom';
-import { Building2, Pencil, Plus } from 'lucide-react';
+import { Building2, Pencil, Plus, CheckCircle2, Ban, RotateCcw } from 'lucide-react';
 import useOrganizations from './useOrganizations.js';
 import OrgLogoThumb from './OrgLogoThumb.jsx';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
+import StatCard from '../../components/ui/StatCard.jsx';
 
 export default function OrganizationsPage() {
   const { organizations, loading, setActive } = useOrganizations();
   const navigate = useNavigate();
+
+  const activeCount = organizations.filter(o => o.is_active).length;
+  const inactiveCount = organizations.length - activeCount;
 
   return (
     <div>
@@ -15,6 +19,14 @@ export default function OrganizationsPage() {
         <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Building2 size={22} /> Organizations</h2>
         <Button variant="primary" onClick={() => navigate('/organizations/new')}><Plus size={15} /> New Organization</Button>
       </div>
+
+      {organizations.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 20 }}>
+          <StatCard label="Total Organizations" value={String(organizations.length)} color="#7357E5" icon={Building2} />
+          <StatCard label="Active" value={String(activeCount)} sub={`${inactiveCount} inactive`} color="#16A36C" icon={CheckCircle2} />
+          <StatCard label="Inactive" value={String(inactiveCount)} sub={`${activeCount} active`} color="#94A3B8" icon={Ban} />
+        </div>
+      )}
 
       <div className="card table-wrap">
         <table>
@@ -40,7 +52,7 @@ export default function OrganizationsPage() {
                 <td style={{ width: 46 }}><OrgLogoThumb orgId={org.id} hasLogo={!!org.logo_url} /></td>
                 <td><strong>{org.name}</strong></td>
                 <td><Badge status={org.is_active ? 'Active' : 'Inactive'} /></td>
-                <td>{org.created_at ? new Date(org.created_at).toLocaleDateString() : '—'}</td>
+                <td style={{ color: 'var(--muted)' }}>{org.created_at ? new Date(org.created_at).toLocaleDateString() : '—'}</td>
                 <td style={{ whiteSpace: 'nowrap', display: 'flex', gap: 8 }}>
                   <button
                     className="btn btn-sm"
@@ -51,10 +63,14 @@ export default function OrganizationsPage() {
                   </button>
                   <button
                     className="btn btn-sm"
-                    style={{ background: 'var(--soft)', color: 'var(--accent)', border: '1px solid var(--line)' }}
+                    style={
+                      org.is_active
+                        ? { background: 'var(--red-soft)', color: 'var(--red)', border: '1px solid rgba(239,68,68,.2)' }
+                        : { background: 'rgba(34,197,94,.12)', color: '#16a34a', border: '1px solid rgba(34,197,94,.25)' }
+                    }
                     onClick={() => setActive(org.id, !org.is_active)}
                   >
-                    {org.is_active ? 'Deactivate' : 'Activate'}
+                    {org.is_active ? <><Ban size={13} /> Deactivate</> : <><RotateCcw size={13} /> Activate</>}
                   </button>
                 </td>
               </tr>

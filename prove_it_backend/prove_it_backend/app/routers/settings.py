@@ -85,11 +85,12 @@ def _get_section(db: Database, org_id, section_id: str, default: dict) -> dict:
     return doc
 
 
-def _save_section(db: Database, org_id, section_id: str, data: dict):
+def _save_section(db: Database, org_id, section_id: str, data: dict, session=None):
     db[collections.SETTINGS].update_one(
         {"_id": _section_id(org_id, section_id)},
         {"$set": {**data, "org_id": org_id, "section": section_id}},
         upsert=True,
+        session=session,
     )
 
 

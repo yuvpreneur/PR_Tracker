@@ -10,6 +10,13 @@ import SuperAdminLayout from '../layouts/SuperAdminLayout.jsx';
 import OrganizationsPage from '../pages/Organizations/OrganizationsPage.jsx';
 import CreateOrganizationPage from '../pages/Organizations/CreateOrganizationPage.jsx';
 import EditOrganizationPage from '../pages/Organizations/EditOrganizationPage.jsx';
+import SubscriptionsPage from '../pages/Subscriptions/SubscriptionsPage.jsx';
+import FreeAccessPage from '../pages/FreeAccess/FreeAccessPage.jsx';
+import PlansPage from '../pages/Plans/PlansPage.jsx';
+import OverviewPage from '../pages/Overview/OverviewPage.jsx';
+import SubAdminsPage from '../pages/SubAdmins/SubAdminsPage.jsx';
+import PlatformSettingsPage from '../pages/PlatformSettings/PlatformSettingsPage.jsx';
+import OperationsPage from '../pages/Operations/OperationsPage.jsx';
 import DashboardPage from '../pages/Dashboard/DashboardPage.jsx';
 import ReportsPage from '../pages/Reports/ReportsPage.jsx';
 import CompaniesPage from '../pages/Companies/CompaniesPage.jsx';
@@ -124,6 +131,25 @@ function LoadingScreen() {
   );
 }
 
+// Same {path, module} pairs as SuperAdminLayout.jsx's NAV, minus the superOnly
+// Sub-Admins entry — used only to pick a sane landing page below, not to gate access
+// (that's enforced server-side by require_platform_permission()).
+const PLATFORM_LANDING_ROUTES = [
+  { path: '/overview', module: 'overview' },
+  { path: '/organizations', module: 'organizations' },
+  { path: '/plans', module: 'plans' },
+  { path: '/subscriptions', module: 'subscriptions' },
+  { path: '/free-access', module: 'free_access' },
+  { path: '/platform-settings', module: 'settings' },
+  { path: '/operations', module: 'operations' },
+];
+
+function defaultPlatformPath(user) {
+  if (user.role === 'Super Admin') return '/overview';
+  const permissions = user.platform_permissions || [];
+  return PLATFORM_LANDING_ROUTES.find(r => permissions.includes(r.module))?.path || '/overview';
+}
+
 function AuthGate() {
   const { user, loading } = useAuth();
 
@@ -135,18 +161,31 @@ function AuthGate() {
   const hasResetToken = new URLSearchParams(window.location.search).has('token');
   if (!user || hasResetToken) return <Login />;
 
-  // Super Admin never sees business data or the normal app shell — it gets a wholly
-  // separate route tree (see SuperAdminLayout.jsx), checked before ReplicaPage/AppLayout
-  // mount at all, since neither has any reason to run for this role.
-  if (user.role === 'Super Admin') {
+  // Super Admin and Sub Admin never see business data or the normal app shell — both
+  // get a wholly separate route tree (see SuperAdminLayout.jsx), checked before
+  // ReplicaPage/AppLayout mount at all, since neither has any reason to run for these
+  // roles. Sub Admin's actual per-page access is enforced server-side by
+  // require_platform_permission() (app/core/security.py) — SuperAdminLayout's nav
+  // filtering by user.platform_permissions, and the index/catch-all redirect below
+  // landing on a page the Sub-Admin actually has, are both just convenience, not the
+  // real gate.
+  if (user.role === 'Super Admin' || user.role === 'Sub Admin') {
+    const landingPath = defaultPlatformPath(user);
     return (
       <Routes>
         <Route path="/" element={<SuperAdminLayout />}>
-          <Route index element={<Navigate to="/organizations" replace />} />
+          <Route index element={<Navigate to={landingPath} replace />} />
+          <Route path="overview" element={<OverviewPage />} />
           <Route path="organizations" element={<OrganizationsPage />} />
           <Route path="organizations/new" element={<CreateOrganizationPage />} />
           <Route path="organizations/:id/edit" element={<EditOrganizationPage />} />
-          <Route path="*" element={<Navigate to="/organizations" replace />} />
+          <Route path="plans" element={<PlansPage />} />
+          <Route path="subscriptions" element={<SubscriptionsPage />} />
+          <Route path="free-access" element={<FreeAccessPage />} />
+          <Route path="sub-admins" element={<SubAdminsPage />} />
+          <Route path="platform-settings" element={<PlatformSettingsPage />} />
+          <Route path="operations" element={<OperationsPage />} />
+          <Route path="*" element={<Navigate to={landingPath} replace />} />
         </Route>
       </Routes>
     );

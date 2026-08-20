@@ -24,6 +24,9 @@ ORGANIZATIONS = "organizations"
 ORG_LOGOS = "org_logos"
 HOLIDAYS = "holidays"
 PAYROLL_REGISTERS = "payroll_registers"
+SUBSCRIPTION_PLANS = "subscription_plans"
+SUBSCRIPTIONS = "subscriptions"
+PLATFORM_SETTINGS = "platform_settings"
 
 # Every collection that a full database backup/restore should cover (app/routers/settings.py).
 # Deliberately excludes "counters" (handled as its own top-level key since it has no constant here)

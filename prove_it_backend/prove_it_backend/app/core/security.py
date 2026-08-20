@@ -104,3 +104,31 @@ def require_permission(module: str, action: str):
             )
         return current_user
     return checker
+
+
+# Platform-level modules a Sub Admin account can be granted access to — deliberately
+# a separate, much simpler mechanism from require_permission()'s org-scoped matrix
+# above. That matrix stores rows keyed by (role, org_id) and get_effective_permissions()
+# hardcodes Super Admin to zero access (NO_ORG_ROLES in app/core/permissions.py) — both
+# of those invariants are wrong for a platform-level, org-less Sub Admin role, so this
+# checks a flat `platform_permissions` list stored directly on the Sub Admin's own user
+# document instead of routing through has_permission()/get_effective_permissions().
+PLATFORM_MODULES = [
+    "overview", "organizations", "plans", "subscriptions", "free_access",
+    "settings", "operations",
+]
+
+
+def require_platform_permission(module: str):
+    """Dependency factory — Super Admin always passes; a Sub Admin passes only if
+    `module` is in their own `platform_permissions` list; everyone else is rejected."""
+    def checker(current_user: SimpleNamespace = Depends(get_current_user)):
+        if current_user.role == "Super Admin":
+            return current_user
+        if current_user.role == "Sub Admin" and module in (getattr(current_user, "platform_permissions", None) or []):
+            return current_user
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Requires platform permission: {module}",
+        )
+    return checker

@@ -12,16 +12,15 @@ from pymongo.database import Database
 from app.core import collections
 from app.core.audit import log_action
 from app.core.database import client, get_db
-from app.core.security import get_current_user, require_role
+from app.core.security import get_current_user, require_platform_permission
 from app.routers.users import create_user_record
+from app.routers.settings import _save_section
 
 router = APIRouter()
 
-# Only Super Admin ever reaches this router — no other require_role(...)/
-# require_permission(...) call site anywhere in the app lists "Super Admin", so a
-# Super Admin JWT is already rejected by every business endpoint with zero other
-# code changes. This is the one place Super Admin has any access at all.
-router_deps = [Depends(require_role("Super Admin"))]
+# Super Admin always passes require_platform_permission(); a Sub Admin passes only if
+# granted the "organizations" platform permission. See app/core/security.py.
+router_deps = [Depends(require_platform_permission("organizations"))]
 
 MAX_LOGO_SIZE = 5 * 1024 * 1024  # 5MB
 ALLOWED_LOGO_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".svg"}
@@ -158,6 +157,16 @@ def create_organization(
                 db, username=admin_username, password=admin_password, name=admin_name,
                 email=admin_email, role="Admin", org_id=org_id, session=session,
             )
+            # Seed this org's own Company Profile settings from the platform defaults
+            # (app/routers/platform_settings.py) instead of leaving every new org to
+            # settings.py's blank fallback.
+            platform_defaults = db[collections.PLATFORM_SETTINGS].find_one({"_id": "platform"}, session=session) or {}
+            _save_section(db, org_id, "profile", {
+                "company_name": "",
+                "gst_number": "",
+                "default_currency": platform_defaults.get("default_currency", "INR"),
+                "financial_year_start": platform_defaults.get("default_financial_year_start", "April (India)"),
+            }, session=session)
 
     log_action(db, user=cu.name, action="CREATE", module="Organizations", org_id=org_id, record_id=org_id,
                detail=f"Created organization '{name}' with initial Admin {admin_username}")

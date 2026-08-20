@@ -147,7 +147,12 @@ def login(
     if not user["is_active"]:
         raise HTTPException(status_code=403, detail="Account is inactive")
 
-    token = create_access_token({"sub": user["username"], "role": user["role"]})
+    # Session length is a platform-wide setting (app/routers/platform_settings.py),
+    # falling back to the original hardcoded default if it's never been configured.
+    platform_settings = db[collections.PLATFORM_SETTINGS].find_one({"_id": "platform"}) or {}
+    timeout_minutes = platform_settings.get("session_timeout_minutes")
+    expires_delta = timedelta(minutes=timeout_minutes) if timeout_minutes else None
+    token = create_access_token({"sub": user["username"], "role": user["role"]}, expires_delta=expires_delta)
     log_action(db, user=user["name"], action="LOGIN", module="Auth", org_id=user.get("org_id"), detail=f"Login from {user['role']} account")
 
     return {
@@ -179,6 +184,10 @@ def me(current_user=Depends(get_current_user), db: Database = Depends(get_db)):
         "role": current_user.role,
         "initials": current_user.initials,
         "org_id": getattr(current_user, "org_id", None),
+        # Only meaningful for role == "Sub Admin" — see app/core/security.py's
+        # require_platform_permission(), which is what actually enforces this list
+        # server-side. The frontend only uses it to decide which nav links to show.
+        "platform_permissions": getattr(current_user, "platform_permissions", None) or [],
         "permissions": get_effective_permissions(db, current_user),
         # Explicit per-employee Page Access grants/denials (app/routers/access_control.py) —
         # these win over the role matrix AND the frontend's self-service nav bypass when set.

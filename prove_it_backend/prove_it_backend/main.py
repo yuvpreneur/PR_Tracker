@@ -13,6 +13,11 @@ from app.routers import (
     auth,
     users,
     organizations,
+    subscriptions,
+    sub_admins,
+    platform_settings,
+    platform_overview,
+    operations,
     companies,
     projects,
     project_codes,
@@ -69,6 +74,11 @@ app.add_middleware(
 app.include_router(auth.router,           prefix="/api/auth",           tags=["Auth"])
 app.include_router(users.router,          prefix="/api/users",          tags=["Users"])
 app.include_router(organizations.router,  prefix="/api/organizations",  tags=["Organizations"])
+app.include_router(subscriptions.router,  prefix="/api/subscriptions",  tags=["Subscriptions"])
+app.include_router(sub_admins.router,     prefix="/api/sub-admins",     tags=["Sub Admins"])
+app.include_router(platform_settings.router, prefix="/api/platform-settings", tags=["Platform Settings"])
+app.include_router(platform_overview.router, prefix="/api/platform-overview", tags=["Platform Overview"])
+app.include_router(operations.router,     prefix="/api/operations",     tags=["Operations"])
 app.include_router(companies.router,      prefix="/api/companies",      tags=["Companies"])
 app.include_router(projects.router,       prefix="/api/projects",       tags=["Projects"])
 app.include_router(project_codes.router,  prefix="/api/project-codes",  tags=["Project Codes"])
