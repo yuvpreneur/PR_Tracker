@@ -20,6 +20,15 @@ export const num = n => {
   return String(Math.round(n));
 };
 
+export const formatCurrency = (value, style = 'short') => {
+  if (!value) return '₹0';
+  const n = Number(value) || 0;
+  if (style === 'short') {
+    return '₹' + num(n);
+  }
+  return '₹' + n.toLocaleString('en-IN');
+};
+
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
