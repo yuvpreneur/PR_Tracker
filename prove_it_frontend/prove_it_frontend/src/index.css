@@ -45,6 +45,15 @@
   --color-text: var(--text);
   --color-text2: var(--text2);
   --color-text3: var(--text3);
+  --color-rose: var(--rose);
+  --color-rose-2: var(--rose-2);
+  --color-blush: var(--blush);
+  --color-blush-ink: var(--blush-ink);
+  --color-amber-tint: var(--amber-tint);
+  --color-violet-tint: var(--violet-tint);
+  --color-sky-tint: var(--sky-tint);
+  --color-sky-ink: var(--sky-ink);
+  --color-mint-tint: var(--mint-tint);
 
   --shadow-card: var(--shadow);
   --shadow-soft-card: var(--shadow-soft);

@@ -133,6 +133,22 @@ export default function AppLayout() {
           data-lucide-icon={collapsed ? 'collapsed' : 'expanded'}
           onClick={() => setCollapsed(c => !c)}
         >◀ Collapse</button>
+        <svg
+          viewBox="0 0 276 120"
+          style={{ position: 'absolute', bottom: 0, left: 0, right: 0, width: '100%', height: 120, pointerEvents: 'none', opacity: 0.15 }}
+          preserveAspectRatio="none"
+        >
+          <defs>
+            <linearGradient id="wave-grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--rose)" stopOpacity="0.3" />
+              <stop offset="100%" stopColor="var(--rose)" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path
+            d="M0,60 Q69,30 138,60 T276,60 L276,120 L0,120 Z"
+            fill="url(#wave-grad)"
+          />
+        </svg>
       </div>
 
       <div id="main">
@@ -157,7 +173,7 @@ export default function AppLayout() {
               id="role-switcher"
               className="form-control"
               data-lucide-wrapped="1"
-              style={{ width: 'auto', fontSize: 12, padding: '6px 10px' }}
+              style={{ width: 'auto', fontSize: 12, padding: '6px 10px', borderRadius: '999px' }}
               title="Preview the app as another role (Admin/Manager only)"
               disabled
               defaultValue=""
@@ -182,7 +198,7 @@ export default function AppLayout() {
             </div>
             <button
               className="btn btn-sm"
-              style={{ background: 'var(--red-soft)', color: 'var(--red)', border: '1px solid rgba(239,68,68,.2)' }}
+              style={{ background: 'var(--rose-soft)', color: 'var(--rose)', border: '1px solid rgba(232,96,122,.2)' }}
               onClick={logout}
             >Sign out</button>
           </div>
@@ -193,6 +209,9 @@ export default function AppLayout() {
               this just hosts whichever route element is current (AllPages, or
               NoAccessPage which isn't part of that always-mounted set). */}
           <Outlet />
+          <div style={{ padding: '28px', textAlign: 'center', color: 'var(--muted)', fontSize: '11px', borderTop: '1px solid var(--line)', marginTop: 'auto' }}>
+            © 2025 {orgName ? `${orgName} | ` : ''}AProve Catalysts. All rights reserved.
+          </div>
         </div>
       </div>
     </div>
