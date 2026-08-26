@@ -2,13 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pymongo.database import Database
 from pydantic import BaseModel
 from typing import Optional
-from datetime import date
+from datetime import date, datetime, timezone
 
 from app.core import collections
 from app.core.database import get_db
 from app.core.mongo_utils import like, get_or_404
 from app.core.security import get_current_user, require_permission
 from app.core.audit import log_action
+from app.core import prmanager_client
 from app.core.permissions import assigned_project_ids
 
 router = APIRouter()
@@ -48,6 +49,11 @@ def _proj_out(p: dict):
         "end_date": str(p["end_date"]) if p["end_date"] else None,
         "status": p["status"], "budget": p["budget"],
         "est_revenue": p["est_revenue"], "est_expense": p["est_expense"],
+        # PR Manager sync (system-managed — never accepted from ProjectCreate/ProjectUpdate)
+        "pm_project_id": p.get("pm_project_id"),
+        "pm_sync_status": p.get("pm_sync_status", "Not Synced"),
+        "pm_missing_fields": p.get("pm_missing_fields", []),
+        "pm_last_synced_at": p.get("pm_last_synced_at"),
     }
 
 
@@ -105,8 +111,17 @@ def create_project(payload: ProjectCreate, db: Database = Depends(get_db), cu=De
     doc["org_id"] = cu.org_id
     if doc["start_date"]: doc["start_date"] = doc["start_date"].isoformat()
     if doc["end_date"]: doc["end_date"] = doc["end_date"].isoformat()
+    doc.update({
+        # pm_org_id is resolved once from the linked Company and cached here rather than
+        # re-derived from `client` on every sync — `client` is a free-text name match, not
+        # an FK, so a later Company rename must not silently break an already-linked Project.
+        "pm_org_id": None, "pm_project_id": None, "pm_sync_status": "Not Synced",
+        "pm_missing_fields": [], "pm_last_synced_at": None,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    })
     db[collections.PROJECTS].insert_one(doc)
     log_action(db, user=cu.name, action="CREATE", module="Projects", org_id=cu.org_id, record_id=doc["id"], detail=f"Created project: {doc['name']}")
+    doc.update(prmanager_client.sync_project_to_pm(db, doc))
     return _proj_out(doc)
 
 
@@ -126,8 +141,10 @@ def update_project(project_id: str, payload: ProjectUpdate, db: Database = Depen
     if "start_date" in patch: patch["start_date"] = patch["start_date"].isoformat()
     if "end_date" in patch: patch["end_date"] = patch["end_date"].isoformat()
     if patch:
+        patch["updated_at"] = datetime.now(timezone.utc).isoformat()
         db[collections.PROJECTS].update_one({"_id": project_id, "org_id": cu.org_id}, {"$set": patch})
         p = get_or_404(db, collections.PROJECTS, project_id, cu.org_id, "Project not found")
+        p.update(prmanager_client.sync_project_to_pm(db, p))
     log_action(db, user=cu.name, action="UPDATE", module="Projects", org_id=cu.org_id, record_id=p["id"], detail=f"Updated project: {p['name']}")
     return _proj_out(p)
 

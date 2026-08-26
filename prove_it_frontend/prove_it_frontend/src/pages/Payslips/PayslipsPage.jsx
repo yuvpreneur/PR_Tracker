@@ -13,8 +13,8 @@ export default function PayslipsPage() {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 className="flex items-center gap-2"><Receipt size={22} /> My Payslips</h2>
+      <div className="page-header">
+        <h2><Receipt size={22} /> My Payslips</h2>
       </div>
 
       {loading ? (
@@ -36,21 +36,37 @@ export default function PayslipsPage() {
               {opening ? <Loader2 size={15} className="animate-spin" /> : <Eye size={15} />}
               {opening ? 'Opening…' : 'View Payslip'}
             </Button>
-            <Button variant="ghost" onClick={download} disabled={downloading}>
+            <button
+              className="btn btn-sm"
+              style={{ background: 'var(--rose-soft)', color: 'var(--rose)', border: '1px solid var(--line)', borderRadius: 10 }}
+              onClick={download}
+              disabled={downloading}
+            >
               {downloading ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
               {downloading ? 'Downloading…' : 'Download'}
-            </Button>
-            <Button variant="ghost" onClick={print} disabled={printing}>
+            </button>
+            <button
+              className="btn btn-sm"
+              style={{ background: 'var(--rose-soft)', color: 'var(--rose)', border: '1px solid var(--line)', borderRadius: 10 }}
+              onClick={print}
+              disabled={printing}
+            >
               {printing ? <Loader2 size={15} className="animate-spin" /> : <Printer size={15} />}
               {printing ? 'Preparing…' : 'Print'}
-            </Button>
+            </button>
           </div>
 
           {viewBytes && (
             <div style={{ marginTop: 16 }}>
               <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
                 <span className="text-[13px] font-semibold">{payPeriodLabel(period)}</span>
-                <Button variant="ghost" onClick={closeView}><X size={15} /> Close</Button>
+                <button
+                  className="btn btn-sm"
+                  style={{ background: 'var(--rose-soft)', color: 'var(--rose)', border: '1px solid var(--line)', borderRadius: 10 }}
+                  onClick={closeView}
+                >
+                  <X size={15} /> Close
+                </button>
               </div>
               <div style={{ padding: 12, border: '1px solid var(--line)', borderRadius: 12, background: '#f8fafc' }}>
                 <PayslipViewer bytes={viewBytes} />

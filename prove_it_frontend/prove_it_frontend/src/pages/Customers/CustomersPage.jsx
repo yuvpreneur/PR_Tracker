@@ -7,12 +7,12 @@ import usePermissions from '../../hooks/usePermissions.js';
 
 const COLUMNS = [
   { key: 'name', header: 'Customer', render: r => <strong>{r.name}</strong> },
-  { key: 'primary_contact', header: 'Contact', render: r => r.primary_contact || '—' },
-  { key: 'email', header: 'Email', render: r => r.email || '—' },
-  { key: 'phone', header: 'Phone', render: r => r.phone || '—' },
-  { key: 'gstin', header: 'GSTIN', render: r => r.gstin || '—' },
-  { key: 'active_projects', header: 'Active Projects' },
-  { key: 'lifetime_value', header: 'Lifetime Value', render: r => `₹${r.lifetime_value.toLocaleString('en-IN')}` },
+  { key: 'primary_contact', header: 'Contact', render: r => r.primary_contact || '—', align: 'center' },
+  { key: 'email', header: 'Email', render: r => r.email || '—', align: 'center' },
+  { key: 'phone', header: 'Phone', render: r => r.phone || '—', align: 'center' },
+  { key: 'gstin', header: 'GSTIN', render: r => r.gstin || '—', align: 'center' },
+  { key: 'active_projects', header: 'Active Projects', align: 'center' },
+  { key: 'lifetime_value', header: 'Lifetime Value', render: r => `₹${r.lifetime_value.toLocaleString('en-IN')}`, align: 'center' },
 ];
 
 export default function CustomersPage() {
@@ -27,8 +27,8 @@ export default function CustomersPage() {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Handshake size={22} /> Customers</h2>
+      <div className="page-header">
+        <h2><Handshake size={22} /> Customers</h2>
         {canCreateOnPage('customers') && (
           <Button variant="primary" onClick={handleNew}><Plus size={15} /> New Customer</Button>
         )}

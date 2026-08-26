@@ -59,8 +59,8 @@ export default function ApprovalsPage() {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><ClipboardCheck size={22} /> Approval Dashboard</h2>
+      <div className="page-header">
+        <h2><ClipboardCheck size={22} /> Approval Dashboard</h2>
         <select id="appr-type-filter" className="form-control" style={{ width: 'auto' }} value={filter} onChange={e => setFilter(e.target.value)}>
           <option value="">All Types</option>
           {!isFinanceUser && <option value="timesheets">Timesheet</option>}

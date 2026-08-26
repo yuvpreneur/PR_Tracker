@@ -66,8 +66,9 @@ export function can(module, action) {
 export function canViewPage(pageId) {
   const role = state.currentUser?.role;
   if (!role) return true; // /me hasn't resolved yet — don't flash everything locked
-  if (FULL_ACCESS_ROLES.has(role)) return true;
-  if (ADMIN_MANAGER_ONLY_PAGES.has(pageId)) return false;
+  // Admin/Manager-only static pages have no module/plan concept at all — always gated
+  // purely by role, never by the org's Subscription Plan.
+  if (ADMIN_MANAGER_ONLY_PAGES.has(pageId)) return FULL_ACCESS_ROLES.has(role);
   if (EMPLOYEE_EXCLUDED_PAGES.has(pageId) && role === 'Employee') return false;
   if (FINANCE_USER_EXCLUDED_PAGES.has(pageId) && role === 'Finance User') return false;
   const module = PAGE_MODULE_MAP[pageId];
@@ -78,6 +79,11 @@ export function canViewPage(pageId) {
     return state.pageOverrides[module] === true;
   }
   if (can(module, 'view')) return true;
+  // Admin/Manager must go through the plan-filtered check above like everyone else —
+  // mirrors get_effective_permissions() in app/core/permissions.py, which no longer
+  // bypasses FULL_ACCESS_ROLES around the org's plan filter. Falling into the
+  // self-service bypass below would let Admin/Manager see a module the plan excludes.
+  if (FULL_ACCESS_ROLES.has(role)) return false;
   if (OWN_RECORD_PAGES.has(pageId) && role !== 'Viewer') return true;
   return false;
 }
@@ -88,8 +94,7 @@ export function canCreateOnPage(pageId) {
   // Timesheets are self-submitted under the logged-in user's own employee record;
   // Admin has no Employees row, so Admin's role on this module is approve-only.
   if (pageId === 'timesheets' && role === 'Admin') return false;
-  if (FULL_ACCESS_ROLES.has(role)) return true;
-  if (OWN_RECORD_PAGES.has(pageId)) return role !== 'Viewer'; // self-service create is always available
+  if (OWN_RECORD_PAGES.has(pageId) && !FULL_ACCESS_ROLES.has(role)) return role !== 'Viewer'; // self-service create is always available
   const module = PAGE_MODULE_MAP[pageId];
   if (!module) return true;
   return can(module, 'create');
@@ -98,7 +103,6 @@ export function canCreateOnPage(pageId) {
 export function canExportOnPage(pageId) {
   const role = state.currentUser?.role;
   if (!role) return true;
-  if (FULL_ACCESS_ROLES.has(role)) return true;
   const module = PAGE_MODULE_MAP[pageId];
   if (!module) return true;
   return can(module, 'export');
@@ -110,7 +114,7 @@ export function canExportOnPage(pageId) {
 // they can always end up with an editable/deletable own-record row.
 export function noActionsColumn(pageId) {
   const role = state.currentUser?.role;
-  if (!role || FULL_ACCESS_ROLES.has(role)) return false;
+  if (!role) return false;
   // Leave has no edit/delete endpoint at all (by design) — its Actions column is
   // Approve/Reject only, so the general "self-service always keeps the column" rule
   // below doesn't apply; hide it whenever approve permission is absent.
@@ -118,7 +122,7 @@ export function noActionsColumn(pageId) {
   // Expenses: hidden outright for Employee by request — Finance User still needs the
   // column for their Pending Finance approve/reject actions.
   if (pageId === 'expenses' && role === 'Employee') return true;
-  if (OWN_RECORD_PAGES.has(pageId)) return role === 'Viewer';
+  if (OWN_RECORD_PAGES.has(pageId) && !FULL_ACCESS_ROLES.has(role)) return role === 'Viewer';
   const module = PAGE_MODULE_MAP[pageId];
   if (!module) return false;
   return !can(module, 'edit') && !can(module, 'delete');

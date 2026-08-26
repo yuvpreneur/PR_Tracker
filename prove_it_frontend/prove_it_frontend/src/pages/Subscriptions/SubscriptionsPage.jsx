@@ -51,8 +51,8 @@ export default function SubscriptionsPage() {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Building2 size={22} /> Subscriptions</h2>
+      <div className="page-header">
+        <h2><Building2 size={22} /> Subscriptions</h2>
       </div>
 
       <div className="card table-wrap">
@@ -78,7 +78,7 @@ export default function SubscriptionsPage() {
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <button
                       className="btn btn-sm"
-                      style={{ background: 'var(--soft)', color: 'var(--accent)', border: '1px solid var(--line)' }}
+                      style={{ background: 'var(--rose-soft)', color: 'var(--rose)', border: '1px solid var(--line)' }}
                       onClick={() => openAssign(org)}
                       disabled={subsLoading}
                     >

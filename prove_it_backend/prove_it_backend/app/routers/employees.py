@@ -2,13 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pymongo.database import Database
 from pydantic import BaseModel
 from typing import Optional
-from datetime import date
+from datetime import date, datetime, timezone
 from app.core import collections
 from app.core.database import client, get_db
 from app.core.mongo_utils import like, get_or_404
 from app.core.security import get_current_user, require_permission
 from app.core.audit import log_action
 from app.core.permissions import has_permission, my_emp_ids
+from app.core import prmanager_client
 
 router = APIRouter()
 
@@ -25,6 +26,7 @@ class EmpCreate(BaseModel):
     role: str = "Employee"
     billable: bool = True
     status: str = "Active"
+    pm_access_enabled: bool = False
 
 
 class EmpUpdate(BaseModel):
@@ -39,6 +41,7 @@ class EmpUpdate(BaseModel):
     role: Optional[str] = None
     billable: Optional[bool] = None
     status: Optional[str] = None
+    pm_access_enabled: Optional[bool] = None
 
 
 def _out(e: dict):
@@ -48,6 +51,10 @@ def _out(e: dict):
         "joining_date": str(e["joining_date"]) if e["joining_date"] else None,
         "relieving_date": str(e["relieving_date"]) if e.get("relieving_date") else None,
         "role": e["role"], "billable": e["billable"], "status": e["status"],
+        # PR Manager access (checkbox is user-facing; member_id/sync_status are system-managed)
+        "pm_access_enabled": e.get("pm_access_enabled", False),
+        "pm_member_id": e.get("pm_member_id"),
+        "pm_sync_status": e.get("pm_sync_status", "Not Enabled"),
     }
 
 
@@ -86,8 +93,13 @@ def create(payload: EmpCreate, db: Database = Depends(get_db), cu=Depends(get_cu
     doc["org_id"] = cu.org_id
     if doc["joining_date"]: doc["joining_date"] = doc["joining_date"].isoformat()
     if doc["relieving_date"]: doc["relieving_date"] = doc["relieving_date"].isoformat()
+    doc["pm_member_id"] = None
+    doc["pm_sync_status"] = "Pending Invite" if doc["pm_access_enabled"] else "Not Enabled"
+    doc["updated_at"] = datetime.now(timezone.utc).isoformat()
     db[collections.EMPLOYEES].insert_one(doc)
     log_action(db, user=cu.name, action="CREATE", module="Employees", org_id=cu.org_id, record_id=doc["emp_id"], detail=f"Created employee {doc['name']}")
+    if doc["pm_access_enabled"]:
+        doc.update(prmanager_client.sync_employee_to_pm(db, doc))
     return _out(doc)
 
 
@@ -106,6 +118,13 @@ def update_employee(emp_id: str, payload: EmpUpdate, db: Database = Depends(get_
     new_emp_id = patch.pop("emp_id", None)
     if "joining_date" in patch: patch["joining_date"] = patch["joining_date"].isoformat()
     if "relieving_date" in patch: patch["relieving_date"] = patch["relieving_date"].isoformat()
+    if "pm_access_enabled" in patch:
+        # Only a placeholder status here — Phase 4 (member sync) is what actually calls out
+        # to PR Manager and moves this to "Active"/"Sync Failed". Unchecking never deletes
+        # the PM membership, just disables it (see prmanager_client.sync_employee_to_pm).
+        patch["pm_sync_status"] = "Pending Invite" if patch["pm_access_enabled"] else "Not Enabled"
+    if patch:
+        patch["updated_at"] = datetime.now(timezone.utc).isoformat()
 
     if new_emp_id and new_emp_id != emp_id:
         if db[collections.EMPLOYEES].find_one({"_id": new_emp_id, "org_id": cu.org_id}):
@@ -127,6 +146,11 @@ def update_employee(emp_id: str, payload: EmpUpdate, db: Database = Depends(get_
     elif patch:
         db[collections.EMPLOYEES].update_one({"_id": emp_id, "org_id": cu.org_id}, {"$set": patch})
         e = db[collections.EMPLOYEES].find_one({"_id": emp_id, "org_id": cu.org_id})
+
+    # Re-sync whenever access is (or was just toggled to be) enabled — including a
+    # toggle-off, which still needs to reach PR Manager so it can disable the membership.
+    if patch and (e.get("pm_access_enabled") or "pm_access_enabled" in patch):
+        e.update(prmanager_client.sync_employee_to_pm(db, e))
 
     log_action(db, user=cu.name, action="UPDATE", module="Employees", org_id=cu.org_id, record_id=e["emp_id"])
     return _out(e)

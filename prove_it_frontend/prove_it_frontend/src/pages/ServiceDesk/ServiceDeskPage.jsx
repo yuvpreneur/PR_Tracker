@@ -1,22 +1,23 @@
-import { Ticket, RefreshCw, Hourglass, AlertTriangle, XCircle, Check, X } from 'lucide-react';
+import { Ticket, RefreshCw, Hourglass, AlertTriangle, XCircle, Check, X, Plus } from 'lucide-react';
 import useServiceDesk from './useServiceDesk.js';
-import { SERVICE_DESK_HERO_HTML, SERVICE_DESK_WORKFLOW_HTML } from './serviceDeskDashboardStatic.js';
+import { SERVICE_DESK_WORKFLOW_HTML } from './serviceDeskDashboardStatic.js';
 import Badge from '../../components/ui/Badge.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
 import StatCard from '../../components/ui/StatCard.jsx';
 import SectionTitle from '../../components/ui/SectionTitle.jsx';
+import Button from '../../components/ui/Button.jsx';
 import { date } from '../../utils/format.js';
 import usePermissions from '../../hooks/usePermissions.js';
 
 const COLUMNS = [
   { key: 'ticket_no', header: 'Ticket', render: r => <strong>{r.ticket_no || r.id}</strong> },
-  { key: 'subject', header: 'Subject' },
-  { key: 'project_id', header: 'Project', render: r => r.project_id || '—' },
-  { key: 'requester', header: 'Requester' },
-  { key: 'queue', header: 'Queue', render: r => r.queue || '—' },
-  { key: 'priority', header: 'Priority', render: r => <Badge status={r.priority} /> },
-  { key: 'status', header: 'Status', render: r => <Badge status={r.status} /> },
-  { key: 'sla_deadline', header: 'SLA', render: r => r.sla_deadline ? date(r.sla_deadline) : '—' },
+  { key: 'subject', header: 'Subject', align: 'center' },
+  { key: 'project_id', header: 'Project', render: r => r.project_id || '—', align: 'center' },
+  { key: 'requester', header: 'Requester', align: 'center' },
+  { key: 'queue', header: 'Queue', render: r => r.queue || '—', align: 'center' },
+  { key: 'priority', header: 'Priority', render: r => <Badge status={r.priority} />, align: 'center' },
+  { key: 'status', header: 'Status', render: r => <Badge status={r.status} />, align: 'center' },
+  { key: 'sla_deadline', header: 'SLA', render: r => r.sla_deadline ? date(r.sla_deadline) : '—', align: 'center' },
 ];
 
 const LOCKED_STATUSES = ['Closed', 'Cancelled'];
@@ -68,7 +69,12 @@ export default function ServiceDeskPage() {
 
   return (
     <div>
-      <div dangerouslySetInnerHTML={{ __html: SERVICE_DESK_HERO_HTML }} />
+      <div className="page-header">
+        <h2><Ticket size={22} /> Service Desk Integration</h2>
+        <Button variant="primary" onClick={() => openModal('modal-ticket')}>
+          <Plus size={14} /> Create Ticket
+        </Button>
+      </div>
 
       <div className="mb-5 grid grid-cols-5 gap-4 max-[900px]:grid-cols-3 max-[560px]:grid-cols-1">
         <StatCard label="Open Tickets" value={loading ? '—' : String(openTickets.length)} sub={loading ? '' : `${highPriorityCount} high priority`} color="var(--color-brand)" icon={Ticket} />

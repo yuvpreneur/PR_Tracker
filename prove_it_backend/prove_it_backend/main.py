@@ -41,6 +41,7 @@ from app.routers import (
     holidays,
     payroll,
     payslips,
+    integrations,
 )
 
 @asynccontextmanager
@@ -102,6 +103,7 @@ app.include_router(notifications.router,  prefix="/api/notifications",  tags=["N
 app.include_router(holidays.router,       prefix="/api/holidays",       tags=["Payroll"])
 app.include_router(payroll.router,        prefix="/api/payroll",        tags=["Payroll"])
 app.include_router(payslips.router,       prefix="/api/payslips",       tags=["Payroll"])
+app.include_router(integrations.router,   prefix="/api/integrations/prmanager", tags=["PR Manager Sync"])
 
 
 @app.get("/", tags=["Health"])

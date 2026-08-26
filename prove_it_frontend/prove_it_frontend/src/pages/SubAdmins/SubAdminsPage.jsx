@@ -83,8 +83,8 @@ export default function SubAdminsPage() {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><UserCog size={22} /> Sub-Admins</h2>
+      <div className="page-header">
+        <h2><UserCog size={22} /> Sub-Admins</h2>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
@@ -96,7 +96,7 @@ export default function SubAdminsPage() {
       <div className="card table-wrap">
         <table>
           <thead>
-            <tr><th>Admin</th><th>Permissions</th><th>Status</th><th></th></tr>
+            <tr><th>Admin</th><th style={{ textAlign: 'center' }}>Permissions</th><th>Status</th><th></th></tr>
           </thead>
           <tbody>
             {subAdmins.length === 0 && (
@@ -112,11 +112,11 @@ export default function SubAdminsPage() {
                   <div style={{ fontWeight: 600, fontSize: 12.5 }}>{sa.name}</div>
                   <div style={{ fontSize: 10.5, color: 'var(--muted)' }}>{sa.email}</div>
                 </td>
-                <td style={{ maxWidth: 260 }}>
+                <td style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
                   {sa.platform_permissions.length === 0
                     ? <span style={{ color: 'var(--muted)', fontSize: 11.5 }}>None</span>
                     : sa.platform_permissions.map(key => (
-                      <span key={key} className="badge badge-muted" style={{ marginRight: 4 }}>
+                      <span key={key} className="badge badge-muted">
                         {PLATFORM_MODULE_OPTIONS.find(o => o.key === key)?.label || key}
                       </span>
                     ))}
@@ -125,21 +125,21 @@ export default function SubAdminsPage() {
                 <td style={{ whiteSpace: 'nowrap', display: 'flex', gap: 8 }}>
                   <button
                     className="btn btn-sm"
-                    style={{ background: 'var(--soft)', color: 'var(--accent)', border: '1px solid var(--line)' }}
+                    style={{ background: 'var(--rose-soft)', color: 'var(--rose)', border: '1px solid var(--line)' }}
                     onClick={() => { setEditing({ ...blankSubAdmin, ...sa, password: '' }); setFormError(''); }}
                   >
                     Edit
                   </button>
                   <button
                     className="btn btn-sm"
-                    style={{ background: 'var(--soft)', color: 'var(--accent)', border: '1px solid var(--line)' }}
+                    style={{ background: 'var(--rose-soft)', color: 'var(--rose)', border: '1px solid var(--line)' }}
                     onClick={() => { setResetTarget(sa); setNewPassword(''); setResetError(''); }}
                   >
                     <KeyRound size={13} /> Reset PW
                   </button>
                   <button
                     className="btn btn-sm"
-                    style={{ background: 'var(--soft)', color: 'var(--accent)', border: '1px solid var(--line)' }}
+                    style={{ background: 'var(--rose-soft)', color: 'var(--rose)', border: '1px solid var(--line)' }}
                     onClick={() => toggleActive(sa)}
                   >
                     {sa.is_active ? <><Ban size={13} /> Deactivate</> : <><RotateCcw size={13} /> Activate</>}

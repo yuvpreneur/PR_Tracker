@@ -13,6 +13,7 @@ from app.core.notifications import notify
 from app.core.permissions import (
     MODULES, get_role_permissions, effective_view_default, own_emp_id,
 )
+from app.core import prmanager_client
 
 router = APIRouter()
 
@@ -127,6 +128,14 @@ def set_project_permissions(payload: ProjPermUpdate, db: Database = Depends(get_
             "org_id": cu.org_id,
         })
     log_action(db, user=cu.name, action="UPDATE", module="Access Control", org_id=cu.org_id, record_id=payload.emp_id, detail="Project permissions updated")
+
+    # PR Manager membership is derived from these grants (see prmanager_client.
+    # sync_employee_to_pm) — a grant change while access is already enabled must
+    # re-sync immediately, not wait for the next unrelated Employee edit.
+    emp = db[collections.EMPLOYEES].find_one({"_id": payload.emp_id, "org_id": cu.org_id})
+    if emp and emp.get("pm_access_enabled"):
+        prmanager_client.sync_employee_to_pm(db, emp)
+
     return {"message": "Project permissions saved"}
 
 

@@ -113,7 +113,7 @@ export function openApprovalView(row) {
   ensureApprovalViewModal();
   const field = (label, value) =>
     `<div class="form-group"><label class="form-label">${label}</label>` +
-    `<div style="padding:9px 12px;background:#f8fafc;border-radius:8px;font-size:14px">${value ?? '—'}</div></div>`;
+    `<div style="padding:9px 12px;background:rgba(232,96,122,.08);border-radius:8px;font-size:14px">${value ?? '—'}</div></div>`;
 
   let fields = field('Type', TYPE_LABEL[row._mod] || row._mod);
   if (row._mod === 'timesheets') {

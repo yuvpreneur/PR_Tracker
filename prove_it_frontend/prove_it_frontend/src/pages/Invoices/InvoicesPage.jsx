@@ -27,12 +27,12 @@ export default function InvoicesPage() {
 
   const columns = useMemo(() => [
     { key: 'invoice_no', header: 'Invoice #' },
-    { key: 'client', header: 'Client' },
-    { key: 'project_id', header: 'Project', render: r => projects.find(p => p.id === r.project_id)?.name || '—' },
-    { key: 'total', header: 'Total', render: r => formatMoney(r.total, r.currency) },
-    { key: 'issue_date', header: 'Issue Date', render: r => date(r.issue_date) },
-    { key: 'due_date', header: 'Due Date', render: r => date(r.due_date) },
-    { key: 'status', header: 'Status', render: r => <Badge status={r.display_status} /> },
+    { key: 'client', header: 'Client', align: 'center' },
+    { key: 'project_id', header: 'Project', render: r => projects.find(p => p.id === r.project_id)?.name || '—', align: 'center' },
+    { key: 'total', header: 'Total', render: r => formatMoney(r.total, r.currency), align: 'center' },
+    { key: 'issue_date', header: 'Issue Date', render: r => date(r.issue_date), align: 'center' },
+    { key: 'due_date', header: 'Due Date', render: r => date(r.due_date), align: 'center' },
+    { key: 'status', header: 'Status', render: r => <Badge status={r.display_status} />, align: 'center' },
   ], [projects]);
 
   const handleNew = () => { setEditingDraft(null); setView('new'); };
@@ -72,8 +72,8 @@ export default function InvoicesPage() {
   if (view === 'new') {
     return (
       <div>
-        <div className="section-header">
-          <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="page-header">
+          <h2>
             <FileText size={22} /> {editingDraft ? 'Edit Invoice' : 'New Invoice'}
           </h2>
         </div>
@@ -94,8 +94,8 @@ export default function InvoicesPage() {
   if (view === 'detail' && selectedInvoice) {
     return (
       <div>
-        <div className="section-header">
-          <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><FileText size={22} /> Invoice {selectedInvoice.invoice_no}</h2>
+        <div className="page-header">
+          <h2><FileText size={22} /> Invoice {selectedInvoice.invoice_no}</h2>
         </div>
         <InvoiceDetail
           invoice={selectedInvoice}
@@ -112,8 +112,8 @@ export default function InvoicesPage() {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><FileText size={22} /> Invoices</h2>
+      <div className="page-header">
+        <h2><FileText size={22} /> Invoices</h2>
         {canCreateOnPage('invoices') && (
           <Button variant="primary" onClick={handleNew}><Plus size={15} /> New Invoice</Button>
         )}

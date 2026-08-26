@@ -95,7 +95,7 @@ export default function EmployeeFieldGroupTab({ basePath, fields, previewKeys, r
           <thead>
             <tr>
               {['Code', 'Name', ...previewFields.map(f => f.label), ''].map((h, i) => (
-                <th key={i} className="px-3.5 py-3 text-left text-[11px] font-black uppercase tracking-wide text-muted">{h}</th>
+                <th key={i} className="px-3.5 py-3 text-[11px] font-black uppercase tracking-wide" style={{ textAlign: i === 0 ? 'left' : 'center', color: '#000000' }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -110,9 +110,9 @@ export default function EmployeeFieldGroupTab({ basePath, fields, previewKeys, r
             {filtered.map(e => (
               <tr key={e.emp_id} className="border-b border-slate-100">
                 <td className="px-3 py-2.5"><strong>{e.emp_id}</strong></td>
-                <td className="px-3 py-2.5">{e.name}</td>
-                {previewFields.map(f => <td key={f.key} className="px-3 py-2.5">{e[f.key] || '—'}</td>)}
-                <td className="whitespace-nowrap px-3 py-2">
+                <td className="px-3 py-2.5" style={{ textAlign: 'center' }}>{e.name}</td>
+                {previewFields.map(f => <td key={f.key} className="px-3 py-2.5" style={{ textAlign: 'center' }}>{e[f.key] || '—'}</td>)}
+                <td className="whitespace-nowrap px-3 py-2" style={{ textAlign: 'center' }}>
                   {canEdit && (
                     <button
                       className="inline-flex items-center rounded-md px-2.5 py-1 text-[11px]"

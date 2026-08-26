@@ -9,3 +9,4 @@
 prove_it_backend/prove_it_backend/prove_it.db
 .DS_Store
 Thumbs.db
+.claude/

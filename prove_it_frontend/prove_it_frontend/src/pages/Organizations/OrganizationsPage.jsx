@@ -15,8 +15,8 @@ export default function OrganizationsPage() {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Building2 size={22} /> Organizations</h2>
+      <div className="page-header">
+        <h2><Building2 size={22} /> Organizations</h2>
         <Button variant="primary" onClick={() => navigate('/organizations/new')}><Plus size={15} /> New Organization</Button>
       </div>
 
@@ -56,7 +56,7 @@ export default function OrganizationsPage() {
                 <td style={{ whiteSpace: 'nowrap', display: 'flex', gap: 8 }}>
                   <button
                     className="btn btn-sm"
-                    style={{ background: 'var(--soft)', color: 'var(--accent)', border: '1px solid var(--line)' }}
+                    style={{ background: 'var(--rose-soft)', color: 'var(--rose)', border: '1px solid var(--line)' }}
                     onClick={() => navigate(`/organizations/${org.id}/edit`)}
                   >
                     <Pencil size={13} /> Edit

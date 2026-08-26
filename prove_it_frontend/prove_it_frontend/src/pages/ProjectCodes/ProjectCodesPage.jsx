@@ -18,9 +18,9 @@ export default function ProjectCodesPage() {
 
   const columns = useMemo(() => [
     { key: 'code', header: 'Project Code', render: r => <strong>{r.code}</strong> },
-    { key: 'project_id', header: 'Project', render: r => { const n = projectName(r.project_id); return n ? `${r.project_id} · ${n}` : r.project_id; } },
-    { key: 'description', header: 'Description', render: r => r.description || '—' },
-    { key: 'status', header: 'Status', render: r => <Badge status={r.status} /> },
+    { key: 'project_id', header: 'Project', align: 'center', render: r => { const n = projectName(r.project_id); return n ? `${r.project_id} · ${n}` : r.project_id; } },
+    { key: 'description', header: 'Description', align: 'center', render: r => r.description || '—' },
+    { key: 'status', header: 'Status', align: 'center', render: r => <Badge status={r.status} /> },
   ], [projects]);
 
   const filtered = useMemo(() => {
@@ -41,8 +41,8 @@ export default function ProjectCodesPage() {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Tag size={22} /> Project Codes</h2>
+      <div className="page-header">
+        <h2><Tag size={22} /> Project Codes</h2>
         {canCreateOnPage('project-codes') && (
           <Button variant="primary" onClick={handleNew}><Plus size={15} /> New Project Code</Button>
         )}

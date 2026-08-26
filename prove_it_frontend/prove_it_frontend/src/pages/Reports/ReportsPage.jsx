@@ -75,7 +75,7 @@ export default function ReportsPage() {
 
   return (
     <div>
-      <div className="section-header"><h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><ChartColumn size={22} /> Reports</h2></div>
+      <div className="page-header"><h2><ChartColumn size={22} /> Reports</h2></div>
 
       <div className="filter-bar">
         <select className="form-control" value={projectId} onChange={e => setProjectId(e.target.value)}>

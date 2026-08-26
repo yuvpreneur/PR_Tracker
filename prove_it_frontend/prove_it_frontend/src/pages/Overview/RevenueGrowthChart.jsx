@@ -43,8 +43,8 @@ export default function RevenueGrowthChart({ points }) {
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: '100%', height: H, display: 'block' }}>
         <defs>
           <linearGradient id="revenue-growth-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.22" />
-            <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
+            <stop offset="0%" stopColor="var(--rose)" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="var(--rose)" stopOpacity="0" />
           </linearGradient>
         </defs>
 
@@ -60,7 +60,7 @@ export default function RevenueGrowthChart({ points }) {
         ))}
 
         <path d={areaPath} fill="url(#revenue-growth-fill)" stroke="none" />
-        <path d={linePath} fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d={linePath} fill="none" stroke="var(--rose)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
 
         {hovered && (
           <line
@@ -82,7 +82,7 @@ export default function RevenueGrowthChart({ points }) {
               {(isLast || isHovered) && (
                 <circle
                   cx={xAt(i)} cy={yAt(p.mrr)} r={isHovered ? 5 : 4}
-                  fill="var(--accent)" stroke="var(--card)" strokeWidth="2"
+                  fill="var(--rose)" stroke="var(--card)" strokeWidth="2"
                 />
               )}
             </g>

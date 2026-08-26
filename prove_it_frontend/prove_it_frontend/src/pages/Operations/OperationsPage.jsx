@@ -17,16 +17,13 @@ export default function OperationsPage() {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Wrench size={22} /> Operations</h2>
+      <div className="page-header">
+        <h2><Wrench size={22} /> Operations</h2>
       </div>
-      <p style={{ fontSize: 12.5, color: 'var(--slate)', margin: '-6px 0 14px' }}>
-        Platform-wide maintenance actions.
-      </p>
 
-      <div className="card" style={{ maxWidth: 480 }}>
-        <h3 style={{ marginTop: 0 }}>Platform-wide database backup</h3>
-        <p style={{ fontSize: 12.5, color: 'var(--muted)' }}>
+      <div className="card" style={{ maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <h3 style={{ margin: 0 }}>Platform-wide database backup</h3>
+        <p style={{ fontSize: 12.5, color: 'var(--muted)', margin: 0 }}>
           Downloads every organization's data as one JSON file — export only, there's no matching
           restore for a file this size, since restoring it wrong could corrupt every organization at once.
         </p>

@@ -20,11 +20,11 @@ export default function DataTable({ columns, rows, getRowId, pageId, canEdit, ca
         <thead>
           <tr>
             {columns.map(col => (
-              <th key={col.key} className="px-3.5 py-3 text-left text-[11px] font-black uppercase tracking-wide text-muted">
+              <th key={col.key} className="px-3.5 py-3 text-[11px] font-black uppercase tracking-wide text-ink" style={{ background: 'transparent', textAlign: col.align || 'left' }}>
                 {col.header}
               </th>
             ))}
-            {showActions && <th className="px-3.5 py-3 text-left text-[11px] font-black uppercase tracking-wide text-muted">Actions</th>}
+            {showActions && <th className="px-3.5 py-3 text-[11px] font-black uppercase tracking-wide text-ink" style={{ background: 'transparent', textAlign: 'center' }}>Actions</th>}
           </tr>
         </thead>
         <tbody>
@@ -40,12 +40,12 @@ export default function DataTable({ columns, rows, getRowId, pageId, canEdit, ca
             return (
               <tr key={id} className="border-b border-slate-100">
                 {columns.map(col => (
-                  <td key={col.key} className="px-3 py-2.5">
+                  <td key={col.key} className="px-3 py-2.5" style={{ textAlign: col.align || 'left' }}>
                     {col.render ? col.render(row) : (row[col.key] ?? '—')}
                   </td>
                 ))}
                 {showActions && (
-                  <td className="whitespace-nowrap px-3 py-2">
+                  <td className="whitespace-nowrap px-3 py-2" style={{ textAlign: 'center' }}>
                     {editAllowed(row) && (
                       <button
                         className="bridge-edit mr-1 inline-flex items-center rounded-md px-2.5 py-1 text-[11px]"

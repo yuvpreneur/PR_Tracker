@@ -7,14 +7,14 @@ import DataTable from '../../components/ui/DataTable.jsx';
 import usePermissions from '../../hooks/usePermissions.js';
 import { openModal, startCreate, set, resetFields } from '../../bridge/shared/modals.js';
 
-const ROLES = ['Admin', 'Manager', 'Finance User', 'Employee', 'Viewer'];
+const ROLES = ['Admin', 'Manager', 'Finance User', 'Employee'];
 
 const COLUMNS = [
   { key: 'username', header: 'ID', render: r => <strong>{r.username || '—'}</strong> },
-  { key: 'name', header: 'Name' },
-  { key: 'email', header: 'Email' },
-  { key: 'role', header: 'Role', render: r => <Badge status={r.role} /> },
-  { key: 'is_active', header: 'Status', render: r => <Badge status={r.pending ? 'Pending' : (r.is_active ? 'Active' : 'Inactive')} /> },
+  { key: 'name', header: 'Name', align: 'center' },
+  { key: 'email', header: 'Email', align: 'center' },
+  { key: 'role', header: 'Role', render: r => <Badge status={r.role} />, align: 'center' },
+  { key: 'is_active', header: 'Status', render: r => <Badge status={r.pending ? 'Pending' : (r.is_active ? 'Active' : 'Inactive')} />, align: 'center' },
 ];
 
 export default function UsersPage() {
@@ -78,8 +78,8 @@ export default function UsersPage() {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><UserCog size={22} /> User Management</h2>
+      <div className="page-header">
+        <h2><UserCog size={22} /> User Management</h2>
         {canCreateOnPage('users') && (
           <Button variant="primary" onClick={handleNew}><Plus size={15} /> Create User</Button>
         )}

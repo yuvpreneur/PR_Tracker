@@ -77,30 +77,29 @@ export default function PayRegisterTab() {
 
   return (
     <div>
-      {(canEdit || canDelete) && (
-        <div className="mb-4 flex justify-end gap-2">
-          {canDelete && register && (
-            <Button variant="danger" onClick={handleDelete}>
-              <Trash2 size={15} /> Delete
-            </Button>
-          )}
-          {canEdit && (
-            <>
-              <input ref={fileInputRef} type="file" accept=".xlsx,.xlsm" hidden onChange={handleFileChange} />
-              <Button variant="primary" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-                {uploading ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
-                {uploading ? 'Uploading…' : 'Upload Pay Register'}
-              </Button>
-            </>
-          )}
-        </div>
-      )}
-
       {periods.length > 0 && (
-        <div className="filter-bar">
-          <select className="form-control" value={period || ''} onChange={e => setPeriod(e.target.value)}>
+        <div className="mb-5 flex items-center justify-between gap-2">
+          <select className="form-control" style={{ width: 'auto', minWidth: '140px' }} value={period || ''} onChange={e => setPeriod(e.target.value)}>
             {periods.map(p => <option key={p.period} value={p.period}>{formatPeriod(p.period)}</option>)}
           </select>
+          {(canEdit || canDelete) && (
+            <div className="flex gap-2">
+              {canDelete && register && (
+                <Button variant="danger" onClick={handleDelete}>
+                  <Trash2 size={15} /> Delete
+                </Button>
+              )}
+              {canEdit && (
+                <>
+                  <input ref={fileInputRef} type="file" accept=".xlsx,.xlsm" hidden onChange={handleFileChange} />
+                  <Button variant="primary" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                    {uploading ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
+                    {uploading ? 'Uploading…' : 'Upload Pay Register'}
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -130,15 +129,8 @@ export default function PayRegisterTab() {
         <table className="w-full border-separate border-spacing-0 text-[13px]" style={{ whiteSpace: 'nowrap' }}>
           <thead>
             <tr>
-              {SECTION_COLUMN_COUNTS.filter(s => s.count > 0).map(s => (
-                <th key={s.key} colSpan={s.count} className="border-b border-line bg-slate-50 px-3.5 py-2 text-left text-[11px] font-black uppercase tracking-wide text-muted">
-                  {s.label}
-                </th>
-              ))}
-            </tr>
-            <tr>
               {COLUMNS.map(c => (
-                <th key={c.key} className="px-3.5 py-3 text-left text-[11px] font-black uppercase tracking-wide text-muted">
+                <th key={c.key} className="px-3.5 py-3 text-[11px] font-black uppercase tracking-wide" style={{ textAlign: c.align || 'left' }}>
                   {c.header}
                 </th>
               ))}
@@ -159,7 +151,7 @@ export default function PayRegisterTab() {
                 style={row.employee_found === false ? { background: 'var(--amber-soft)' } : undefined}
               >
                 {COLUMNS.map((c, ci) => (
-                  <td key={c.key} className="px-3 py-2.5">
+                  <td key={c.key} className="px-3 py-2.5" style={{ textAlign: c.align || 'left' }}>
                     {ci === 1 && row.employee_found === false ? (
                       <span title="Not found in Employees" className="inline-flex items-center gap-1">
                         <AlertTriangle size={13} style={{ color: 'var(--amber)' }} />
@@ -178,9 +170,9 @@ export default function PayRegisterTab() {
               <tr aria-hidden="true">
                 <td colSpan={COLUMNS.length} style={{ height: 18, padding: 0, border: 'none' }} />
               </tr>
-              <tr className="border-t-2 font-bold" style={{ borderColor: 'var(--color-brand)', background: 'rgba(0,134,173,0.06)' }}>
+              <tr className="border-t-2 font-bold" style={{ borderColor: 'var(--rose)', background: 'var(--rose-soft)' }}>
                 {COLUMNS.map((c, i) => (
-                  <td key={c.key} className="px-3 py-3">
+                  <td key={c.key} className="px-3 py-3" style={{ textAlign: c.align || 'left' }}>
                     {i === 2 ? <span className="text-[11px] font-black uppercase tracking-wide">Total</span> : (c.type === 'number' && totals[c.key] != null ? fmtNum(totals[c.key]) : '')}
                   </td>
                 ))}

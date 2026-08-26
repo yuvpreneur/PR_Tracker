@@ -9,10 +9,18 @@ import usePermissions from '../../hooks/usePermissions.js';
 
 const COLUMNS = [
   { key: 'name', header: 'Company', render: r => <strong>{r.name}</strong> },
-  { key: 'industry', header: 'Industry' },
-  { key: 'primary_contact', header: 'Primary Contact', render: r => r.primary_contact || '—' },
-  { key: 'active_projects', header: 'Active Projects' },
-  { key: 'status', header: 'Status', render: r => <Badge status={r.status} /> },
+  { key: 'industry', header: 'Industry', align: 'center' },
+  { key: 'primary_contact', header: 'Primary Contact', align: 'center', render: r => r.primary_contact || '—' },
+  { key: 'active_projects', header: 'Active Projects', align: 'center' },
+  { key: 'status', header: 'Status', align: 'center', render: r => <Badge status={r.status} /> },
+  {
+    key: 'pm_sync_status', header: 'PR Manager', align: 'center',
+    render: r => (
+      <span title={r.pm_missing_fields?.length ? `Needs: ${r.pm_missing_fields.join(', ')}` : undefined}>
+        <Badge status={r.pm_sync_status} />
+      </span>
+    ),
+  },
 ];
 
 export default function CompaniesPage() {
@@ -40,8 +48,8 @@ export default function CompaniesPage() {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Building2 size={22} /> Companies</h2>
+      <div className="page-header">
+        <h2><Building2 size={22} /> Companies</h2>
         {canCreateOnPage('companies') && (
           <Button variant="primary" onClick={handleNewCompany}><Plus size={15} /> New Company</Button>
         )}

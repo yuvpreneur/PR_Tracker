@@ -14,6 +14,10 @@ const STATUS_COLORS = {
   Draft: '#94a3b8', Sent: '#3b82f6', Void: '#ef4444',
   Completed: '#22c55e', 'On Hold': '#f59e0b', 'Waiting Approval': '#f97316',
   'Pending Finance': '#8b5cf6',
+  // PR Manager sync status (Companies/Projects/Employees)
+  Synced: '#22c55e', 'Not Synced': '#94a3b8', Incomplete: '#f59e0b',
+  Blocked: '#ef4444', 'Sync Failed': '#ef4444',
+  'Not Enabled': '#94a3b8', 'Pending Invite': '#f59e0b',
 };
 
 // Icon reflects the color tier (not the literal status text), so it stays correct

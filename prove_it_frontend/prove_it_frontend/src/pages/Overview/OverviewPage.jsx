@@ -38,7 +38,7 @@ function PlanBar({ name, count, max }) {
         <span style={{ color: 'var(--muted)' }}>{count} org{count === 1 ? '' : 's'}</span>
       </div>
       <div style={{ height: 8, borderRadius: 999, background: 'var(--soft)', overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${pct}%`, borderRadius: 999, background: 'var(--accent)' }} />
+        <div style={{ height: '100%', width: `${pct}%`, borderRadius: 999, background: 'var(--rose)' }} />
       </div>
     </div>
   );
@@ -52,21 +52,18 @@ export default function OverviewPage() {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><LayoutGrid size={22} /> Overview</h2>
+      <div className="page-header">
+        <h2><LayoutGrid size={22} /> Overview</h2>
       </div>
-      <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: -8, marginBottom: 18 }}>
-        Live platform metrics and system health.
-      </p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 18, marginBottom: 28 }}>
         <StatCard
           label="Organizations" value={loading ? '—' : String(data.organizations.total)}
           sub={`+${data.organizations.new_this_month} this month`} color="#7357E5" icon={Building2}
         />
         <StatCard
           label="Platform Users" value={loading ? '—' : String(data.users.total)}
-          sub="Across all organizations" color="#0086AD" icon={Users}
+          sub="Across all organizations" color="#E8607A" icon={Users}
         />
         <StatCard
           label="Active Subscriptions" value={loading ? '—' : String(data.subscriptions.active_paid)}
@@ -78,9 +75,9 @@ export default function OverviewPage() {
         />
       </div>
 
-      <div className="grid-2">
-        <div className="card">
-          <SectionTitle icon={PieChart}>Plan Distribution</SectionTitle>
+      <div className="grid-2" style={{ gap: 20 }}>
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <SectionTitle icon={PieChart} subdued={false}>Plan Distribution</SectionTitle>
           {data.plan_distribution.length === 0 ? (
             <p style={{ color: 'var(--muted)', fontSize: 13 }}>{loading ? 'Loading…' : 'No active subscriptions yet.'}</p>
           ) : (
@@ -90,8 +87,8 @@ export default function OverviewPage() {
           )}
         </div>
 
-        <div className="card">
-          <SectionTitle icon={Server}>System Health</SectionTitle>
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <SectionTitle icon={Server} subdued={false}>System Health</SectionTitle>
           <HealthRow label="API Server" value={data.system_health.api} icon={Server} />
           <HealthRow label="Database" value={data.system_health.database} icon={Database} />
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0' }}>
@@ -105,17 +102,17 @@ export default function OverviewPage() {
         </div>
       </div>
 
-      <div className="grid-2" style={{ marginTop: 18, alignItems: 'start' }}>
-        <div className="card">
-          <SectionTitle icon={TrendingUp}>Revenue Growth</SectionTitle>
+      <div className="grid-2" style={{ marginTop: 24, alignItems: 'start', gap: 20 }}>
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <SectionTitle icon={TrendingUp} subdued={false}>Revenue Growth</SectionTitle>
           <RevenueGrowthChart points={data.revenue_growth} />
-          <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8, marginBottom: 0 }}>
+          <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4, marginBottom: 0 }}>
             Approximated from each organization's signup date and current plan — historical billing isn't tracked.
           </p>
         </div>
 
-        <div className="card">
-          <SectionTitle icon={ClipboardList}>Recent Audit Log</SectionTitle>
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <SectionTitle icon={ClipboardList} subdued={false}>Recent Audit Log</SectionTitle>
           <div className="table-wrap">
             <table>
               <thead>

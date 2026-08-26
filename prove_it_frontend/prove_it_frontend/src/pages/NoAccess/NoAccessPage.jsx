@@ -59,9 +59,13 @@ export default function NoAccessPage() {
       <Button variant="primary" onClick={handleSubmit} disabled={submitting}>
         {submitting ? 'Submitting…' : 'Request Access'}
       </Button>
-      <Button variant="ghost" onClick={() => navigate('/dashboard')} style={{ marginLeft: 10 }}>
+      <button
+        className="btn"
+        style={{ background: 'var(--rose-soft)', color: 'var(--rose)', border: '1px solid var(--line)', borderRadius: 10, marginLeft: 10, padding: '10px 16px', fontSize: 13, fontWeight: 600 }}
+        onClick={() => navigate('/dashboard')}
+      >
         Back to Dashboard
-      </Button>
+      </button>
     </div>
   );
 }

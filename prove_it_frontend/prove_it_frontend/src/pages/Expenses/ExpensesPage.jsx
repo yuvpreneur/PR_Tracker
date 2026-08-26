@@ -26,20 +26,21 @@ export default function ExpensesPage() {
 
   const columns = useMemo(() => [
     { key: 'project_id', header: 'Project', render: r => projectName(r.project_id) || r.project_id },
-    { key: 'project_code_id', header: 'Project Code', render: r => r.project_code_id || '—' },
-    { key: 'billing_code_id', header: 'Billing Code', render: r => r.billing_code_id || '—' },
-    { key: 'category', header: 'Category', render: r => <Badge status={r.category} /> },
-    { key: 'expense_date', header: 'Date', render: r => date(r.expense_date) },
-    { key: 'amount', header: 'Amount', render: r => `₹${r.amount.toLocaleString('en-IN')}` },
-    { key: 'vendor', header: 'Vendor', render: r => r.vendor || '—' },
+    { key: 'project_code_id', header: 'Project Code', render: r => r.project_code_id || '—', align: 'center' },
+    { key: 'billing_code_id', header: 'Billing Code', render: r => r.billing_code_id || '—', align: 'center' },
+    { key: 'category', header: 'Category', render: r => <Badge status={r.category} />, align: 'center' },
+    { key: 'expense_date', header: 'Date', render: r => date(r.expense_date), align: 'center' },
+    { key: 'amount', header: 'Amount', render: r => `₹${r.amount.toLocaleString('en-IN')}`, align: 'center' },
+    { key: 'vendor', header: 'Vendor', render: r => r.vendor || '—', align: 'center' },
     {
       key: 'receipt_url',
       header: 'Receipt',
       render: r => (r.receipt_url ? (
         <button type="button" className="text-[12px] underline" onClick={() => viewAttachment(r.receipt_url)}><Paperclip size={13} /> View</button>
       ) : '—'),
+      align: 'center',
     },
-    { key: 'status', header: 'Status', render: r => <Badge status={r.status} /> },
+    { key: 'status', header: 'Status', render: r => <Badge status={r.status} />, align: 'center' },
     {
       key: 'reject_reason',
       header: 'Reason',
@@ -47,6 +48,7 @@ export default function ExpensesPage() {
       // why it was submitted); every other status falls back to the submitter's own
       // description of the expense.
       render: r => (r.status === 'Rejected' ? (r.reject_reason || '—') : (r.description || '—')),
+      align: 'center',
     },
   ], [projects]);
 
@@ -129,13 +131,13 @@ export default function ExpensesPage() {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Wallet size={22} /> Expenses</h2>
+      <div className="page-header">
+        <h2><Wallet size={22} /> Expenses</h2>
         {canCreateOnPage('expenses') && (
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" onClick={handleUploadClick} disabled={extracting}>
+          <div className="flex items-end gap-2">
+            <button type="button" className="btn btn-ghost" style={{ color: 'var(--rose)', borderColor: 'var(--rose)' }} onClick={handleUploadClick} disabled={extracting}>
               {extracting ? 'Analyzing…' : (<><Upload size={14} /> Upload File</>)}
-            </Button>
+            </button>
             <input
               ref={uploadInputRef}
               type="file"

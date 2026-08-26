@@ -38,6 +38,14 @@ export const val = (m, h, def = '') => field(m, h)?.value?.trim() || def;
 
 export function set(m, h, v) { const el = field(m, h); if (el) el.value = v ?? ''; }
 
+// checked()/setChecked() — the checkbox counterparts of val()/set(). Every other boolean
+// in these modals is a two-option <select> (see Billable), read/written via .value; a
+// real <input type="checkbox"> (e.g. Employee's "Allow PR Manager Access") needs .checked
+// instead, which val()/set() don't touch.
+export const checked = (m, h) => !!field(m, h)?.checked;
+
+export function setChecked(m, h, v) { const el = field(m, h); if (el) el.checked = !!v; }
+
 // Clears every input/select/textarea inside a modal. These modals are persistent DOM
 // nodes shared between Edit and Create (set() populates fields for Edit; nothing ever
 // clears them afterward) — without this, opening "+ New X" right after editing/viewing

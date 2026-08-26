@@ -18,18 +18,18 @@ export default function PayrollPage() {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 className="flex items-center gap-2"><Landmark size={22} /> Payroll</h2>
+      <div className="page-header">
+        <h2><Landmark size={22} /> Payroll</h2>
       </div>
 
-      <div className="mb-5 flex gap-1 border-b border-line">
+      <div className="mb-5 flex gap-2">
         {TABS.map(t => (
           <button
             key={t.id}
             type="button"
             onClick={() => setTab(t.id)}
-            className={`px-3.5 py-2 text-[13px] font-semibold ${tab === t.id ? 'border-b-2 border-brand text-brand-3' : 'text-muted'}`}
-            style={tab === t.id ? { borderColor: 'var(--color-brand)' } : undefined}
+            className={`px-4 py-2 text-[13px] font-semibold rounded-lg border-none ${tab === t.id ? 'text-white' : ''}`}
+            style={tab === t.id ? { background: 'var(--rose)' } : { background: 'var(--rose-soft)', color: 'var(--rose)' }}
           >
             {t.label}
           </button>

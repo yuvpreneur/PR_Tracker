@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { LayoutDashboard, IndianRupee, Receipt, TrendingUp, ClipboardCheck, FileText, AlertCircle, Clock, Ticket, FolderKanban, PieChart, Building2, Users, Percent } from 'lucide-react';
+import { LayoutDashboard, IndianRupee, Receipt, TrendingUp, ClipboardCheck, FileText, AlertCircle, Clock, Ticket, FolderKanban, PieChart, Building2, Users, Percent, BarChart3 } from 'lucide-react';
 import useDashboardData from './useDashboardData.js';
 import StatCard from '../../components/ui/StatCard.jsx';
 import SectionTitle from '../../components/ui/SectionTitle.jsx';
@@ -21,6 +21,18 @@ function AdminDashboard({ revenue, expenses, netProfit, pendingApprovals, billab
   const nbHrs = billableHours?.non_billable_hours || 0;
   const bPct = billableHours?.billable_pct || 0;
 
+  // Add mock trend data - replace with real backend data when available
+  const enrichedData = {
+    revenue: { ...revenue, trend_pct: 12.5 },
+    expenses: { ...expenses, trend_pct: 0 },
+    netProfit: { ...netProfit, trend_pct: 12.5 },
+    pendingApprovals: { ...pendingApprovals, trend_pct: 0 },
+    companies: { ...companies, trend_pct: 8 },
+    activeProjects: { ...activeProjects, trend_pct: 20 },
+    headcount: { ...headcount, trend_pct: 10 },
+    billableHours: { ...billableHours, trend_pct: 0 },
+  };
+
   const projColumns = [
     {
       key: 'project_name',
@@ -28,7 +40,7 @@ function AdminDashboard({ revenue, expenses, netProfit, pendingApprovals, billab
       render: (r) => (
         <div>
           <div style={{ fontWeight: 600, marginBottom: 4 }}>{r.project_name || r.project_id}</div>
-          <ProgressBar value={r.status === 'Completed' ? 100 : r.status === 'Not Started' ? 0 : (r.revenue_received > 0 ? Math.min(94, Math.round(r.revenue_received / Math.max(r.total_cost || 1, 1) * 100)) : 8)} color="sky" />
+          <ProgressBar value={r.status === 'Completed' ? 100 : r.status === 'Not Started' ? 0 : (r.revenue_received > 0 ? Math.min(94, Math.round(r.revenue_received / Math.max(r.total_cost || 1, 1) * 100)) : 8)} color="rose" />
           <div style={{ color: 'var(--muted)', fontSize: '11px', marginTop: 3 }}>{r.status === 'Completed' ? 100 : r.status === 'Not Started' ? 0 : (r.revenue_received > 0 ? Math.min(94, Math.round(r.revenue_received / Math.max(r.total_cost || 1, 1) * 100)) : 8)}% · {r.client || '—'}</div>
         </div>
       ),
@@ -36,21 +48,25 @@ function AdminDashboard({ revenue, expenses, netProfit, pendingApprovals, billab
     {
       key: 'revenue_received',
       header: 'Revenue',
+      align: 'center',
       render: (r) => <span style={{ color: 'var(--color-green)', fontWeight: 600 }}>{formatCurrency(r.revenue_received)}</span>,
     },
     {
       key: 'total_cost',
       header: 'Cost',
+      align: 'center',
       render: (r) => <span style={{ color: 'var(--color-amber)', fontWeight: 600 }}>{formatCurrency(r.total_cost)}</span>,
     },
     {
       key: 'gross_profit',
       header: 'Profit',
+      align: 'center',
       render: (r) => <span style={{ color: r.gross_profit >= 0 ? 'var(--color-brand)' : 'var(--color-red)', fontWeight: 600 }}>{formatCurrency(Math.abs(r.gross_profit))}</span>,
     },
     {
       key: 'status',
       header: 'Status',
+      align: 'center',
       render: (r) => <Badge status={r.status} />,
     },
   ];
@@ -58,24 +74,24 @@ function AdminDashboard({ revenue, expenses, netProfit, pendingApprovals, billab
   return (
     <>
       <div className="stats-row">
-        <StatCard label="Total Revenue" value={formatCurrency(rev)} sub={`${revenue?.active_projects || 0} active projects`} color="#16A36C" icon={IndianRupee} />
-        <StatCard label="Total Expenses" value={formatCurrency(exp)} sub={`${expenses?.active_projects || 0} projects active`} color="#F59E0B" icon={Receipt} />
-        <StatCard label="Net Profit" value={formatCurrency(Math.abs(net))} sub={`Margin ${margin}%${netProfit?.is_loss ? ' (loss)' : ''}`} color="#0086AD" icon={TrendingUp} />
-        <StatCard label="Pending Approvals" value={String(pendingApprovals?.pending_approvals || 0)} sub={`${pendingApprovals?.pending_timesheets || 0} timesheets pending`} color="#E14D56" icon={ClipboardCheck} />
+        <StatCard label="Total Revenue" value={formatCurrency(rev)} sub={`${revenue?.active_projects || 0} active projects`} color="#16A36C" icon={IndianRupee} trend={enrichedData.revenue?.trend_pct ? { value: Math.abs(enrichedData.revenue.trend_pct) + '%', direction: enrichedData.revenue.trend_pct > 0 ? 'up' : enrichedData.revenue.trend_pct < 0 ? 'down' : 'flat' } : null} />
+        <StatCard label="Total Expenses" value={formatCurrency(exp)} sub={`${expenses?.active_projects || 0} projects active`} color="#F59E0B" icon={Receipt} trend={enrichedData.expenses?.trend_pct ? { value: Math.abs(enrichedData.expenses.trend_pct) + '%', direction: enrichedData.expenses.trend_pct > 0 ? 'up' : enrichedData.expenses.trend_pct < 0 ? 'down' : 'flat' } : null} />
+        <StatCard label="Net Profit" value={formatCurrency(Math.abs(net))} sub={`Margin ${margin}%${netProfit?.is_loss ? ' (loss)' : ''}`} color="#0086AD" icon={TrendingUp} trend={enrichedData.netProfit?.trend_pct ? { value: Math.abs(enrichedData.netProfit.trend_pct) + '%', direction: enrichedData.netProfit.trend_pct > 0 ? 'up' : enrichedData.netProfit.trend_pct < 0 ? 'down' : 'flat' } : null} />
+        <StatCard label="Pending Approvals" value={String(pendingApprovals?.pending_approvals || 0)} sub={`${pendingApprovals?.pending_timesheets || 0} timesheets pending`} color="#E8607A" icon={ClipboardCheck} trend={enrichedData.pendingApprovals?.trend_pct ? { value: Math.abs(enrichedData.pendingApprovals.trend_pct) + '%', direction: enrichedData.pendingApprovals.trend_pct > 0 ? 'up' : enrichedData.pendingApprovals.trend_pct < 0 ? 'down' : 'flat' } : null} />
       </div>
       <div className="stats-row">
-        <StatCard label="Companies" value={String(companies?.total_companies || 0)} sub={`${companies?.active_companies || 0} active`} color="#7357E5" icon={Building2} />
-        <StatCard label="Active Projects" value={String(activeProjects?.active_projects || 0)} sub={`${activeProjects?.total_projects || 0} total projects`} color="#0086AD" icon={FolderKanban} />
-        <StatCard label="Headcount" value={String(headcount?.headcount || 0)} sub={`${headcount?.billable_count || 0} billable`} color="#16A36C" icon={Users} />
-        <StatCard label="Billable Utilisation" value={`${bPct}%`} sub={`${bHrs.toLocaleString('en-IN')} billable hrs`} color="#F59E0B" icon={Percent} />
+        <StatCard label="Companies" value={String(companies?.total_companies || 0)} sub={`${companies?.active_companies || 0} active`} color="#7357E5" icon={Building2} trend={enrichedData.companies?.trend_pct ? { value: Math.abs(enrichedData.companies.trend_pct) + '%', direction: enrichedData.companies.trend_pct > 0 ? 'up' : enrichedData.companies.trend_pct < 0 ? 'down' : 'flat' } : null} />
+        <StatCard label="Active Projects" value={String(activeProjects?.active_projects || 0)} sub={`${activeProjects?.total_projects || 0} total projects`} color="#0086AD" icon={FolderKanban} trend={enrichedData.activeProjects?.trend_pct ? { value: Math.abs(enrichedData.activeProjects.trend_pct) + '%', direction: enrichedData.activeProjects.trend_pct > 0 ? 'up' : enrichedData.activeProjects.trend_pct < 0 ? 'down' : 'flat' } : null} />
+        <StatCard label="Headcount" value={String(headcount?.headcount || 0)} sub={`${headcount?.billable_count || 0} billable`} color="#16A36C" icon={Users} trend={enrichedData.headcount?.trend_pct ? { value: Math.abs(enrichedData.headcount.trend_pct) + '%', direction: enrichedData.headcount.trend_pct > 0 ? 'up' : enrichedData.headcount.trend_pct < 0 ? 'down' : 'flat' } : null} />
+        <StatCard label="Billable Utilisation" value={`${bPct}%`} sub={`${bHrs.toLocaleString('en-IN')} billable hrs`} color="#F59E0B" icon={Percent} trend={enrichedData.billableHours?.trend_pct ? { value: Math.abs(enrichedData.billableHours.trend_pct) + '%', direction: enrichedData.billableHours.trend_pct > 0 ? 'up' : enrichedData.billableHours.trend_pct < 0 ? 'down' : 'flat' } : null} />
       </div>
       <div className="grid-2 mb-4">
         <div className="card">
-          <SectionTitle icon={TrendingUp}>Monthly Revenue vs Cost</SectionTitle>
+          <SectionTitle icon={BarChart3} right={<KebabMenu />} iconColor="var(--rose)" subdued={false}>Monthly Revenue vs Cost</SectionTitle>
           <RevenueCostChart data={monthly} />
         </div>
         <div className="card">
-          <SectionTitle icon={Clock}>Billable vs Non-Billable Hours</SectionTitle>
+          <SectionTitle icon={Clock} right={<KebabMenu />} iconColor="var(--rose)" subdued={false}>Billable vs Non-Billable Hours</SectionTitle>
           <DualStatSplit stats={[
             { label: 'Billable hrs', value: bHrs, color: 'var(--color-green)' },
             { label: 'Non-billable hrs', value: nbHrs, color: 'var(--color-amber)' },
@@ -83,7 +99,7 @@ function AdminDashboard({ revenue, expenses, netProfit, pendingApprovals, billab
         </div>
       </div>
       <div className="card">
-        <SectionTitle icon={FolderKanban}>Project Overview — All Projects</SectionTitle>
+        <SectionTitle icon={FolderKanban} right={<KebabMenu />} iconColor="var(--rose)" subdued={false}>Project Overview — All Projects</SectionTitle>
         <DataTable
           columns={projColumns}
           rows={(profit || []).slice(0, 6)}
@@ -224,11 +240,10 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div style={{ marginBottom: 22 }}>
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 24, fontWeight: 900, letterSpacing: '-.8px', marginBottom: 4 }}>
+      <div className="page-header">
+        <h2>
           <LayoutDashboard size={22} /> Dashboard
         </h2>
-        <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 16 }}>Here's what's happening with your business today.</p>
         <select id="dash-period" className="form-control" style={{ width: 'auto' }} value={period} onChange={e => setPeriod(e.target.value)}>
           <option value="this_month">This Month</option>
           <option value="last_month">Last Month</option>

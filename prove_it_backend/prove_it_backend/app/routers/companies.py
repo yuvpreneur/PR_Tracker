@@ -2,12 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pymongo.database import Database
 from pydantic import BaseModel
 from typing import Optional
+from datetime import datetime, timezone
 
 from app.core import collections
 from app.core.database import get_db
 from app.core.mongo_utils import next_id, like, get_or_404
 from app.core.security import get_current_user, require_permission
 from app.core.audit import log_action
+from app.core import prmanager_client
 from app.core.permissions import assigned_project_ids
 
 router = APIRouter()
@@ -47,6 +49,11 @@ def _out(c: dict, db: Database):
         "phone": c.get("phone"), "gstin": c.get("gstin"), "billing_address": c.get("billing_address"),
         "status": c["status"],
         "active_projects": active_projects, "lifetime_value": lifetime_value,
+        # PR Manager sync (system-managed — never accepted from CompanyCreate/CompanyUpdate)
+        "pm_org_id": c.get("pm_org_id"),
+        "pm_sync_status": c.get("pm_sync_status", "Not Synced"),
+        "pm_missing_fields": c.get("pm_missing_fields", []),
+        "pm_last_synced_at": c.get("pm_last_synced_at"),
     }
 
 
@@ -84,9 +91,14 @@ def create(payload: CompanyCreate, db: Database = Depends(get_db), cu=Depends(ge
     if payload.status not in STATUSES:
         raise HTTPException(400, f"status must be one of {STATUSES}")
     cid = f"CO{next_id(db, collections.COMPANIES):03d}"
-    doc = {"_id": cid, "id": cid, "org_id": cu.org_id, **payload.dict()}
+    doc = {
+        "_id": cid, "id": cid, "org_id": cu.org_id, **payload.dict(),
+        "pm_org_id": None, "pm_sync_status": "Not Synced", "pm_missing_fields": [],
+        "pm_last_synced_at": None, "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
     db[collections.COMPANIES].insert_one(doc)
     log_action(db, user=cu.name, action="CREATE", module="Companies", org_id=cu.org_id, record_id=cid, detail=f"Created company: {doc['name']}")
+    doc.update(prmanager_client.sync_company_to_pm(db, doc))
     return _out(doc, db)
 
 
@@ -97,8 +109,10 @@ def update(company_id: str, payload: CompanyUpdate, db: Database = Depends(get_d
     if "status" in patch and patch["status"] not in STATUSES:
         raise HTTPException(400, f"status must be one of {STATUSES}")
     if patch:
+        patch["updated_at"] = datetime.now(timezone.utc).isoformat()
         db[collections.COMPANIES].update_one({"_id": company_id, "org_id": cu.org_id}, {"$set": patch})
         c = get_or_404(db, collections.COMPANIES, company_id, cu.org_id, "Company not found")
+        c.update(prmanager_client.sync_company_to_pm(db, c))
     log_action(db, user=cu.name, action="UPDATE", module="Companies", org_id=cu.org_id, record_id=company_id, detail=f"Updated company: {c['name']}")
     return _out(c, db)
 

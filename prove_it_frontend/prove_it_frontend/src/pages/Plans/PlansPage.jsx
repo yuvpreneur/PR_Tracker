@@ -59,8 +59,8 @@ export default function PlansPage() {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><CreditCard size={22} /> Plans</h2>
+      <div className="page-header">
+        <h2><CreditCard size={22} /> Plans</h2>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
@@ -82,7 +82,7 @@ export default function PlansPage() {
                 <strong style={{ fontSize: 15 }}>{plan.name}</strong>
                 <Badge status={plan.is_active ? 'Active' : 'Inactive'} />
               </div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--accent)' }}>
+              <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--rose)' }}>
                 {plan.is_free ? 'Free' : `${money(plan.price_monthly)}/mo`}
               </div>
               <p style={{ fontSize: 12, color: 'var(--muted)', minHeight: 32, margin: 0 }}>{plan.description || '—'}</p>
@@ -90,14 +90,14 @@ export default function PlansPage() {
               <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
                 <button
                   className="btn btn-sm"
-                  style={{ background: 'var(--soft)', color: 'var(--accent)', border: '1px solid var(--line)' }}
+                  style={{ background: 'var(--rose-soft)', color: 'var(--rose)', border: '1px solid var(--line)' }}
                   onClick={() => { setEditingPlan({ ...blankPlan, ...plan }); setPlanError(''); }}
                 >
                   <Pencil size={13} /> Edit
                 </button>
                 <button
                   className="btn btn-sm"
-                  style={{ background: 'var(--soft)', color: 'var(--accent)', border: '1px solid var(--line)' }}
+                  style={{ background: 'var(--rose-soft)', color: 'var(--rose)', border: '1px solid var(--line)' }}
                   onClick={() => toggleArchived(plan)}
                 >
                   {plan.is_active ? <><Archive size={13} /> Archive</> : <><RotateCcw size={13} /> Restore</>}

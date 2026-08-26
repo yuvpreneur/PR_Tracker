@@ -1,11 +1,11 @@
 export default function ProgressBar({ value = 0, color = 'brand', label = null }) {
   const colorMap = {
-    brand: 'linear-gradient(90deg, var(--color-brand), var(--color-brand-2))',
-    rose: 'var(--color-rose)',
-    green: 'var(--color-green)',
-    amber: 'var(--color-amber)',
-    sky: 'var(--color-brand)',
-    red: 'var(--color-red)',
+    brand: 'linear-gradient(90deg, #0086AD, #00A6D4)',
+    rose: '#E8607A',
+    green: '#16A36C',
+    amber: '#F59E0B',
+    sky: '#0086AD',
+    red: '#E14D56',
   };
 
   const bgColor = colorMap[color] || colorMap.brand;
@@ -19,7 +19,7 @@ export default function ProgressBar({ value = 0, color = 'brand', label = null }
         </div>
       )}
       <div style={{
-        background: '#E7F0F4',
+        background: color === 'rose' ? '#F5D5DD' : '#E7F0F4',
         borderRadius: '99px',
         height: '8px',
         overflow: 'hidden',

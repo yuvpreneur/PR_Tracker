@@ -202,7 +202,7 @@ export default function Login() {
               )}
 
               <div style={{ textAlign: 'right' }}>
-                <a href="#" onClick={e => { e.preventDefault(); switchMode('forgot'); }} style={{ color: 'var(--accent)', fontSize: '12px' }}>Forgot password?</a>
+                <a href="#" onClick={e => { e.preventDefault(); switchMode('forgot'); }} style={{ color: 'var(--rose)', fontSize: '12px' }}>Forgot password?</a>
               </div>
 
               <button
@@ -217,7 +217,7 @@ export default function Login() {
               {registerAvailable && (
                 <p style={{ textAlign: 'center', fontSize: '13px', margin: 0, color: 'var(--slate)' }}>
                   First time setting up?{' '}
-                  <a href="#" onClick={e => { e.preventDefault(); switchMode('register'); }} style={{ color: 'var(--accent)' }}>
+                  <a href="#" onClick={e => { e.preventDefault(); switchMode('register'); }} style={{ color: 'var(--rose)' }}>
                     Create the admin account
                   </a>
                 </p>
@@ -226,7 +226,7 @@ export default function Login() {
               {superAdminAvailable && (
                 <p style={{ textAlign: 'center', fontSize: '13px', margin: 0, color: 'var(--slate)' }}>
                   Setting up the platform?{' '}
-                  <a href="#" onClick={e => { e.preventDefault(); switchMode('register-super-admin'); }} style={{ color: 'var(--accent)' }}>
+                  <a href="#" onClick={e => { e.preventDefault(); switchMode('register-super-admin'); }} style={{ color: 'var(--rose)' }}>
                     Create the Super Admin account
                   </a>
                 </p>
@@ -310,7 +310,7 @@ export default function Login() {
               </button>
 
               <p style={{ textAlign: 'center', fontSize: '13px', margin: 0 }}>
-                <a href="#" onClick={e => { e.preventDefault(); switchMode('login'); }} style={{ color: 'var(--accent)' }}>
+                <a href="#" onClick={e => { e.preventDefault(); switchMode('login'); }} style={{ color: 'var(--rose)' }}>
                   <ArrowLeft size={12} style={{ verticalAlign: '-2px' }} /> Back to sign in
                 </a>
               </p>
@@ -382,7 +382,7 @@ export default function Login() {
               </button>
 
               <p style={{ textAlign: 'center', fontSize: '13px', margin: 0 }}>
-                <a href="#" onClick={e => { e.preventDefault(); switchMode('login'); }} style={{ color: 'var(--accent)' }}>
+                <a href="#" onClick={e => { e.preventDefault(); switchMode('login'); }} style={{ color: 'var(--rose)' }}>
                   <ArrowLeft size={12} style={{ verticalAlign: '-2px' }} /> Back to sign in
                 </a>
               </p>
@@ -405,7 +405,7 @@ export default function Login() {
                 )}
 
                 <p style={{ textAlign: 'center', fontSize: '13px', margin: 0 }}>
-                  <a href="#" onClick={e => { e.preventDefault(); setForgotSubmitted(false); setForgotEmail(''); setForgotResetLink(''); switchMode('login'); }} style={{ color: 'var(--accent)' }}>
+                  <a href="#" onClick={e => { e.preventDefault(); setForgotSubmitted(false); setForgotEmail(''); setForgotResetLink(''); switchMode('login'); }} style={{ color: 'var(--rose)' }}>
                     <ArrowLeft size={12} style={{ verticalAlign: '-2px' }} /> Back to sign in
                   </a>
                 </p>
@@ -444,7 +444,7 @@ export default function Login() {
                 </button>
 
                 <p style={{ textAlign: 'center', fontSize: '13px', margin: 0 }}>
-                  <a href="#" onClick={e => { e.preventDefault(); switchMode('login'); }} style={{ color: 'var(--accent)' }}>
+                  <a href="#" onClick={e => { e.preventDefault(); switchMode('login'); }} style={{ color: 'var(--rose)' }}>
                     <ArrowLeft size={12} style={{ verticalAlign: '-2px' }} /> Back to sign in
                   </a>
                 </p>
@@ -495,7 +495,7 @@ export default function Login() {
               </button>
 
               <p style={{ textAlign: 'center', fontSize: '13px', margin: 0 }}>
-                <a href="#" onClick={e => { e.preventDefault(); navigate('/', { replace: true }); switchMode('forgot'); }} style={{ color: 'var(--accent)' }}>
+                <a href="#" onClick={e => { e.preventDefault(); navigate('/', { replace: true }); switchMode('forgot'); }} style={{ color: 'var(--rose)' }}>
                   <ArrowLeft size={12} style={{ verticalAlign: '-2px' }} /> Request a new link
                 </a>
               </p>

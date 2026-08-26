@@ -13,13 +13,13 @@ import { openModal, startCreate, resetFields } from '../../bridge/shared/modals.
 // legacy loadTimesheets(), which does the same (unlike Billing/Project Codes' pages).
 const COLUMNS = [
   { key: 'emp_id', header: 'Employee', render: r => <strong>{r.emp_id}</strong> },
-  { key: 'name', header: 'Name', render: r => r.name || r.emp_id },
-  { key: 'entry_date', header: 'Date', render: r => date(r.entry_date) },
-  { key: 'project_id', header: 'Project' },
-  { key: 'billing_code_id', header: 'Billing Code', render: r => r.billing_code_id || '—' },
-  { key: 'hours', header: 'Hours', render: r => <strong>{r.hours}h</strong> },
-  { key: 'billable', header: 'Type', render: r => <Badge status={r.billable ? 'Billable' : 'Non-Billable'} /> },
-  { key: 'status', header: 'Status', render: r => <Badge status={r.status} /> },
+  { key: 'name', header: 'Name', render: r => r.name || r.emp_id, align: 'center' },
+  { key: 'entry_date', header: 'Date', render: r => date(r.entry_date), align: 'center' },
+  { key: 'project_id', header: 'Project', align: 'center' },
+  { key: 'billing_code_id', header: 'Billing Code', render: r => r.billing_code_id || '—', align: 'center' },
+  { key: 'hours', header: 'Hours', render: r => <strong>{r.hours}h</strong>, align: 'center' },
+  { key: 'billable', header: 'Type', render: r => <Badge status={r.billable ? 'Billable' : 'Non-Billable'} />, align: 'center' },
+  { key: 'status', header: 'Status', render: r => <Badge status={r.status} />, align: 'center' },
 ];
 
 export default function TimesheetsPage() {
@@ -63,8 +63,8 @@ export default function TimesheetsPage() {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Clock size={22} /> Timesheets</h2>
+      <div className="page-header">
+        <h2><Clock size={22} /> Timesheets</h2>
         {canCreateOnPage('timesheets') && (
           <Button variant="primary" onClick={handleNew}><Plus size={15} /> Submit Hours</Button>
         )}

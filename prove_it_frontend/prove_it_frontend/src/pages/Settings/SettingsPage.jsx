@@ -25,7 +25,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div>
-        <div className="section-header"><h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><SettingsIcon size={22} /> Settings</h2></div>
+        <div className="page-header"><h2><SettingsIcon size={22} /> Settings</h2></div>
         <div style={{ padding: 16, color: '#94a3b8', fontSize: 13 }}>Loading…</div>
       </div>
     );
@@ -33,7 +33,7 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <div className="section-header"><h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><SettingsIcon size={22} /> Settings</h2></div>
+      <div className="page-header"><h2><SettingsIcon size={22} /> Settings</h2></div>
       <div className="grid-2">
         <div className="card" id="settings-profile-card">
           <SectionTitle icon={Building2}>Company Profile</SectionTitle>
@@ -144,10 +144,10 @@ export default function SettingsPage() {
             </div>
             {/* No Save button here — legacy never wires saveBackupConfig() to one either */}
             <div style={{ display: 'flex', gap: 10 }}>
-              <Button variant="ghost" onClick={downloadBackup}><Download size={15} /> Download Backup</Button>
-              <Button variant="ghost" onClick={() => fileInputRef.current?.click()} disabled={restoring}>
+              <button type="button" className="btn btn-ghost" style={{ color: 'var(--rose)', borderColor: 'var(--rose)' }} onClick={downloadBackup}><Download size={15} /> Download Backup</button>
+              <button type="button" className="btn btn-ghost" style={{ color: 'var(--rose)', borderColor: 'var(--rose)' }} onClick={() => fileInputRef.current?.click()} disabled={restoring}>
                 <Upload size={15} /> {restoring ? 'Restoring…' : 'Restore Backup'}
-              </Button>
+              </button>
               <input
                 ref={fileInputRef}
                 type="file"

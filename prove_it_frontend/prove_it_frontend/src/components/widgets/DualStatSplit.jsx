@@ -13,7 +13,6 @@ export default function DualStatSplit({ stats = [], percentage = 0 }) {
             style={{
               color: stat1.color || 'var(--color-green)',
               fontSize: 28,
-              fontWeight: 700,
             }}
           >
             {typeof stat1.value === 'number' ? stat1.value.toLocaleString('en-IN') : stat1.value}
@@ -27,7 +26,6 @@ export default function DualStatSplit({ stats = [], percentage = 0 }) {
             style={{
               color: stat2.color || 'var(--color-amber)',
               fontSize: 28,
-              fontWeight: 700,
             }}
           >
             {typeof stat2.value === 'number' ? stat2.value.toLocaleString('en-IN') : stat2.value}
@@ -37,7 +35,7 @@ export default function DualStatSplit({ stats = [], percentage = 0 }) {
           </div>
         </div>
       </div>
-      <ProgressBar value={percentage} color="green" />
+      <ProgressBar value={percentage} color="rose" />
       <div style={{ color: 'var(--muted)', fontSize: 11, marginTop: 6, textAlign: 'center' }}>
         {percentage}% {stat1.label}
       </div>

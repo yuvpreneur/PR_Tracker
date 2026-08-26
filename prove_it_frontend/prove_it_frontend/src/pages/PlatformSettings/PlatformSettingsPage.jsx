@@ -33,12 +33,9 @@ export default function PlatformSettingsPage() {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Settings2 size={22} /> Platform Settings</h2>
+      <div className="page-header">
+        <h2><Settings2 size={22} /> Platform Settings</h2>
       </div>
-      <p style={{ fontSize: 12.5, color: 'var(--slate)', margin: '-6px 0 14px' }}>
-        Global configuration applied across the whole platform.
-      </p>
 
       <div className="card" style={{ maxWidth: 480 }}>
         {!form ? (

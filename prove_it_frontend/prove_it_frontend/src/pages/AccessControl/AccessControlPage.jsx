@@ -50,8 +50,8 @@ export default function AccessControlPage() {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><KeyRound size={22} /> Access Control &amp; Project Assignment</h2>
+      <div className="page-header">
+        <h2><KeyRound size={22} /> Access Control &amp; Project Assignment</h2>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <Button
             variant="primary"
@@ -145,10 +145,10 @@ export default function AccessControlPage() {
            version either; it's documentation, not live data. */}
         <div className="card">
           <SectionTitle icon={ListChecks}>Access Rules Summary</SectionTitle>
-          <div className="perm-row"><span>Admin</span><span className="badge badge-green">All pages · All projects</span></div>
-          <div className="perm-row"><span>Manager</span><span className="badge badge-accent">Approved pages · Assigned projects</span></div>
-          <div className="perm-row"><span>Employee</span><span className="badge badge-accent">Limited pages · Own projects</span></div>
-          <div className="perm-row"><span>Finance</span><span className="badge badge-amber">Finance pages · Assigned/all finance projects</span></div>
+          <div className="perm-row"><span>Admin</span><span className="badge badge-rose">All pages · All projects</span></div>
+          <div className="perm-row"><span>Manager</span><span className="badge badge-rose">Approved pages · Assigned projects</span></div>
+          <div className="perm-row"><span>Employee</span><span className="badge badge-rose">Limited pages · Own projects</span></div>
+          <div className="perm-row"><span>Finance</span><span className="badge badge-rose">Finance pages · Assigned/all finance projects</span></div>
         </div>
       </div>
     </div>

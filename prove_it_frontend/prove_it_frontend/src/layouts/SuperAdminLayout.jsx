@@ -41,7 +41,7 @@ export default function SuperAdminLayout() {
         height: '100vh', overflowY: 'auto',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '2px 8px 18px' }}>
-          <ShieldCheck size={22} color="var(--accent)" />
+          <ShieldCheck size={22} color="var(--rose)" />
           <div>
             <strong style={{ fontSize: 14, display: 'block', lineHeight: 1.2 }}>Platform Admin</strong>
             <span style={{ fontSize: 10.5, color: 'var(--slate)' }}>Platform Control</span>
@@ -59,8 +59,8 @@ export default function SuperAdminLayout() {
               style={({ isActive }) => ({
                 display: 'flex', alignItems: 'center', gap: 10, padding: '9px 10px',
                 borderRadius: 10, fontSize: 13.5, fontWeight: 600, textDecoration: 'none',
-                color: isActive ? 'var(--accent)' : 'var(--ink)',
-                background: isActive ? 'var(--soft)' : 'transparent',
+                color: isActive ? 'var(--rose)' : 'var(--ink)',
+                background: isActive ? 'var(--rose-soft)' : 'transparent',
               })}
             >
               <Icon size={17} strokeWidth={1.8} />
@@ -72,7 +72,7 @@ export default function SuperAdminLayout() {
         <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12, marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px' }}>
             <span style={{
-              width: 28, height: 28, borderRadius: '50%', background: 'var(--soft)', color: 'var(--accent)',
+              width: 28, height: 28, borderRadius: '50%', background: 'var(--rose-soft)', color: 'var(--rose)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700,
             }}>{user?.name?.[0] || 'A'}</span>
             <div style={{ minWidth: 0 }}>
@@ -91,14 +91,8 @@ export default function SuperAdminLayout() {
       </aside>
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, height: '100vh' }}>
-        <div style={{
-          flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '14px 26px', background: 'var(--card)', borderBottom: '1px solid var(--line)',
-        }}>
-          <span style={{ fontSize: 12.5, color: 'var(--slate)' }}>Admin / {current}</span>
-        </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '26px', boxSizing: 'border-box' }}>
-          <div style={{ maxWidth: 1100, width: '100%', margin: '0 auto' }}>
+          <div className="super-admin-content" style={{ maxWidth: 1100, width: '100%', margin: '0 auto' }}>
             <Outlet />
           </div>
         </div>

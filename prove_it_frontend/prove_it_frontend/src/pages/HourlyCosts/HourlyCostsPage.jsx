@@ -9,16 +9,17 @@ import usePermissions from '../../hooks/usePermissions.js';
 
 const COLUMNS = [
   { key: 'emp_id', header: 'Emp ID', render: r => <strong>{r.emp_id}</strong> },
-  { key: 'name', header: 'Name', render: r => r.name || r.emp_id },
-  { key: 'department', header: 'Department', render: r => r.department || '—' },
-  { key: 'hourly_cost', header: 'Hourly Cost', render: r => <strong>₹{(r.hourly_cost || 0).toLocaleString('en-IN')}</strong> },
-  { key: 'effective_from', header: 'Effective From', render: r => date(r.effective_from) },
+  { key: 'name', header: 'Name', render: r => r.name || r.emp_id, align: 'center' },
+  { key: 'department', header: 'Department', render: r => r.department || '—', align: 'center' },
+  { key: 'hourly_cost', header: 'Hourly Cost', render: r => <strong>₹{(r.hourly_cost || 0).toLocaleString('en-IN')}</strong>, align: 'center' },
+  { key: 'effective_from', header: 'Effective From', render: r => date(r.effective_from), align: 'center' },
   {
     key: 'effective_to',
     header: 'Effective To',
     render: r => r.effective_to
       ? <span style={{ color: '#334155' }}>{date(r.effective_to)}</span>
       : <span style={{ color: '#16A36C', fontWeight: 600 }}>Current</span>,
+    align: 'center',
   },
 ];
 
@@ -53,8 +54,8 @@ export default function HourlyCostsPage() {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Banknote size={22} /> Employee Hourly Cost</h2>
+      <div className="page-header">
+        <h2><Banknote size={22} /> Employee Hourly Cost</h2>
         {canCreateOnPage('hourly-cost') && (
           <Button variant="primary" onClick={handleNew}><Plus size={15} /> Set Hourly Cost</Button>
         )}

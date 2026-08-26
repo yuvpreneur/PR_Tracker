@@ -148,7 +148,7 @@ export default function InvoiceEditor({ companies, projects, invoices, initialDa
       </div>
 
       <div className="card" style={{ padding: 20 }}>
-        <div className="mb-3 hidden grid-cols-[1fr_90px_130px_130px_40px] gap-2 text-[11px] font-black uppercase tracking-wide text-muted sm:grid">
+        <div className="mb-3 hidden grid-cols-[1fr_90px_130px_130px_40px] gap-2 text-[11px] font-black uppercase tracking-wide sm:grid" style={{ color: '#000000' }}>
           <span>Description</span>
           <span className="text-right">Qty</span>
           <span className="text-right">Unit price</span>
@@ -188,9 +188,9 @@ export default function InvoiceEditor({ companies, projects, invoices, initialDa
           ))}
         </div>
         <div className="mt-3">
-          <Button type="button" variant="ghost" className="px-3 py-1.5 text-[12px]" onClick={() => setLineItems(ls => [...ls, emptyLine()])}>
+          <button type="button" className="btn btn-ghost text-[12px]" style={{ color: 'var(--rose)', borderColor: 'var(--rose)' }} onClick={() => setLineItems(ls => [...ls, emptyLine()])}>
             <Plus size={14} /> Add line
-          </Button>
+          </button>
         </div>
       </div>
 
@@ -235,16 +235,16 @@ export default function InvoiceEditor({ companies, projects, invoices, initialDa
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <Button variant="ghost" onClick={onCancel} disabled={saving}>Cancel</Button>
+        <button type="button" className="btn btn-ghost" style={{ color: 'var(--rose)', borderColor: 'var(--rose)' }} onClick={onCancel} disabled={saving}>Cancel</button>
         {!isEdit && (
-          <Button variant="ghost" disabled={saving} onClick={() => handleSave('draft')}>
+          <button type="button" className="btn btn-ghost" style={{ color: 'var(--rose)', borderColor: 'var(--rose)' }} disabled={saving} onClick={() => handleSave('draft')}>
             {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} Save Draft
-          </Button>
+          </button>
         )}
-        <Button disabled={saving} onClick={() => handleSave(isEdit ? undefined : 'sent')}>
+        <button type="button" className="btn btn-primary" style={{ background: 'var(--rose)', color: '#ffffff' }} disabled={saving} onClick={() => handleSave(isEdit ? undefined : 'sent')}>
           {saving ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
           {isEdit ? 'Save Changes' : 'Save & Mark Sent'}
-        </Button>
+        </button>
       </div>
     </div>
   );

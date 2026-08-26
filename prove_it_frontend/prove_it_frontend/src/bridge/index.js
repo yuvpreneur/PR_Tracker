@@ -6,7 +6,7 @@ import { refreshCaches, username } from './core/cache.js';
 import { viewAs } from '../services/authService.js';
 import { toast } from './shared/ui.js';
 import { canViewPage, canCreateOnPage, canExportOnPage } from './shared/permissions.js';
-import { wireBtn, closeModal, startCreate, startEdit, editId, openModal, set, val, field, resetFields } from './shared/modals.js';
+import { wireBtn, closeModal, startCreate, startEdit, editId, openModal, set, val, field, resetFields, checked, setChecked } from './shared/modals.js';
 import { ensureNotifPanel, loadNotifications, refreshNotifBadge } from './shared/notifications.js';
 import { populateFilterDropdowns, wireFilters } from './shared/filters.js';
 import { loadDashboard } from './pages/dashboard.js';
@@ -431,6 +431,7 @@ export function initApiBridge() {
         role: val('modal-emp', 'role') || 'Employee',
         billable: val('modal-emp', 'billable') !== 'Non-Billable',
         status: val('modal-emp', 'status') || 'Active',
+        pm_access_enabled: checked('modal-emp', 'allow pr manager'),
       };
       if (!body.emp_id || !body.name || !body.email) {
         toast('ID, Name and Email required', 'error');
@@ -947,6 +948,7 @@ export function initApiBridge() {
         set('modal-emp', 'role', row.role);
         set('modal-emp', 'billable', row.billable ? 'Billable' : 'Non-Billable');
         set('modal-emp', 'status', row.status);
+        setChecked('modal-emp', 'allow pr manager', row.pm_access_enabled);
         startEdit('page-employees', row.emp_id);
         openModal('modal-emp');
         return;

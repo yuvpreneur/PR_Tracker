@@ -6,4 +6,4 @@ Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$backend'; .\
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$frontend'; npm run dev"
 
 Write-Host "Backend starting on http://127.0.0.1:8000"
-Write-Host "Frontend starting on http://localhost:5173"
+Write-Host "Frontend starting on http://localhost:5174"

@@ -47,8 +47,8 @@ export default function FreeAccessPage() {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Gift size={22} /> Free Access</h2>
+      <div className="page-header">
+        <h2><Gift size={22} /> Free Access</h2>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 20, alignItems: 'start' }}>
@@ -87,23 +87,23 @@ export default function FreeAccessPage() {
           </table>
         </div>
 
-        <div className="card" style={{ padding: 18 }}>
-          <h3 style={{ margin: '0 0 14px', display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
+        <div className="card" style={{ padding: 22, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
             <Gift size={16} /> Grant Free Access
           </h3>
           {error && (
-            <p style={{ color: 'var(--red)', fontSize: 13, background: 'var(--red-soft)', padding: '8px 12px', borderRadius: 10, marginBottom: 12 }}>
+            <p style={{ color: 'var(--red)', fontSize: 13, background: 'var(--red-soft)', padding: '8px 12px', borderRadius: 10, margin: 0 }}>
               {error}
             </p>
           )}
-          <div className="form-group">
+          <div className="form-group" style={{ margin: 0 }}>
             <label className="form-label">Organization</label>
             <select className="form-control" value={orgId} onChange={e => setOrgId(e.target.value)}>
               <option value="">Choose an organization…</option>
               {eligibleOrgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
             </select>
           </div>
-          <div className="form-group">
+          <div className="form-group" style={{ margin: 0 }}>
             <label className="form-label">Plan</label>
             <select className="form-control" value={planId} onChange={e => setPlanId(e.target.value)}>
               <option value="">Choose a plan…</option>
@@ -112,7 +112,7 @@ export default function FreeAccessPage() {
               ))}
             </select>
           </div>
-          <div className="form-group">
+          <div className="form-group" style={{ margin: 0 }}>
             <label className="form-label">Note (optional)</label>
             <input
               className="form-control" value={note} onChange={e => setNote(e.target.value)}
@@ -122,7 +122,7 @@ export default function FreeAccessPage() {
           <Button type="button" variant="primary" disabled={saving} onClick={submit} style={{ width: '100%', justifyContent: 'center' }}>
             {saving ? 'Granting…' : 'Grant Access'}
           </Button>
-          <p style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 10 }}>
+          <p style={{ fontSize: 11.5, color: 'var(--muted)', margin: 0 }}>
             Granting a plan already assigned elsewhere replaces that organization's current subscription.
           </p>
         </div>

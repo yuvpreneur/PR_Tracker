@@ -14,7 +14,7 @@ export default function Modal({ title, onClose, children, width = 480 }) {
       <div className="card max-h-[90vh] w-full overflow-y-auto" style={{ maxWidth: width, padding: 20 }}>
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-[15px] font-bold">{title}</h3>
-          <button type="button" className="text-muted" onClick={onClose} title="Close">
+          <button type="button" className="modal-close" onClick={onClose} title="Close">
             <X size={18} />
           </button>
         </div>

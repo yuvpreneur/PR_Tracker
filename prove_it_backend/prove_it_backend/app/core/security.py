@@ -7,7 +7,7 @@ from typing import Optional
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from pymongo.database import Database
 
@@ -132,3 +132,14 @@ def require_platform_permission(module: str):
             detail=f"Requires platform permission: {module}",
         )
     return checker
+
+
+def require_prmanager_secret(x_prtracker_secret: Optional[str] = Header(None)):
+    """Auth for inbound PR Manager -> PR Tracker sync calls — a plain shared-secret
+    header, not a user JWT, since these are server-to-server (Postgres trigger via
+    pg_net) with no PR Tracker session involved. Same value as this env's
+    PRMANAGER_SHARED_SECRET, which PR Tracker's own outbound calls (app/core/
+    prmanager_client.py) send under this same header name."""
+    secret = os.environ.get("PRMANAGER_SHARED_SECRET", "")
+    if not secret or x_prtracker_secret != secret:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid PR Manager sync secret")

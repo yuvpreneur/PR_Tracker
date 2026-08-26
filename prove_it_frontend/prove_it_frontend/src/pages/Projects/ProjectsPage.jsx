@@ -16,11 +16,19 @@ import { get, post } from '../../services/httpClient.js';
 const COLUMNS = [
   { key: 'id', header: 'Code', render: r => <strong>{r.id}</strong> },
   { key: 'name', header: 'Project Name' },
-  { key: 'client', header: 'Client' },
-  { key: 'manager', header: 'Manager' },
-  { key: 'start_date', header: 'Start', render: r => date(r.start_date) },
-  { key: 'end_date', header: 'End', render: r => date(r.end_date) },
-  { key: 'status', header: 'Status', render: r => <Badge status={r.status} /> },
+  { key: 'client', header: 'Client', align: 'center' },
+  { key: 'manager', header: 'Manager', align: 'center' },
+  { key: 'start_date', header: 'Start', align: 'center', render: r => date(r.start_date) },
+  { key: 'end_date', header: 'End', align: 'center', render: r => date(r.end_date) },
+  { key: 'status', header: 'Status', align: 'center', render: r => <Badge status={r.status} /> },
+  {
+    key: 'pm_sync_status', header: 'PR Manager', align: 'center',
+    render: r => (
+      <span title={r.pm_missing_fields?.length ? `Needs: ${r.pm_missing_fields.join(', ')}` : undefined}>
+        <Badge status={r.pm_sync_status} />
+      </span>
+    ),
+  },
 ];
 
 export default function ProjectsPage() {
@@ -92,8 +100,8 @@ export default function ProjectsPage() {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><FolderKanban size={22} /> Projects</h2>
+      <div className="page-header">
+        <h2><FolderKanban size={22} /> Projects</h2>
         <div style={{ display: 'flex', gap: 8 }}>
           {canRequestProjectAccess && (
             <Button variant="ghost" onClick={openRequestPanel}><KeyRound size={15} /> Request Project Access</Button>
@@ -172,7 +180,7 @@ export default function ProjectsPage() {
         </div>
         {canExportOnPage('projects') && (
           <div className="relative" ref={exportRef}>
-            <Button variant="ghost" onClick={() => setExportOpen(o => !o)}><Download size={15} /> Export</Button>
+            <Button variant="ghost" onClick={() => setExportOpen(o => !o)} style={{ color: 'var(--rose)', borderColor: 'var(--rose-soft)' }}><Download size={15} /> Export</Button>
             {exportOpen && (
               <div className="absolute right-0 top-full z-10 mt-1.5 w-40 rounded-xl border border-line bg-white py-1.5 shadow-card">
                 {[
@@ -198,9 +206,7 @@ export default function ProjectsPage() {
         <div className="mb-3 flex items-center justify-between">
           <div>
             <div className="text-[15px] font-bold">Project Register</div>
-            <div className="text-xs text-text2">Client, manager, timeline, and status for every project.</div>
           </div>
-          <span className="badge badge-accent">Live data</span>
         </div>
         <DataTable
           columns={COLUMNS}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Lock, Bell, EyeOff } from 'lucide-react';
+import { Lock, Bell } from 'lucide-react';
 import { NAV } from './nav.config.js';
 import useAuth from '../hooks/useAuth.jsx';
 import usePermissions from '../hooks/usePermissions.js';
@@ -39,6 +39,7 @@ export default function AppLayout() {
   const { canViewPage } = usePermissions();
   const { name: orgName, logoUrl: orgLogoUrl } = useMyOrganization();
   const [collapsed, setCollapsed] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -132,75 +133,164 @@ export default function AppLayout() {
           className="sidebar-footer"
           data-lucide-icon={collapsed ? 'collapsed' : 'expanded'}
           onClick={() => setCollapsed(c => !c)}
+          style={{ background: 'var(--rose-soft)', color: 'var(--rose)', border: 'none', marginBottom: 0 }}
         >◀ Collapse</button>
-        <svg
-          viewBox="0 0 276 120"
-          style={{ position: 'absolute', bottom: 0, left: 0, right: 0, width: '100%', height: 120, pointerEvents: 'none', opacity: 0.15 }}
-          preserveAspectRatio="none"
-        >
-          <defs>
-            <linearGradient id="wave-grad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--rose)" stopOpacity="0.3" />
-              <stop offset="100%" stopColor="var(--rose)" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          <path
-            d="M0,60 Q69,30 138,60 T276,60 L276,120 L0,120 Z"
-            fill="url(#wave-grad)"
-          />
-        </svg>
+        <div className="sidebar-wave">
+          <svg
+            viewBox="0 0 276 180"
+            style={{ width: '100%', height: 140, pointerEvents: 'none', display: 'block' }}
+            preserveAspectRatio="none"
+          >
+            <defs>
+              <linearGradient id="wave-grad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#F4C0D1" stopOpacity="0.5" />
+                <stop offset="100%" stopColor="#F4C0D1" stopOpacity="0.1" />
+              </linearGradient>
+            </defs>
+            <path
+              d="M0,80 C50,40 80,50 130,90 C160,115 190,50 230,80 C250,95 270,70 276,60 L276,180 L0,180 Z"
+              fill="#F4C0D1"
+              opacity="0.4"
+            />
+            <path
+              d="M0,110 C40,85 70,95 120,125 C150,145 180,90 220,115 C240,128 260,105 276,100 L276,180 L0,180 Z"
+              fill="#ED93B1"
+              opacity="0.3"
+            />
+          </svg>
+        </div>
       </div>
 
       <div id="main">
-        <div id="topbar">
+        <div id="topbar" style={{ position: 'relative', zIndex: 100 }}>
           <span className="topbar-title">{title}</span>
           <div className="topbar-right">
             <button className="btn btn-ghost btn-sm notif-btn" id="notif-btn" data-lucide-icon="1" style={{ position: 'relative' }}>
-              <Bell size={15} /><span className="notif-dot" />
+              <Bell size={20} /><span className="notif-dot" />
               <span
                 id="notif-count"
                 style={{
-                  display: 'none', position: 'absolute', top: -6, right: -6, background: '#ef4444',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'absolute', top: -6, right: -6, background: '#ef4444',
                   color: '#fff', borderRadius: '50%', width: 18, height: 18, fontSize: 10,
-                  fontWeight: 700, lineHeight: '18px', textAlign: 'center', pointerEvents: 'none',
+                  fontWeight: 700, pointerEvents: 'none', lineHeight: 1, padding: 0, margin: 0,
                 }}
               >0</span>
             </button>
             {/* Left disabled/hidden by default — bridge/index.js's initApiBridge() (Phase 3
                 will port this to React) enables it for Admin/Manager and wires the real
                 POST /api/auth/view-as flow; not wiring it here would leave it inert either way. */}
-            <select
-              id="role-switcher"
-              className="form-control"
-              data-lucide-wrapped="1"
-              style={{ width: 'auto', fontSize: 12, padding: '6px 10px', borderRadius: '999px' }}
-              title="Preview the app as another role (Admin/Manager only)"
-              disabled
-              defaultValue=""
-            >
-              <option value="">View as role…</option>
-              <option value="Manager">Manager</option>
-              <option value="Finance User">Finance User</option>
-              <option value="Employee">Employee</option>
-              <option value="Viewer">Viewer</option>
-            </select>
-            <button
-              id="view-as-exit"
-              className="btn btn-sm"
-              type="button"
-              data-lucide-icon="1"
-              style={{ display: 'none', background: 'var(--amber-soft,#fef3c7)', color: '#b45309', border: '1px solid rgba(180,83,9,.25)' }}
-            ><EyeOff size={14} /> Exit view</button>
-            <div className="user-chip">
-              <div className="user-avatar" id="active-avatar">{initials}</div>
-              <span id="active-user-name">{user?.name}</span>
-              <span id="active-user-role" style={{ color: 'var(--text3)', fontSize: 11 }}>{user?.role}</span>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <div
+                className="user-chip"
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                style={{ cursor: 'pointer' }}
+              >
+                <div className="user-avatar" id="active-avatar">{initials}</div>
+                <span id="active-user-name">{user?.name}</span>
+                <span id="active-user-role" style={{ color: 'var(--text3)', fontSize: 11 }}>{user?.role}</span>
+              </div>
+              {userMenuOpen && (
+                <>
+                  <div
+                    style={{ position: 'fixed', inset: 0, zIndex: 50 }}
+                    onClick={() => setUserMenuOpen(false)}
+                  />
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      right: 0,
+                      background: '#fff',
+                      border: '1px solid var(--line)',
+                      borderRadius: 16,
+                      boxShadow: 'var(--shadow-soft)',
+                      zIndex: 200,
+                      width: 280,
+                      marginTop: 8,
+                    }}
+                  >
+                    <div style={{ padding: '18px 16px', textAlign: 'center', borderBottom: '1px solid var(--line)' }}>
+                      <div
+                        style={{
+                          width: 56,
+                          height: 56,
+                          margin: '0 auto 12px',
+                          background: 'linear-gradient(135deg, var(--rose), var(--rose-2))',
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 20,
+                          fontWeight: 800,
+                          color: '#fff',
+                        }}
+                      >
+                        {initials}
+                      </div>
+                      <div style={{ fontWeight: 900, fontSize: 14, color: 'var(--ink)', marginBottom: 4 }}>
+                        {user?.name}
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                        {user?.email || user?.role}
+                      </div>
+                    </div>
+                    <div style={{ padding: '8px 0' }}>
+                      <button
+                        style={{
+                          width: '100%',
+                          padding: '10px 16px',
+                          background: 'transparent',
+                          color: 'var(--slate)',
+                          border: 'none',
+                          fontSize: 13,
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          fontFamily: 'inherit',
+                          transition: 'background .15s ease',
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--soft)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          navigate('/settings');
+                        }}
+                      >
+                        <span style={{ fontSize: 16 }}>⚙️</span> Profile & Settings
+                      </button>
+                      <button
+                        style={{
+                          width: '100%',
+                          padding: '10px 16px',
+                          background: 'transparent',
+                          color: 'var(--rose)',
+                          border: 'none',
+                          fontSize: 13,
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          fontFamily: 'inherit',
+                          transition: 'background .15s ease',
+                          fontWeight: 700,
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(232,96,122,.08)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          logout();
+                        }}
+                      >
+                        <span style={{ fontSize: 16 }}>→</span> Sign Out
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
-            <button
-              className="btn btn-sm"
-              style={{ background: 'var(--rose-soft)', color: 'var(--rose)', border: '1px solid rgba(232,96,122,.2)' }}
-              onClick={logout}
-            >Sign out</button>
           </div>
         </div>
         <div id="content">
@@ -209,9 +299,6 @@ export default function AppLayout() {
               this just hosts whichever route element is current (AllPages, or
               NoAccessPage which isn't part of that always-mounted set). */}
           <Outlet />
-          <div style={{ padding: '28px', textAlign: 'center', color: 'var(--muted)', fontSize: '11px', borderTop: '1px solid var(--line)', marginTop: 'auto' }}>
-            © 2025 {orgName ? `${orgName} | ` : ''}AProve Catalysts. All rights reserved.
-          </div>
         </div>
       </div>
     </div>

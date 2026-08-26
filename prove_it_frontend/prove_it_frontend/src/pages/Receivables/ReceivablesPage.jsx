@@ -33,15 +33,15 @@ export default function ReceivablesPage() {
 
   const columns = useMemo(() => [
     { key: 'project_id', header: 'Project', render: r => projectName(r.project_id) || r.project_id },
-    { key: 'billing_code_id', header: 'Billing Code', render: r => r.billing_code_id || '—' },
-    { key: 'client', header: 'Client' },
-    { key: 'invoice_no', header: 'Invoice #' },
-    { key: 'invoice_date', header: 'Date', render: r => date(r.invoice_date) },
-    { key: 'invoice_amount', header: 'Invoice Amt', render: r => `₹${num(r.invoice_amount)}` },
-    { key: 'received_amount', header: 'Received', render: r => `₹${num(r.received_amount)}` },
-    { key: 'balance', header: 'Balance', render: r => `₹${num(r.balance)}` },
-    { key: 'due_date', header: 'Due Date', render: r => date(r.due_date) },
-    { key: 'status', header: 'Status', render: r => <Badge status={r.status} /> },
+    { key: 'billing_code_id', header: 'Billing Code', render: r => r.billing_code_id || '—', align: 'center' },
+    { key: 'client', header: 'Client', align: 'center' },
+    { key: 'invoice_no', header: 'Invoice #', align: 'center' },
+    { key: 'invoice_date', header: 'Date', render: r => date(r.invoice_date), align: 'center' },
+    { key: 'invoice_amount', header: 'Invoice Amt', render: r => `₹${num(r.invoice_amount)}`, align: 'center' },
+    { key: 'received_amount', header: 'Received', render: r => `₹${num(r.received_amount)}`, align: 'center' },
+    { key: 'balance', header: 'Balance', render: r => `₹${num(r.balance)}`, align: 'center' },
+    { key: 'due_date', header: 'Due Date', render: r => date(r.due_date), align: 'center' },
+    { key: 'status', header: 'Status', render: r => <Badge status={r.status} />, align: 'center' },
   ], [projects]);
 
   const filtered = useMemo(() => {
@@ -63,8 +63,8 @@ export default function ReceivablesPage() {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Inbox size={22} /> Receivables</h2>
+      <div className="page-header">
+        <h2><Inbox size={22} /> Receivables</h2>
         {canCreateOnPage('receivables') && (
           <Button variant="primary" onClick={handleNew}><Plus size={15} /> Add Receivable</Button>
         )}

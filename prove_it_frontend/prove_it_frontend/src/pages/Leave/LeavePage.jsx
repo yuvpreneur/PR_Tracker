@@ -10,13 +10,13 @@ import usePermissions from '../../hooks/usePermissions.js';
 
 const COLUMNS = [
   { key: 'name', header: 'Employee' },
-  { key: 'leave_type', header: 'Type' },
-  { key: 'from_date', header: 'From', render: r => date(r.from_date) },
-  { key: 'to_date', header: 'To', render: r => date(r.to_date) },
-  { key: 'days', header: 'Days' },
-  { key: 'active_projects', header: 'Active Projects', render: r => (r.active_projects?.length ? r.active_projects.join(', ') : '—') },
-  { key: 'status', header: 'Status', render: r => <Badge status={r.status} /> },
-  { key: 'decision_reason', header: 'Reason', render: r => (r.status === 'Rejected' ? (r.decision_reason || '—') : '—') },
+  { key: 'leave_type', header: 'Type', align: 'center' },
+  { key: 'from_date', header: 'From', render: r => date(r.from_date), align: 'center' },
+  { key: 'to_date', header: 'To', render: r => date(r.to_date), align: 'center' },
+  { key: 'days', header: 'Days', align: 'center' },
+  { key: 'active_projects', header: 'Active Projects', render: r => (r.active_projects?.length ? r.active_projects.join(', ') : '—'), align: 'center' },
+  { key: 'status', header: 'Status', render: r => <Badge status={r.status} />, align: 'center' },
+  { key: 'decision_reason', header: 'Reason', render: r => (r.status === 'Rejected' ? (r.decision_reason || '—') : '—'), align: 'center' },
 ];
 
 export default function LeavePage() {
@@ -36,8 +36,8 @@ export default function LeavePage() {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Palmtree size={22} /> Leave</h2>
+      <div className="page-header">
+        <h2><Palmtree size={22} /> Leave</h2>
         {canCreateOnPage('leave') && (
           <Button variant="primary" onClick={() => openModal('modal-leave')}><Plus size={15} /> Apply Leave</Button>
         )}

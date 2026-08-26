@@ -19,14 +19,14 @@ export default function BillingCodesPage() {
 
   const columns = useMemo(() => [
     { key: 'code', header: 'Billing Code', render: r => <strong>{r.code}</strong> },
-    { key: 'project_code_id', header: 'Project Code' },
-    { key: 'project_id', header: 'Project', render: r => projectName(r.project_id) || r.project_id },
-    { key: 'client', header: 'Client', render: r => r.client || '—' },
-    { key: 'billing_type', header: 'Type', render: r => <Badge status={r.billing_type} /> },
-    { key: 'rate', header: 'Rate', render: r => `₹${num(r.rate)}${r.billing_type === 'T&M' ? '/hr' : ''}` },
-    { key: 'status', header: 'Status', render: r => <Badge status={r.status} /> },
-    { key: 'effective_from', header: 'Eff. From', render: r => date(r.effective_from) },
-    { key: 'effective_to', header: 'Eff. To', render: r => date(r.effective_to) },
+    { key: 'project_code_id', header: 'Project Code', align: 'center' },
+    { key: 'project_id', header: 'Project', align: 'center', render: r => projectName(r.project_id) || r.project_id },
+    { key: 'client', header: 'Client', align: 'center', render: r => r.client || '—' },
+    { key: 'billing_type', header: 'Type', align: 'center', render: r => <Badge status={r.billing_type} /> },
+    { key: 'rate', header: 'Rate', align: 'center', render: r => `₹${num(r.rate)}${r.billing_type === 'T&M' ? '/hr' : ''}` },
+    { key: 'status', header: 'Status', align: 'center', render: r => <Badge status={r.status} /> },
+    { key: 'effective_from', header: 'Eff. From', align: 'center', render: r => date(r.effective_from) },
+    { key: 'effective_to', header: 'Eff. To', align: 'center', render: r => date(r.effective_to) },
   ], [projects]);
 
   const filtered = useMemo(() => {
@@ -47,8 +47,8 @@ export default function BillingCodesPage() {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><CreditCard size={22} /> Billing Codes</h2>
+      <div className="page-header">
+        <h2><CreditCard size={22} /> Billing Codes</h2>
         {canCreateOnPage('billing-codes') && (
           <Button variant="primary" onClick={handleNew}><Plus size={15} /> New Billing Code</Button>
         )}

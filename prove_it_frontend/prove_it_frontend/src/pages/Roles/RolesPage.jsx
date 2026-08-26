@@ -4,8 +4,8 @@ import useRolePermissions from './useRolePermissions.js';
 import Button from '../../components/ui/Button.jsx';
 import SectionTitle from '../../components/ui/SectionTitle.jsx';
 
-const ROLE_TABS = ['Admin', 'Manager', 'Finance User', 'Employee', 'Viewer'];
-const ROLE_ICONS = { Admin: ShieldCheck, Manager: UserCog, 'Finance User': Wallet, Employee: User, Viewer: Eye };
+const ROLE_TABS = ['Admin', 'Manager', 'Finance User', 'Employee'];
+const ROLE_ICONS = { Admin: ShieldCheck, Manager: UserCog, 'Finance User': Wallet, Employee: User };
 const ACTIONS = ['view', 'create', 'edit', 'delete', 'approve', 'export'];
 const ACTION_LABELS = { view: 'View', create: 'Create', edit: 'Edit', delete: 'Delete', approve: 'Approve', export: 'Export' };
 const ACTION_ICONS = { view: Eye, create: Plus, edit: Pencil, delete: Trash2, approve: Check, export: Download };
@@ -21,8 +21,8 @@ export default function RolesPage() {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><ShieldCheck size={22} /> Roles &amp; Permissions</h2>
+      <div className="page-header">
+        <h2><ShieldCheck size={22} /> Roles &amp; Permissions</h2>
       </div>
 
       <div className="role-tabs">
@@ -43,7 +43,7 @@ export default function RolesPage() {
 
       <div className="card" id="perm-card">
         <SectionTitle icon={ROLE_ICONS[role]}>
-          PERMISSIONS FOR: <span style={{ color: 'var(--accent)' }}>{role}</span>
+          PERMISSIONS FOR: <span style={{ color: 'var(--rose)' }}>{role}</span>
         </SectionTitle>
 
         <div id="perm-rows">

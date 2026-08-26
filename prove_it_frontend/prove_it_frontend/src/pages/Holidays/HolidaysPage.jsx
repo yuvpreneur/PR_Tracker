@@ -52,9 +52,9 @@ function HolidayForm({ initialDate, onSave, onCancel }) {
         <label className="form-label">Holiday Name</label>
         <input className="form-control" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Independence Day" />
       </div>
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="ghost" onClick={onCancel} disabled={saving}>Cancel</Button>
-        <Button type="submit" disabled={saving}>{saving && <Loader2 size={15} className="animate-spin" />} Save</Button>
+      <div className="modal-footer">
+        <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={saving}>Cancel</button>
+        <button type="submit" className="btn btn-primary" style={{ background: 'var(--rose)', color: '#ffffff' }} disabled={saving}>{saving && <Loader2 size={15} className="animate-spin" />} Save</button>
       </div>
     </form>
   );
@@ -84,12 +84,11 @@ function MonthCalendar({ year, month, holidaysByDate, weeklyOffSet, onPrev, onNe
           <h4 className="w-40 text-center text-[14px] font-bold">{MONTHS[month]} {year}</h4>
           <button type="button" onClick={onNext} className="rounded-md border border-line p-1" title="Next month"><ChevronRight size={16} /></button>
         </div>
-        <button type="button" onClick={onToday} className="text-[12px] font-semibold text-brand-3">Today</button>
       </div>
 
       <div className="grid grid-cols-7 gap-1.5">
         {DAY_HEADERS.map(h => (
-          <div key={h} className="pb-1 text-center text-[11px] font-black uppercase tracking-wide text-muted">{h}</div>
+          <div key={h} className="pb-1 text-center text-[11px] font-black uppercase tracking-wide text-black">{h}</div>
         ))}
         {cells.map((d, i) => {
           if (d === null) return <div key={i} />;
@@ -105,21 +104,21 @@ function MonthCalendar({ year, month, holidaysByDate, weeklyOffSet, onPrev, onNe
               title={holiday ? holiday.name : undefined}
               className={`flex min-h-15 flex-col gap-1 rounded-lg border p-1.5 text-[11px] ${clickable ? 'cursor-pointer hover:opacity-80' : ''} ${isToday ? 'ring-2 ring-offset-1' : ''}`}
               style={{
-                borderColor: holiday ? 'var(--color-brand)' : 'var(--color-line, #e2e8f0)',
-                background: holiday ? 'rgba(0,134,173,0.10)' : isWeeklyOff ? '#f8fafc' : '#fff',
-                ...(isToday ? { '--tw-ring-color': 'var(--color-brand)' } : {}),
+                borderColor: holiday ? 'var(--rose)' : isWeeklyOff ? 'var(--rose-soft)' : 'var(--color-line, #e2e8f0)',
+                background: holiday ? 'var(--rose-soft)' : isWeeklyOff ? 'rgba(232,96,122,0.06)' : '#fff',
+                ...(isToday ? { '--tw-ring-color': 'var(--rose)' } : {}),
               }}
             >
-              <span className={`text-[12px] ${holiday ? 'font-bold text-brand-3' : isWeeklyOff ? 'text-muted' : ''}`}>{d}</span>
-              {holiday && <span className="truncate font-semibold text-brand-3">{holiday.name}</span>}
+              <span className={`text-[12px] ${holiday ? 'font-bold' : isWeeklyOff ? 'text-muted' : ''}`} style={holiday ? { color: 'var(--rose)' } : {}}>{d}</span>
+              {holiday && <span className="truncate font-semibold" style={{ color: 'var(--rose)' }}>{holiday.name}</span>}
             </div>
           );
         })}
       </div>
 
       <div className="mt-3 flex flex-wrap gap-4 text-[11px] text-muted">
-        <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: 'rgba(0,134,173,0.4)' }} /> Holiday</span>
-        <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-slate-100 border border-line" /> Weekly Off</span>
+        <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: 'var(--rose-soft)' }} /> Holiday</span>
+        <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: 'rgba(232,96,122,0.15)' }} /> Weekly Off</span>
       </div>
     </div>
   );
@@ -163,8 +162,8 @@ export default function HolidaysPage() {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 className="flex items-center gap-2"><CalendarDays size={22} /> Holidays & Weekly Off</h2>
+      <div className="page-header">
+        <h2><CalendarDays size={22} /> Holidays & Weekly Off</h2>
       </div>
 
       <div className="space-y-5">
@@ -181,7 +180,7 @@ export default function HolidaysPage() {
                   disabled={!canEdit || savingWeekly}
                   onClick={() => toggleWeekday(w.value)}
                   className={`rounded-lg border px-3 py-1.5 text-[12px] font-semibold ${active ? 'border-transparent text-white' : 'border-line bg-white/80'}`}
-                  style={active ? { background: 'linear-gradient(135deg, var(--color-brand), var(--color-brand-2))' } : undefined}
+                  style={active ? { background: 'var(--rose)', borderColor: 'var(--rose)', color: '#ffffff' } : undefined}
                 >
                   {w.label}
                 </button>
@@ -209,7 +208,7 @@ export default function HolidaysPage() {
         </div>
 
         <div>
-          <div className="section-header">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, marginTop: 0 }}>
             <h3 className="text-[14px] font-bold">All Holidays</h3>
           </div>
           <div className="card table-wrap">

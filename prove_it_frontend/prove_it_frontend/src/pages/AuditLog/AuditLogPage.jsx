@@ -15,10 +15,10 @@ const MODULES = ['Users', 'Projects', 'Employees', 'Timesheets', 'Expenses', 'Re
 
 const COLUMNS = [
   { key: 'timestamp', header: 'Date & Time', render: r => date(r.timestamp || r.created_at) },
-  { key: 'user', header: 'User', render: r => r.user || '—' },
-  { key: 'module', header: 'Module', render: r => <Badge status={r.module} /> },
-  { key: 'action', header: 'Action', render: r => r.action || '—' },
-  { key: 'detail', header: 'Detail', render: r => r.detail || '—' },
+  { key: 'user', header: 'User', render: r => r.user || '—', align: 'center' },
+  { key: 'module', header: 'Module', render: r => <Badge status={r.module} />, align: 'center' },
+  { key: 'action', header: 'Action', render: r => r.action || '—', align: 'center' },
+  { key: 'detail', header: 'Detail', render: r => r.detail || '—', align: 'center' },
 ];
 
 export default function AuditLogPage() {
@@ -56,14 +56,14 @@ export default function AuditLogPage() {
 
   return (
     <div>
-      <div className="section-header">
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}><ClipboardList size={22} /> Audit Log</h2>
+      <div className="page-header">
+        <h2><ClipboardList size={22} /> Audit Log</h2>
         <div style={{ display: 'flex', gap: 10 }}>
           {canCreateOnPage('audit') && (
             <Button variant="primary" onClick={handleNew}><Plus size={15} /> Add Entry</Button>
           )}
           {canExportOnPage('audit') && (
-            <Button variant="ghost" onClick={handleExport}><Download size={15} /> Export</Button>
+            <button type="button" className="form-control" style={{ color: 'var(--rose)', borderColor: 'var(--rose)', marginTop: '8px', width: 'auto', display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '10px 12px', cursor: 'pointer' }} onClick={handleExport}><Download size={15} /> Export</button>
           )}
         </div>
       </div>
