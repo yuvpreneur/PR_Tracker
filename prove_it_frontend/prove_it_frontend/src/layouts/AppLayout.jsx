@@ -84,7 +84,6 @@ export default function AppLayout() {
       <div id="sidebar" className={collapsed ? 'collapsed' : ''}>
         <div className="sidebar-logo">
           <div className="sico"><img className="brand-mark" src={orgLogoUrl || '/company-logo.png'} alt={orgName ? `${orgName} logo` : 'Organization logo'} /></div>
-          <span>{orgName || 'Prove IT'}</span>
         </div>
         <nav>
           {NAV.map(section => (
@@ -133,8 +132,7 @@ export default function AppLayout() {
           className="sidebar-footer"
           data-lucide-icon={collapsed ? 'collapsed' : 'expanded'}
           onClick={() => setCollapsed(c => !c)}
-          style={{ background: 'var(--rose-soft)', color: 'var(--rose)', border: 'none', marginBottom: 0 }}
-        >◀ Collapse</button>
+        >{collapsed ? '▶' : '◀ Collapse'}</button>
         <div className="sidebar-wave">
           <svg
             viewBox="0 0 276 180"

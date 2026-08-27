@@ -1,4 +1,5 @@
 :root {
+  /* Primary & Accent */
   --brand: #0086AD;
   --brand-2: #00A6D4;
   --brand-3: #075D78;
@@ -10,9 +11,26 @@
   --page: #F3F8FB;
   --card: #FFFFFF;
   --line: #D8E7EF;
+
+  /* Rose/Pink Palette (keeping exact hex values) */
   --rose: #E8607A;
   --rose-2: #F2879C;
   --rose-soft: rgba(232,96,122,.14);
   --blush: #FBE9EE;
   --blush-ink: #C24868;
+
+  /* New design tokens inspired by reference */
+  --shadow-sm: 0 2px 4px rgba(232, 96, 122, .02);
+  --shadow-base: 0 18px 36px -24px rgba(232, 96, 122, .18);
+  --shadow-rose: 0 10px 18px -10px rgba(232, 96, 122, .35);
+
+  /* Border radius scale */
+  --radius-xs: 5px;
+  --radius-sm: 9px;
+  --radius-md: 11px;
+  --radius-lg: 13px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-3xl: 22px;
+  --radius-full: 999px;
 }
