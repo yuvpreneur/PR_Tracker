@@ -25,6 +25,7 @@ import { loadUsers } from './pages/users.js';
 import { loadAccessRequests, submitPageAccessRequest } from './pages/accesscontrol.js';
 import { loadAudit } from './pages/audit.js';
 import { openReportView, handleReportExport } from './pages/reports.js';
+import { replaceSelectWithDropdown, updateDropdownOptions } from './dropdownBridge.js';
 
 const ATTACH_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];
 const ATTACH_MAX_BYTES = 10 * 1024 * 1024; // 10MB — matches the backend's limit
@@ -659,6 +660,198 @@ export function initApiBridge() {
     });
   }
 
+  // ── Setup Dropdowns ────────────────────────────────────────────────────────
+  // Convert all native <select> elements in modals to use the React Dropdown component
+  // while maintaining compatibility with bridge code (val(), set(), etc.)
+  function setupDropdowns() {
+    // Each modal and its dropdowns
+    const dropdownConfigs = [
+      // modal-company (shared for Companies & Customers)
+      { modalId: 'modal-company', labelHint: 'status', options: [
+        { value: 'Active', label: 'Active' },
+        { value: 'Onboarding', label: 'Onboarding' },
+        { value: 'Inactive', label: 'Inactive' }
+      ]},
+
+      // modal-project
+      { modalId: 'modal-project', labelHint: 'status', options: [
+        { value: 'Not Started', label: 'Not Started' },
+        { value: 'In Progress', label: 'In Progress' },
+        { value: 'On Hold', label: 'On Hold' },
+        { value: 'Completed', label: 'Completed' },
+        { value: 'Cancelled', label: 'Cancelled' }
+      ]},
+
+      // modal-pcode
+      { modalId: 'modal-pcode', labelHint: 'status', options: [
+        { value: 'Active', label: 'Active' },
+        { value: 'Inactive', label: 'Inactive' }
+      ]},
+
+      // modal-bcode
+      { modalId: 'modal-bcode', labelHint: 'billing type', options: [
+        { value: 'T&M', label: 'T&M (Time & Material)' },
+        { value: 'Fixed', label: 'Fixed Price' },
+        { value: 'Milestone', label: 'Milestone' }
+      ]},
+      { modalId: 'modal-bcode', labelHint: 'status', options: [
+        { value: 'Active', label: 'Active' },
+        { value: 'Inactive', label: 'Inactive' }
+      ]},
+
+      // modal-emp
+      { modalId: 'modal-emp', labelHint: 'department', options: [
+        { value: 'Engineering', label: 'Engineering' },
+        { value: 'Design', label: 'Design' },
+        { value: 'QA', label: 'QA' },
+        { value: 'Finance', label: 'Finance' },
+        { value: 'HR', label: 'HR' }
+      ]},
+      { modalId: 'modal-emp', labelHint: 'role', options: [
+        { value: 'Employee', label: 'Employee' },
+        { value: 'Manager', label: 'Manager' },
+        { value: 'Finance User', label: 'Finance User' },
+        { value: 'Viewer', label: 'Viewer' }
+      ]},
+      { modalId: 'modal-emp', labelHint: 'billable', options: [
+        { value: 'Billable', label: 'Billable' },
+        { value: 'Non-Billable', label: 'Non-Billable' }
+      ]},
+      { modalId: 'modal-emp', labelHint: 'status', options: [
+        { value: 'Active', label: 'Active' },
+        { value: 'Inactive', label: 'Inactive' }
+      ]},
+
+      // modal-leave
+      { modalId: 'modal-leave', labelHint: 'leave type', options: [
+        { value: 'Casual', label: 'Casual' },
+        { value: 'Sick', label: 'Sick' },
+        { value: 'Earned', label: 'Earned' },
+        { value: 'Unpaid', label: 'Unpaid' }
+      ]},
+
+      // modal-timesheet
+      { modalId: 'modal-timesheet', labelHint: 'billable', options: [
+        { value: 'Billable', label: 'Billable' },
+        { value: 'Non-Billable', label: 'Non-Billable' }
+      ]},
+
+      // modal-expense
+      { modalId: 'modal-expense', labelHint: 'expense category', options: [
+        { value: 'Travel', label: 'Travel' },
+        { value: 'Software', label: 'Software' },
+        { value: 'Vendor', label: 'Vendor' },
+        { value: 'Material', label: 'Material' },
+        { value: 'Misc', label: 'Miscellaneous' }
+      ]},
+
+      // modal-recv
+      { modalId: 'modal-recv', labelHint: 'payment status', options: [
+        { value: 'Pending', label: 'Pending' },
+        { value: 'Partial', label: 'Partial' },
+        { value: 'Paid', label: 'Paid' },
+        { value: 'Overdue', label: 'Overdue' }
+      ]},
+
+      // modal-ticket
+      { modalId: 'modal-ticket', labelHint: 'category', options: [
+        { value: 'Access Request', label: 'Access Request' },
+        { value: 'Incident', label: 'Incident' },
+        { value: 'Change Request', label: 'Change Request' },
+        { value: 'Billing / Finance', label: 'Billing / Finance' },
+        { value: 'Application Support', label: 'Application Support' },
+        { value: 'Cancellation Request', label: 'Cancellation Request' }
+      ]},
+      { modalId: 'modal-ticket', labelHint: 'priority', options: [
+        { value: 'Low', label: 'Low' },
+        { value: 'Medium', label: 'Medium' },
+        { value: 'High', label: 'High' },
+        { value: 'Critical', label: 'Critical' }
+      ]},
+      { modalId: 'modal-ticket', labelHint: 'assignment queue', options: [
+        { value: 'IT Support', label: 'IT Support' },
+        { value: 'Access', label: 'Access' },
+        { value: 'Finance Ops', label: 'Finance Ops' },
+        { value: 'PMO', label: 'PMO' },
+        { value: 'Billing', label: 'Billing' },
+        { value: 'HR', label: 'HR' },
+        { value: 'Vendor', label: 'Vendor' },
+        { value: 'App Support', label: 'App Support' }
+      ]},
+      { modalId: 'modal-ticket', labelHint: 'target sla', options: [
+        { value: '4 hours', label: '4 hours' },
+        { value: '8 hours', label: '8 hours' },
+        { value: '1 business day', label: '1 business day' },
+        { value: '3 business days', label: '3 business days' }
+      ]},
+
+      // modal-ticket-cancel
+      { modalId: 'modal-ticket-cancel', labelHint: 'cancellation reason', options: [
+        { value: 'Duplicate request', label: 'Duplicate request' },
+        { value: 'No longer required', label: 'No longer required' },
+        { value: 'Created by mistake', label: 'Created by mistake' },
+        { value: 'Resolved outside system', label: 'Resolved outside system' },
+        { value: 'Business decision', label: 'Business decision' }
+      ]},
+      { modalId: 'modal-ticket-cancel', labelHint: 'approval required', options: [
+        { value: 'Requester approval', label: 'Requester approval' },
+        { value: 'Manager approval', label: 'Manager approval' },
+        { value: 'No approval required', label: 'No approval required' }
+      ]},
+
+      // modal-user
+      { modalId: 'modal-user', labelHint: 'role', options: [
+        { value: 'Admin', label: 'Admin' },
+        { value: 'Manager', label: 'Manager' },
+        { value: 'Finance User', label: 'Finance User' },
+        { value: 'Employee', label: 'Employee' },
+        { value: 'Viewer', label: 'Viewer' }
+      ]},
+
+      // modal-audit
+      { modalId: 'modal-audit', labelHint: 'module', options: [
+        { value: 'Users', label: 'Users' },
+        { value: 'Projects', label: 'Projects' },
+        { value: 'Employees', label: 'Employees' },
+        { value: 'Timesheets', label: 'Timesheets' },
+        { value: 'Expenses', label: 'Expenses' },
+        { value: 'Receivables', label: 'Receivables' },
+        { value: 'Access Control', label: 'Access Control' },
+        { value: 'Other', label: 'Other' }
+      ]},
+    ];
+
+    // Apply each dropdown config
+    dropdownConfigs.forEach(config => {
+      replaceSelectWithDropdown(config.modalId, config.labelHint, config.options);
+    });
+
+    // Dropdowns that are populated dynamically (via API/state) — their options
+    // come from data, not fixed lists. Set them up with empty options initially;
+    // when populated via populateCostEmployeeDropdown() or similar, the hidden
+    // select gets updated and the Dropdown re-mounts.
+    const dynamicDropdowns = [
+      { modalId: 'modal-project', labelHint: 'client name' },
+      { modalId: 'modal-project', labelHint: 'project manager' },
+      { modalId: 'modal-pcode', labelHint: 'project' },
+      { modalId: 'modal-bcode', labelHint: 'project code' },
+      { modalId: 'modal-cost', labelHint: 'employee' },
+      { modalId: 'modal-timesheet', labelHint: 'project' },
+      { modalId: 'modal-timesheet', labelHint: 'project code' },
+      { modalId: 'modal-timesheet', labelHint: 'billing code' },
+      { modalId: 'modal-expense', labelHint: 'project' },
+      { modalId: 'modal-expense', labelHint: 'project code' },
+      { modalId: 'modal-expense', labelHint: 'billing code' },
+      { modalId: 'modal-recv', labelHint: 'project' },
+      { modalId: 'modal-recv', labelHint: 'billing code' },
+      { modalId: 'modal-ticket', labelHint: 'project' },
+    ];
+
+    dynamicDropdowns.forEach(config => {
+      replaceSelectWithDropdown(config.modalId, config.labelHint, []);
+    });
+  }
+
   // ── INIT ───────────────────────────────────────────────────────────────────
   const loadCurrentUser = get('/api/auth/me')
     .then(me => {
@@ -670,6 +863,7 @@ export function initApiBridge() {
 
   Promise.all([refreshCaches(), loadCurrentUser]).then(() => {
     wireSubmits();
+    setupDropdowns();
     populateFilterDropdowns();
     wireFilters(loaders, loadPage);
     ensureNotifPanel();

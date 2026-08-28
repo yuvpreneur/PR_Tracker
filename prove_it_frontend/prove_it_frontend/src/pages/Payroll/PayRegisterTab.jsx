@@ -3,6 +3,7 @@ import { Upload, Loader2, Trash2, AlertTriangle } from 'lucide-react';
 import usePayRegister from './usePayRegister.js';
 import { COLUMNS, SECTION_COLUMN_COUNTS } from './payRegisterColumns.js';
 import Button from '../../components/ui/Button.jsx';
+import Dropdown from '../../components/ui/Dropdown.jsx';
 import { toast } from '../../utils/toast.js';
 import { payPeriodLabel as formatPeriod } from '../../utils/format.js';
 import usePermissions from '../../hooks/usePermissions.js';
@@ -79,9 +80,16 @@ export default function PayRegisterTab() {
     <div>
       {periods.length > 0 && (
         <div className="mb-5 flex items-center justify-between gap-2">
-          <select className="form-control" style={{ width: 'auto', minWidth: '140px' }} value={period || ''} onChange={e => setPeriod(e.target.value)}>
-            {periods.map(p => <option key={p.period} value={p.period}>{formatPeriod(p.period)}</option>)}
-          </select>
+          <Dropdown
+            value={period || ''}
+            onChange={setPeriod}
+            options={periods.map(p => ({
+              value: p.period,
+              label: formatPeriod(p.period)
+            }))}
+            placeholder="Select period"
+            style={{ width: 'auto', minWidth: '160px' }}
+          />
           {(canEdit || canDelete) && (
             <div className="flex gap-2">
               {canDelete && register && (

@@ -5,6 +5,7 @@ import { get } from '../../services/httpClient.js';
 import { state } from '../../bridge/core/state.js';
 import usePermissions from '../../hooks/usePermissions.js';
 import SectionTitle from '../../components/ui/SectionTitle.jsx';
+import Dropdown from '../../components/ui/Dropdown.jsx';
 
 const CATEGORY_ICONS = { 'Project Reports': FolderKanban, 'Employee Reports': Users, 'Financial Reports': Wallet, 'Audit Reports': ClipboardList };
 
@@ -78,20 +79,38 @@ export default function ReportsPage() {
       <div className="page-header"><h2><ChartColumn size={22} /> Reports</h2></div>
 
       <div className="filter-bar">
-        <select className="form-control" value={projectId} onChange={e => setProjectId(e.target.value)}>
-          <option value="">All Projects</option>
-          {projects.map(p => <option key={p.id} value={p.id}>{p.id} - {p.name}</option>)}
-        </select>
-        <select className="form-control" value={empId} onChange={e => setEmpId(e.target.value)}>
-          <option value="">All Employees</option>
-          {employees.map(e => <option key={e.emp_id} value={e.emp_id}>{e.emp_id} - {e.name}</option>)}
-        </select>
-        <select id="reports-period" className="form-control" value={period} onChange={e => setPeriod(e.target.value)}>
-          <option value="this_month">This Month</option>
-          <option value="last_month">Last Month</option>
-          <option value="q1_2026">Q1</option>
-          <option value="fy_2025_26">FY 2025-26</option>
-        </select>
+        <Dropdown
+          value={projectId}
+          onChange={setProjectId}
+          options={[
+            { value: '', label: 'All Projects' },
+            ...projects.map(p => ({ value: p.id, label: `${p.id} - ${p.name}` }))
+          ]}
+          placeholder="All Projects"
+          style={{ width: '200px' }}
+        />
+        <Dropdown
+          value={empId}
+          onChange={setEmpId}
+          options={[
+            { value: '', label: 'All Employees' },
+            ...employees.map(e => ({ value: e.emp_id, label: `${e.emp_id} - ${e.name}` }))
+          ]}
+          placeholder="All Employees"
+          style={{ width: '180px' }}
+        />
+        <Dropdown
+          value={period}
+          onChange={setPeriod}
+          options={[
+            { value: 'this_month', label: 'This Month' },
+            { value: 'last_month', label: 'Last Month' },
+            { value: 'q1_2026', label: 'Q1' },
+            { value: 'fy_2025_26', label: 'FY 2025-26' }
+          ]}
+          placeholder="This Month"
+          style={{ width: '140px' }}
+        />
         <div className="relative" style={{ flex: 1, minWidth: 180 }}>
           <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
           <input

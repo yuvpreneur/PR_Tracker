@@ -4,6 +4,7 @@ import useTimesheets from './useTimesheets.js';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
+import Dropdown from '../../components/ui/Dropdown.jsx';
 import { date } from '../../utils/format.js';
 import { get } from '../../services/httpClient.js';
 import usePermissions from '../../hooks/usePermissions.js';
@@ -71,26 +72,50 @@ export default function TimesheetsPage() {
       </div>
 
       <div className="filter-bar">
-        <select className="form-control" value={projectId} onChange={e => setProjectId(e.target.value)}>
-          <option value="">All Projects</option>
-          {projects.map(p => <option key={p.id} value={p.id}>{p.id} — {p.name}</option>)}
-        </select>
-        <select className="form-control" value={billingCodeId} onChange={e => setBillingCodeId(e.target.value)}>
-          <option value="">All Billing Codes</option>
-          {[...new Set(bcodes.map(b => b.code))].sort().map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
-        <select className="form-control" value={status} onChange={e => setStatus(e.target.value)}>
-          <option value="">All Status</option>
-          <option>Approved</option>
-          <option>Pending</option>
-          <option>Rejected</option>
-        </select>
-        <select className="form-control" value={period} onChange={e => setPeriod(e.target.value)}>
-          <option value="">All Time</option>
-          <option value="this_week">This Week</option>
-          <option value="last_week">Last Week</option>
-          <option value="this_month">This Month</option>
-        </select>
+        <Dropdown
+          value={projectId}
+          onChange={setProjectId}
+          options={[
+            { value: '', label: 'All Projects' },
+            ...projects.map(p => ({ value: p.id, label: `${p.id} — ${p.name}` }))
+          ]}
+          placeholder="All Projects"
+          style={{ width: '180px' }}
+        />
+        <Dropdown
+          value={billingCodeId}
+          onChange={setBillingCodeId}
+          options={[
+            { value: '', label: 'All Billing Codes' },
+            ...[...new Set(bcodes.map(b => b.code))].sort().map(c => ({ value: c, label: c }))
+          ]}
+          placeholder="All Billing Codes"
+          style={{ width: '160px' }}
+        />
+        <Dropdown
+          value={status}
+          onChange={setStatus}
+          options={[
+            { value: '', label: 'All Status' },
+            { value: 'Approved', label: 'Approved' },
+            { value: 'Pending', label: 'Pending' },
+            { value: 'Rejected', label: 'Rejected' }
+          ]}
+          placeholder="All Status"
+          style={{ width: '140px' }}
+        />
+        <Dropdown
+          value={period}
+          onChange={setPeriod}
+          options={[
+            { value: '', label: 'All Time' },
+            { value: 'this_week', label: 'This Week' },
+            { value: 'last_week', label: 'Last Week' },
+            { value: 'this_month', label: 'This Month' }
+          ]}
+          placeholder="All Time"
+          style={{ width: '140px' }}
+        />
         <div className="relative" style={{ flex: 1, minWidth: 180 }}>
           <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
           <input

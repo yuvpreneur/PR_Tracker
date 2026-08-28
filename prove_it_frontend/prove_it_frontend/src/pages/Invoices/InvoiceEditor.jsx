@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Plus, Trash2, Loader2, Save, Send } from 'lucide-react';
 import Button from '../../components/ui/Button.jsx';
+import Dropdown from '../../components/ui/Dropdown.jsx';
 import { toast } from '../../utils/toast.js';
 import { formatMoney } from '../../utils/format.js';
 import { CURRENCIES, PAYMENT_TERMS } from '../../utils/constants.js';
@@ -110,10 +111,16 @@ export default function InvoiceEditor({ companies, projects, invoices, initialDa
           </div>
           <div className="form-group">
             <label className="form-label">Project (optional)</label>
-            <select className="form-control" value={projectId} onChange={e => onProjectChange(e.target.value)}>
-              <option value="">No project</option>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+            <Dropdown
+              value={projectId}
+              onChange={onProjectChange}
+              options={[
+                { value: '', label: 'No project' },
+                ...projects.map(p => ({ value: p.id, label: p.name }))
+              ]}
+              placeholder="No project"
+              style={{ width: '100%' }}
+            />
           </div>
           <div className="form-group">
             <label className="form-label">Invoice #</label>
@@ -121,9 +128,13 @@ export default function InvoiceEditor({ companies, projects, invoices, initialDa
           </div>
           <div className="form-group">
             <label className="form-label">Currency</label>
-            <select className="form-control" value={currency} onChange={e => setCurrency(e.target.value)}>
-              {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
-            </select>
+            <Dropdown
+              value={currency}
+              onChange={setCurrency}
+              options={CURRENCIES.map(c => ({ value: c.code, label: c.code }))}
+              placeholder="Select currency"
+              style={{ width: '100%' }}
+            />
           </div>
           <div className="form-group">
             <label className="form-label">Issue date</label>
@@ -131,9 +142,13 @@ export default function InvoiceEditor({ companies, projects, invoices, initialDa
           </div>
           <div className="form-group">
             <label className="form-label">Payment terms</label>
-            <select className="form-control" value={paymentTerms} onChange={e => onTermsChange(e.target.value)}>
-              {PAYMENT_TERMS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
+            <Dropdown
+              value={paymentTerms}
+              onChange={onTermsChange}
+              options={PAYMENT_TERMS.map(t => ({ value: t.value, label: t.label }))}
+              placeholder="Select terms"
+              style={{ width: '100%' }}
+            />
           </div>
           <div className="form-group">
             <label className="form-label">Due date</label>

@@ -4,6 +4,7 @@ import useBillingCodes from './useBillingCodes.js';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
+import Dropdown from '../../components/ui/Dropdown.jsx';
 import { date, num } from '../../utils/format.js';
 import { openModal, startCreate, resetFields } from '../../bridge/shared/modals.js';
 import usePermissions from '../../hooks/usePermissions.js';
@@ -55,16 +56,28 @@ export default function BillingCodesPage() {
       </div>
 
       <div className="filter-bar">
-        <select className="form-control" value={projectId} onChange={e => setProjectId(e.target.value)}>
-          <option value="">All Projects</option>
-          {projects.map(p => <option key={p.id} value={p.id}>{p.id} · {p.name}</option>)}
-        </select>
-        <select className="form-control" value={billingType} onChange={e => setBillingType(e.target.value)}>
-          <option value="">All Types</option>
-          <option value="T&M">T&M</option>
-          <option value="Fixed">Fixed</option>
-          <option value="Milestone">Milestone</option>
-        </select>
+        <Dropdown
+          value={projectId}
+          onChange={setProjectId}
+          options={[
+            { value: '', label: 'All Projects' },
+            ...projects.map(p => ({ value: p.id, label: `${p.id} · ${p.name}` }))
+          ]}
+          placeholder="All Projects"
+          style={{ width: '200px' }}
+        />
+        <Dropdown
+          value={billingType}
+          onChange={setBillingType}
+          options={[
+            { value: '', label: 'All Types' },
+            { value: 'T&M', label: 'T&M' },
+            { value: 'Fixed', label: 'Fixed' },
+            { value: 'Milestone', label: 'Milestone' }
+          ]}
+          placeholder="All Types"
+          style={{ width: '160px' }}
+        />
         <div className="relative" style={{ flex: 1, minWidth: 180 }}>
           <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
           <input

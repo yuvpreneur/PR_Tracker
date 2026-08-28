@@ -4,6 +4,7 @@ import useAuditLog from './useAuditLog.js';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
+import Dropdown from '../../components/ui/Dropdown.jsx';
 import { get } from '../../services/httpClient.js';
 import { date } from '../../utils/format.js';
 import usePermissions from '../../hooks/usePermissions.js';
@@ -69,19 +70,37 @@ export default function AuditLogPage() {
       </div>
 
       <div className="filter-bar">
-        <select className="form-control" value={module} onChange={e => setModule(e.target.value)}>
-          <option value="">All Modules</option>
-          {MODULES.map(m => <option key={m} value={m}>{m}</option>)}
-        </select>
-        <select className="form-control" value={user} onChange={e => setUser(e.target.value)}>
-          <option value="">All Users</option>
-          {users.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
-        </select>
-        <select className="form-control" value={period} onChange={e => setPeriod(e.target.value)}>
-          <option value="today">Today</option>
-          <option value="this_week">This Week</option>
-          <option value="this_month">This Month</option>
-        </select>
+        <Dropdown
+          value={module}
+          onChange={setModule}
+          options={[
+            { value: '', label: 'All Modules' },
+            ...MODULES.map(m => ({ value: m, label: m }))
+          ]}
+          placeholder="All Modules"
+          style={{ width: '160px' }}
+        />
+        <Dropdown
+          value={user}
+          onChange={setUser}
+          options={[
+            { value: '', label: 'All Users' },
+            ...users.map(u => ({ value: u.name, label: u.name }))
+          ]}
+          placeholder="All Users"
+          style={{ width: '160px' }}
+        />
+        <Dropdown
+          value={period}
+          onChange={setPeriod}
+          options={[
+            { value: 'today', label: 'Today' },
+            { value: 'this_week', label: 'This Week' },
+            { value: 'this_month', label: 'This Month' }
+          ]}
+          placeholder="Select period"
+          style={{ width: '160px' }}
+        />
         <div className="relative" style={{ flex: 1, minWidth: 180 }}>
           <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
           <input

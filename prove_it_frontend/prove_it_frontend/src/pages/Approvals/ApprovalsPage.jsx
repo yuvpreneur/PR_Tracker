@@ -3,6 +3,7 @@ import { ClipboardCheck, Clock, Receipt, CalendarDays, KeyRound, Check, X, Eye }
 import useApprovals from './useApprovals.js';
 import StatCard from '../../components/ui/StatCard.jsx';
 import SectionTitle from '../../components/ui/SectionTitle.jsx';
+import Dropdown from '../../components/ui/Dropdown.jsx';
 import { date, num } from '../../utils/format.js';
 import usePermissions from '../../hooks/usePermissions.js';
 
@@ -61,13 +62,19 @@ export default function ApprovalsPage() {
     <div>
       <div className="page-header">
         <h2><ClipboardCheck size={22} /> Approval Dashboard</h2>
-        <select id="appr-type-filter" className="form-control" style={{ width: 'auto' }} value={filter} onChange={e => setFilter(e.target.value)}>
-          <option value="">All Types</option>
-          {!isFinanceUser && <option value="timesheets">Timesheet</option>}
-          <option value="expenses">Expense</option>
-          {!isFinanceUser && <option value="leave">Leave</option>}
-          {!isFinanceUser && <option value="access">Access Control</option>}
-        </select>
+        <Dropdown
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { value: '', label: 'All Types' },
+            ...(!isFinanceUser ? [{ value: 'timesheets', label: 'Timesheet' }] : []),
+            { value: 'expenses', label: 'Expense' },
+            ...(!isFinanceUser ? [{ value: 'leave', label: 'Leave' }] : []),
+            ...(!isFinanceUser ? [{ value: 'access', label: 'Access Control' }] : [])
+          ]}
+          placeholder="All Types"
+          style={{ width: '160px' }}
+        />
       </div>
 
       {isFinanceUser ? (

@@ -4,6 +4,7 @@ import useCompanies from './useCompanies.js';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
+import Dropdown from '../../components/ui/Dropdown.jsx';
 import { openModal, startCreate, resetFields } from '../../bridge/shared/modals.js';
 import usePermissions from '../../hooks/usePermissions.js';
 
@@ -56,10 +57,16 @@ export default function CompaniesPage() {
       </div>
 
       <div className="filter-bar">
-        <select className="form-control" value={industry} onChange={e => setIndustry(e.target.value)}>
-          <option value="">All Industries</option>
-          {industries.map(i => <option key={i} value={i}>{i}</option>)}
-        </select>
+        <Dropdown
+          value={industry}
+          onChange={setIndustry}
+          options={[
+            { value: '', label: 'All Industries' },
+            ...industries.map(i => ({ value: i, label: i }))
+          ]}
+          placeholder="All Industries"
+          style={{ width: '160px' }}
+        />
         <div className="relative" style={{ flex: 1, minWidth: 180 }}>
           <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
           <input

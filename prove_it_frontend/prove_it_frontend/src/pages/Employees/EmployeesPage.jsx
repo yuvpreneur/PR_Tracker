@@ -4,6 +4,7 @@ import useEmployees from './useEmployees.js';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
+import Dropdown from '../../components/ui/Dropdown.jsx';
 import { openModal, startCreate, resetFields } from '../../bridge/shared/modals.js';
 import usePermissions from '../../hooks/usePermissions.js';
 
@@ -57,15 +58,27 @@ export default function EmployeesPage() {
       </div>
 
       <div className="filter-bar">
-        <select className="form-control" value={dept} onChange={e => setDept(e.target.value)}>
-          <option value="">All Depts</option>
-          {depts.map(d => <option key={d} value={d}>{d}</option>)}
-        </select>
-        <select className="form-control" value={status} onChange={e => setStatus(e.target.value)}>
-          <option value="">All Status</option>
-          <option>Active</option>
-          <option>Inactive</option>
-        </select>
+        <Dropdown
+          value={dept}
+          onChange={setDept}
+          options={[
+            { value: '', label: 'All Depts' },
+            ...depts.map(d => ({ value: d, label: d }))
+          ]}
+          placeholder="All Depts"
+          style={{ width: '160px' }}
+        />
+        <Dropdown
+          value={status}
+          onChange={setStatus}
+          options={[
+            { value: '', label: 'All Status' },
+            { value: 'Active', label: 'Active' },
+            { value: 'Inactive', label: 'Inactive' }
+          ]}
+          placeholder="All Status"
+          style={{ width: '160px' }}
+        />
         <div className="relative" style={{ flex: 1, minWidth: 180 }}>
           <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
           <input

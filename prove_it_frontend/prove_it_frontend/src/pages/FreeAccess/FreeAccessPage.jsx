@@ -4,6 +4,7 @@ import useFreeAccess from './useFreeAccess.js';
 import usePlans from '../Plans/usePlans.js';
 import useOrganizations from '../Organizations/useOrganizations.js';
 import Button from '../../components/ui/Button.jsx';
+import Dropdown from '../../components/ui/Dropdown.jsx';
 
 const money = (value) => `$${Number(value || 0).toFixed(2).replace(/\.00$/, '')}`;
 
@@ -98,19 +99,32 @@ export default function FreeAccessPage() {
           )}
           <div className="form-group" style={{ margin: 0 }}>
             <label className="form-label">Organization</label>
-            <select className="form-control" value={orgId} onChange={e => setOrgId(e.target.value)}>
-              <option value="">Choose an organization…</option>
-              {eligibleOrgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-            </select>
+            <Dropdown
+              value={orgId}
+              onChange={setOrgId}
+              options={[
+                { value: '', label: 'Choose an organization…' },
+                ...eligibleOrgs.map(o => ({ value: o.id, label: o.name }))
+              ]}
+              placeholder="Choose an organization…"
+              style={{ width: '100%' }}
+            />
           </div>
           <div className="form-group" style={{ margin: 0 }}>
             <label className="form-label">Plan</label>
-            <select className="form-control" value={planId} onChange={e => setPlanId(e.target.value)}>
-              <option value="">Choose a plan…</option>
-              {plans.filter(p => p.is_active).map(p => (
-                <option key={p.id} value={p.id}>{p.name}{p.is_free ? ' (Free)' : ` (${money(p.price_monthly)}/mo)`}</option>
-              ))}
-            </select>
+            <Dropdown
+              value={planId}
+              onChange={setPlanId}
+              options={[
+                { value: '', label: 'Choose a plan…' },
+                ...plans.filter(p => p.is_active).map(p => ({
+                  value: p.id,
+                  label: `${p.name}${p.is_free ? ' (Free)' : ` (${money(p.price_monthly)}/mo)`}`
+                }))
+              ]}
+              placeholder="Choose a plan…"
+              style={{ width: '100%' }}
+            />
           </div>
           <div className="form-group" style={{ margin: 0 }}>
             <label className="form-label">Note (optional)</label>

@@ -21,6 +21,11 @@ export function populateExpenseModalDropdowns() {
     projSel.innerHTML = '<option value="">Select Project</option>' +
       state.projects.map(p => `<option value="${p.id}">${p.id} - ${p.name}</option>`).join('');
     if (prev) projSel.value = prev;
+    // Update the React Dropdown component
+    const options = [{ value: '', label: 'Select Project' }, ...state.projects.map(p => ({ value: p.id, label: `${p.id} - ${p.name}` }))];
+    if (typeof window.__updateDropdownOptions === 'function') {
+      window.__updateDropdownOptions('modal-expense', 'project', options);
+    }
   }
   const pcSel = field('modal-expense', 'project code');
   if (pcSel && pcSel.tagName === 'SELECT') {
@@ -28,6 +33,11 @@ export function populateExpenseModalDropdowns() {
     pcSel.innerHTML = '<option value="">Select Project Code</option>' +
       state.pcodes.map(c => `<option value="${c.code}">${c.code}</option>`).join('');
     if (prev) pcSel.value = prev;
+    // Update the React Dropdown component
+    const options = [{ value: '', label: 'Select Project Code' }, ...state.pcodes.map(c => ({ value: c.code, label: c.code }))];
+    if (typeof window.__updateDropdownOptions === 'function') {
+      window.__updateDropdownOptions('modal-expense', 'project code', options);
+    }
   }
   const bcSel = field('modal-expense', 'billing code');
   if (bcSel && bcSel.tagName === 'SELECT') {
@@ -35,6 +45,11 @@ export function populateExpenseModalDropdowns() {
     bcSel.innerHTML = '<option value="">Select Billing Code</option>' +
       state.bcodes.map(b => `<option value="${b.code}">${b.code}</option>`).join('');
     if (prev) bcSel.value = prev;
+    // Update the React Dropdown component
+    const options = [{ value: '', label: 'Select Billing Code' }, ...state.bcodes.map(b => ({ value: b.code, label: b.code }))];
+    if (typeof window.__updateDropdownOptions === 'function') {
+      window.__updateDropdownOptions('modal-expense', 'billing code', options);
+    }
   }
 }
 

@@ -12,6 +12,11 @@ export function populateBCodeProjectCodeDropdown() {
   sel.innerHTML = '<option value="">Select Project Code</option>' +
     state.pcodes.map(pc => `<option value="${pc.code}">${pc.code}</option>`).join('');
   if (prev) sel.value = prev;
+  // Update the React Dropdown component
+  const options = [{ value: '', label: 'Select Project Code' }, ...state.pcodes.map(pc => ({ value: pc.code, label: pc.code }))];
+  if (typeof window.__updateDropdownOptions === 'function') {
+    window.__updateDropdownOptions('modal-bcode', 'project code', options);
+  }
 }
 
 export async function loadBillingCodes() {
@@ -50,6 +55,11 @@ export function populateRecvBillingCodeSelect(projectId, keepValue) {
   bcSel.innerHTML = '<option value="">Select Billing Code</option>' +
     codes.map(b => `<option value="${b.code}">${b.code}</option>`).join('');
   bcSel.value = codes.some(b => b.code === prev) ? prev : '';
+  // Update the React Dropdown component
+  const options = [{ value: '', label: 'Select Billing Code' }, ...codes.map(b => ({ value: b.code, label: b.code }))];
+  if (typeof window.__updateDropdownOptions === 'function') {
+    window.__updateDropdownOptions('modal-recv', 'billing code', options);
+  }
 }
 
 export function populateReceivableModalDropdowns() {
@@ -59,6 +69,11 @@ export function populateReceivableModalDropdowns() {
     projSel.innerHTML = '<option value="">Select Project</option>' +
       state.projects.map(p => `<option value="${p.id}">${p.id} - ${p.name}</option>`).join('');
     if (prev) projSel.value = prev;
+    // Update the React Dropdown component
+    const options = [{ value: '', label: 'Select Project' }, ...state.projects.map(p => ({ value: p.id, label: `${p.id} - ${p.name}` }))];
+    if (typeof window.__updateDropdownOptions === 'function') {
+      window.__updateDropdownOptions('modal-recv', 'project', options);
+    }
 
     // Re-filter (and drop any now-mismatched selection) whenever the project changes.
     if (!projSel._recvWired) {

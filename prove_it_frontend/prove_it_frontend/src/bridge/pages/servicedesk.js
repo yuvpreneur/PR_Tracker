@@ -17,6 +17,11 @@ export function populateTicketProjectDropdown() {
   sel.innerHTML = '<option value="">Select Project</option>' +
     state.projects.map(p => `<option value="${p.id}">${p.id} · ${p.name}</option>`).join('');
   if (prev) sel.value = prev;
+  // Update the React Dropdown component
+  const options = [{ value: '', label: 'Select Project' }, ...state.projects.map(p => ({ value: p.id, label: `${p.id} · ${p.name}` }))];
+  if (typeof window.__updateDropdownOptions === 'function') {
+    window.__updateDropdownOptions('modal-ticket', 'project', options);
+  }
 }
 
 export async function loadServiceDesk() {

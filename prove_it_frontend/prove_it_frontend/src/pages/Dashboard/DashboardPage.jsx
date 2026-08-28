@@ -10,6 +10,7 @@ import DataTable from '../../components/ui/DataTable.jsx';
 import RevenueCostChart from '../../components/widgets/RevenueCostChart.jsx';
 import DualStatSplit from '../../components/widgets/DualStatSplit.jsx';
 import { date, num, formatCurrency } from '../../utils/format.js';
+import Dropdown from '../../components/ui/Dropdown.jsx';
 
 
 function AdminDashboard({ revenue, expenses, netProfit, pendingApprovals, billableHours, companies, activeProjects, headcount, monthly, profit }) {
@@ -244,12 +245,18 @@ export default function DashboardPage() {
         <h2>
           <LayoutDashboard size={22} /> Dashboard
         </h2>
-        <select id="dash-period" className="form-control" style={{ width: 'auto' }} value={period} onChange={e => setPeriod(e.target.value)}>
-          <option value="this_month">This Month</option>
-          <option value="last_month">Last Month</option>
-          <option value="q1_2026">Q1 2026</option>
-          <option value="fy_2025_26">FY 2025-26</option>
-        </select>
+        <Dropdown
+          value={period}
+          onChange={setPeriod}
+          options={[
+            { value: 'last_month', label: 'Last Month' },
+            { value: 'this_month', label: 'This Month' },
+            { value: 'q1_2026', label: 'Q1 2026' },
+            { value: 'fy_2025_26', label: 'FY 2025-26' },
+          ]}
+          placeholder="Select period"
+          style={{ width: '200px' }}
+        />
       </div>
 
       {loading ? (

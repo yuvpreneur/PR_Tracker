@@ -4,6 +4,7 @@ import useExpenses from './useExpenses.js';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
+import Dropdown from '../../components/ui/Dropdown.jsx';
 import { date } from '../../utils/format.js';
 import { viewAttachment, uploadFile } from '../../services/httpClient.js';
 import usePermissions from '../../hooks/usePermissions.js';
@@ -151,21 +152,39 @@ export default function ExpensesPage() {
       </div>
 
       <div className="filter-bar">
-        <select className="form-control" value={projectId} onChange={e => setProjectId(e.target.value)}>
-          <option value="">All Projects</option>
-          {projects.map(p => <option key={p.id} value={p.id}>{p.id} — {p.name}</option>)}
-        </select>
-        <select className="form-control" value={category} onChange={e => setCategory(e.target.value)}>
-          <option value="">All Categories</option>
-          {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
-        <select className="form-control" value={status} onChange={e => setStatus(e.target.value)}>
-          <option value="">All Status</option>
-          <option>Pending</option>
-          <option>Pending Finance</option>
-          <option>Approved</option>
-          <option>Rejected</option>
-        </select>
+        <Dropdown
+          value={projectId}
+          onChange={setProjectId}
+          options={[
+            { value: '', label: 'All Projects' },
+            ...projects.map(p => ({ value: p.id, label: `${p.id} — ${p.name}` }))
+          ]}
+          placeholder="All Projects"
+          style={{ width: '200px' }}
+        />
+        <Dropdown
+          value={category}
+          onChange={setCategory}
+          options={[
+            { value: '', label: 'All Categories' },
+            ...CATEGORIES.map(c => ({ value: c, label: c }))
+          ]}
+          placeholder="All Categories"
+          style={{ width: '160px' }}
+        />
+        <Dropdown
+          value={status}
+          onChange={setStatus}
+          options={[
+            { value: '', label: 'All Status' },
+            { value: 'Pending', label: 'Pending' },
+            { value: 'Pending Finance', label: 'Pending Finance' },
+            { value: 'Approved', label: 'Approved' },
+            { value: 'Rejected', label: 'Rejected' }
+          ]}
+          placeholder="All Status"
+          style={{ width: '160px' }}
+        />
         <div className="relative" style={{ flex: 1, minWidth: 180 }}>
           <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
           <input

@@ -4,6 +4,7 @@ import useUsers from './useUsers.js';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
+import Dropdown from '../../components/ui/Dropdown.jsx';
 import usePermissions from '../../hooks/usePermissions.js';
 import { openModal, startCreate, set, resetFields } from '../../bridge/shared/modals.js';
 
@@ -86,16 +87,28 @@ export default function UsersPage() {
       </div>
 
       <div className="filter-bar">
-        <select className="form-control" value={role} onChange={e => setRole(e.target.value)}>
-          <option value="">All Roles</option>
-          {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-        </select>
-        <select className="form-control" value={status} onChange={e => setStatus(e.target.value)}>
-          <option value="">All Status</option>
-          <option value="true">Active</option>
-          <option value="false">Inactive</option>
-          <option value="pending">Pending</option>
-        </select>
+        <Dropdown
+          value={role}
+          onChange={setRole}
+          options={[
+            { value: '', label: 'All Roles' },
+            ...ROLES.map(r => ({ value: r, label: r }))
+          ]}
+          placeholder="All Roles"
+          style={{ width: '160px' }}
+        />
+        <Dropdown
+          value={status}
+          onChange={setStatus}
+          options={[
+            { value: '', label: 'All Status' },
+            { value: 'true', label: 'Active' },
+            { value: 'false', label: 'Inactive' },
+            { value: 'pending', label: 'Pending' }
+          ]}
+          placeholder="All Status"
+          style={{ width: '160px' }}
+        />
         <div className="relative" style={{ flex: 1, minWidth: 180 }}>
           <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
           <input

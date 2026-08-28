@@ -7,6 +7,7 @@ import SectionTitle from '../../components/ui/SectionTitle.jsx';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
+import Dropdown from '../../components/ui/Dropdown.jsx';
 import { date, num } from '../../utils/format.js';
 import { toast } from '../../utils/toast.js';
 import usePermissions from '../../hooks/usePermissions.js';
@@ -121,10 +122,16 @@ export default function ProjectsPage() {
           <div className="form-grid" style={{ marginBottom: 12 }}>
             <div className="form-group">
               <label className="form-label">Project</label>
-              <select className="form-control" value={requestProjectId} onChange={e => setRequestProjectId(e.target.value)}>
-                <option value="">Select project…</option>
-                {requestableProjects.map(p => <option key={p.id} value={p.id}>{p.id} — {p.name}</option>)}
-              </select>
+              <Dropdown
+                value={requestProjectId}
+                onChange={setRequestProjectId}
+                options={[
+                  { value: '', label: 'Select project…' },
+                  ...requestableProjects.map(p => ({ value: p.id, label: `${p.id} — ${p.name}` }))
+                ]}
+                placeholder="Select project…"
+                style={{ width: '100%' }}
+              />
             </div>
             <div className="form-group col-span-2">
               <label className="form-label">Reason</label>
@@ -157,17 +164,29 @@ export default function ProjectsPage() {
       </div>
 
       <div className="filter-bar">
-        <select className="form-control" value={status} onChange={e => setStatus(e.target.value)}>
-          <option value="">All Status</option>
-          <option>In Progress</option>
-          <option>On Hold</option>
-          <option>Completed</option>
-          <option>Not Started</option>
-        </select>
-        <select className="form-control" value={client} onChange={e => setClient(e.target.value)}>
-          <option value="">All Clients</option>
-          {clients.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
+        <Dropdown
+          value={status}
+          onChange={setStatus}
+          options={[
+            { value: '', label: 'All Status' },
+            { value: 'In Progress', label: 'In Progress' },
+            { value: 'On Hold', label: 'On Hold' },
+            { value: 'Completed', label: 'Completed' },
+            { value: 'Not Started', label: 'Not Started' }
+          ]}
+          placeholder="All Status"
+          style={{ width: '160px' }}
+        />
+        <Dropdown
+          value={client}
+          onChange={setClient}
+          options={[
+            { value: '', label: 'All Clients' },
+            ...clients.map(c => ({ value: c, label: c }))
+          ]}
+          placeholder="All Clients"
+          style={{ width: '160px' }}
+        />
         <div className="relative" style={{ flex: 1, minWidth: 180 }}>
           <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
           <input

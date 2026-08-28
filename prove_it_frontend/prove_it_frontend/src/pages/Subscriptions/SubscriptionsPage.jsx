@@ -6,6 +6,7 @@ import useOrganizations from '../Organizations/useOrganizations.js';
 import Button from '../../components/ui/Button.jsx';
 import Badge from '../../components/ui/Badge.jsx';
 import Modal from '../../components/ui/Modal.jsx';
+import Dropdown from '../../components/ui/Dropdown.jsx';
 
 const money = (value) => `$${Number(value || 0).toFixed(2).replace(/\.00$/, '')}`;
 
@@ -101,12 +102,19 @@ export default function SubscriptionsPage() {
           )}
           <div className="form-group">
             <label className="form-label">Plan</label>
-            <select className="form-control" value={assigning.planId} onChange={e => setAssigning({ ...assigning, planId: e.target.value })}>
-              <option value="">No plan</option>
-              {plans.filter(p => p.is_active).map(p => (
-                <option key={p.id} value={p.id}>{p.name}{p.is_free ? ' (Free)' : ` (${money(p.price_monthly)}/mo)`}</option>
-              ))}
-            </select>
+            <Dropdown
+              value={assigning.planId}
+              onChange={planId => setAssigning({ ...assigning, planId })}
+              options={[
+                { value: '', label: 'No plan' },
+                ...plans.filter(p => p.is_active).map(p => ({
+                  value: p.id,
+                  label: `${p.name}${p.is_free ? ' (Free)' : ` (${money(p.price_monthly)}/mo)`}`
+                }))
+              ]}
+              placeholder="No plan"
+              style={{ width: '100%' }}
+            />
           </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '10px 0', fontSize: 13 }}>
             <input type="checkbox" checked={assigning.isActive} onChange={e => setAssigning({ ...assigning, isActive: e.target.checked })} />

@@ -3,6 +3,7 @@ import { Settings as SettingsIcon, Building2, Bell, Workflow, Database, Save, Do
 import useSettings from './useSettings.js';
 import Button from '../../components/ui/Button.jsx';
 import SectionTitle from '../../components/ui/SectionTitle.jsx';
+import Dropdown from '../../components/ui/Dropdown.jsx';
 
 export default function SettingsPage() {
   const {
@@ -55,12 +56,17 @@ export default function SettingsPage() {
             </div>
             <div className="form-group">
               <label className="form-label">Financial Year Start</label>
-              <select className="form-control" value={profile.financial_year_start}
-                onChange={e => setProfile({ ...profile, financial_year_start: e.target.value })}>
-                <option>April (India)</option>
-                <option>January</option>
-                <option>July</option>
-              </select>
+              <Dropdown
+                value={profile.financial_year_start}
+                onChange={financial_year_start => setProfile({ ...profile, financial_year_start })}
+                options={[
+                  { value: 'April (India)', label: 'April (India)' },
+                  { value: 'January', label: 'January' },
+                  { value: 'July', label: 'July' }
+                ]}
+                placeholder="Select month"
+                style={{ width: '100%' }}
+              />
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <Button variant="primary" onClick={saveProfile}><Save size={15} /> Save Profile</Button>
@@ -96,28 +102,43 @@ export default function SettingsPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div className="form-group">
               <label className="form-label">Timesheet Approval Levels</label>
-              <select className="form-control" value={workflow.timesheet_approval_levels}
-                onChange={e => setWorkflow({ ...workflow, timesheet_approval_levels: e.target.value })}>
-                <option>1 Level (Manager)</option>
-                <option>2 Levels (Manager → Admin)</option>
-                <option>2 Levels (Manager → Finance)</option>
-              </select>
+              <Dropdown
+                value={workflow.timesheet_approval_levels}
+                onChange={timesheet_approval_levels => setWorkflow({ ...workflow, timesheet_approval_levels })}
+                options={[
+                  { value: '1 Level (Manager)', label: '1 Level (Manager)' },
+                  { value: '2 Levels (Manager → Admin)', label: '2 Levels (Manager → Admin)' },
+                  { value: '2 Levels (Manager → Finance)', label: '2 Levels (Manager → Finance)' }
+                ]}
+                placeholder="Select levels"
+                style={{ width: '100%' }}
+              />
             </div>
             <div className="form-group">
               <label className="form-label">Expense Approval Levels</label>
-              <select className="form-control" value={workflow.expense_approval_levels}
-                onChange={e => setWorkflow({ ...workflow, expense_approval_levels: e.target.value })}>
-                <option>2 Levels (Manager → Finance)</option>
-                <option>1 Level (Manager)</option>
-              </select>
+              <Dropdown
+                value={workflow.expense_approval_levels}
+                onChange={expense_approval_levels => setWorkflow({ ...workflow, expense_approval_levels })}
+                options={[
+                  { value: '2 Levels (Manager → Finance)', label: '2 Levels (Manager → Finance)' },
+                  { value: '1 Level (Manager)', label: '1 Level (Manager)' }
+                ]}
+                placeholder="Select levels"
+                style={{ width: '100%' }}
+              />
             </div>
             <div className="form-group">
               <label className="form-label">Auto-lock Approved Records</label>
-              <select className="form-control" value={workflow.auto_lock}
-                onChange={e => setWorkflow({ ...workflow, auto_lock: e.target.value })}>
-                <option>Yes – lock immediately</option>
-                <option>No – allow edits with reason</option>
-              </select>
+              <Dropdown
+                value={workflow.auto_lock}
+                onChange={auto_lock => setWorkflow({ ...workflow, auto_lock })}
+                options={[
+                  { value: 'Yes – lock immediately', label: 'Yes – lock immediately' },
+                  { value: 'No – allow edits with reason', label: 'No – allow edits with reason' }
+                ]}
+                placeholder="Select option"
+                style={{ width: '100%' }}
+              />
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <Button variant="primary" onClick={saveWorkflow}><Save size={15} /> Save Workflow</Button>
@@ -130,12 +151,17 @@ export default function SettingsPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div className="form-group">
               <label className="form-label">Auto Backup Frequency</label>
-              <select className="form-control" value={backupConfig.auto_backup_frequency}
-                onChange={e => setBackupConfig({ ...backupConfig, auto_backup_frequency: e.target.value })}>
-                <option>Daily</option>
-                <option>Weekly</option>
-                <option>Monthly</option>
-              </select>
+              <Dropdown
+                value={backupConfig.auto_backup_frequency}
+                onChange={auto_backup_frequency => setBackupConfig({ ...backupConfig, auto_backup_frequency })}
+                options={[
+                  { value: 'Daily', label: 'Daily' },
+                  { value: 'Weekly', label: 'Weekly' },
+                  { value: 'Monthly', label: 'Monthly' }
+                ]}
+                placeholder="Select frequency"
+                style={{ width: '100%' }}
+              />
             </div>
             <div className="form-group">
               <label className="form-label">Backup Retention (days)</label>

@@ -25,6 +25,11 @@ export function populateTsProjectCodeSelect(projectId, keepValue) {
   pcSel.innerHTML = '<option value="">Select Project Code</option>' +
     codes.map(c => `<option value="${c.code}">${c.code}</option>`).join('');
   pcSel.value = codes.some(c => c.code === prev) ? prev : '';
+  // Update the React Dropdown component
+  const options = [{ value: '', label: 'Select Project Code' }, ...codes.map(c => ({ value: c.code, label: c.code }))];
+  if (typeof window.__updateDropdownOptions === 'function') {
+    window.__updateDropdownOptions('modal-timesheet', 'project code', options);
+  }
 }
 
 export function populateTimesheetModalDropdowns() {
@@ -34,6 +39,11 @@ export function populateTimesheetModalDropdowns() {
     projSel.innerHTML = '<option value="">Select Project</option>' +
       state.projects.map(p => `<option value="${p.id}">${p.id} - ${p.name}</option>`).join('');
     if (prev) projSel.value = prev;
+    // Update the React Dropdown component
+    const options = [{ value: '', label: 'Select Project' }, ...state.projects.map(p => ({ value: p.id, label: `${p.id} - ${p.name}` }))];
+    if (typeof window.__updateDropdownOptions === 'function') {
+      window.__updateDropdownOptions('modal-timesheet', 'project', options);
+    }
 
     // Re-filter (and drop any now-mismatched selection) whenever the project changes.
     if (!projSel._tsWired) {
@@ -49,6 +59,11 @@ export function populateTimesheetModalDropdowns() {
     bcSel.innerHTML = '<option value="">Select Billing Code</option>' +
       state.bcodes.map(b => `<option value="${b.code}">${b.code}</option>`).join('');
     if (prev) bcSel.value = prev;
+    // Update the React Dropdown component
+    const options = [{ value: '', label: 'Select Billing Code' }, ...state.bcodes.map(b => ({ value: b.code, label: b.code }))];
+    if (typeof window.__updateDropdownOptions === 'function') {
+      window.__updateDropdownOptions('modal-timesheet', 'billing code', options);
+    }
   }
 }
 
