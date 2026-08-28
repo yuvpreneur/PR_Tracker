@@ -664,6 +664,12 @@ export function initApiBridge() {
   // Convert all native <select> elements in modals to use the React Dropdown component
   // while maintaining compatibility with bridge code (val(), set(), etc.)
   function setupDropdowns() {
+    // Wait for modals to be in DOM before attempting to convert selects
+    if (!document.querySelector('[id^="modal-"]')) {
+      // Modals not yet in DOM, retry after a short delay
+      setTimeout(setupDropdowns, 50);
+      return;
+    }
     // Each modal and its dropdowns
     const dropdownConfigs = [
       // modal-company (shared for Companies & Customers)
@@ -863,7 +869,8 @@ export function initApiBridge() {
 
   Promise.all([refreshCaches(), loadCurrentUser]).then(() => {
     wireSubmits();
-    setupDropdowns();
+    // Set up dropdowns after a small delay to ensure modals are in DOM
+    setTimeout(() => setupDropdowns(), 100);
     populateFilterDropdowns();
     wireFilters(loaders, loadPage);
     ensureNotifPanel();

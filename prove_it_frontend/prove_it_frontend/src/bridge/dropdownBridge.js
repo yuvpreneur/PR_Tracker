@@ -19,75 +19,79 @@ const dropdownRoots = new Map();
  * @param {string} placeholder - Placeholder text
  */
 export function replaceSelectWithDropdown(modalId, labelHint, options = [], placeholder = 'Select...') {
-  const modal = document.getElementById(modalId);
-  if (!modal) return;
+  try {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
 
-  // Find the native select by label
-  const label = Array.from(modal.querySelectorAll('label, .form-label')).find(l =>
-    l.textContent.trim().toLowerCase().includes(labelHint.toLowerCase())
-  );
-  if (!label) return;
+    // Find the native select by label
+    const label = Array.from(modal.querySelectorAll('label, .form-label')).find(l =>
+      l.textContent.trim().toLowerCase().includes(labelHint.toLowerCase())
+    );
+    if (!label) return;
 
-  let nativeSelect = null;
-  if (label.htmlFor) {
-    nativeSelect = document.getElementById(label.htmlFor);
-  } else {
-    let sib = label.nextElementSibling;
-    while (sib) {
-      if (sib.tagName === 'SELECT') {
-        nativeSelect = sib;
-        break;
+    let nativeSelect = null;
+    if (label.htmlFor) {
+      nativeSelect = document.getElementById(label.htmlFor);
+    } else {
+      let sib = label.nextElementSibling;
+      while (sib) {
+        if (sib.tagName === 'SELECT') {
+          nativeSelect = sib;
+          break;
+        }
+        const sel = sib.querySelector('select');
+        if (sel) {
+          nativeSelect = sel;
+          break;
+        }
+        sib = sib.nextElementSibling;
       }
-      const sel = sib.querySelector('select');
-      if (sel) {
-        nativeSelect = sel;
-        break;
-      }
-      sib = sib.nextElementSibling;
     }
+
+    if (!nativeSelect || nativeSelect.tagName !== 'SELECT') return;
+
+    // Store current value
+    const currentValue = nativeSelect.value;
+
+    // Hide the native select
+    nativeSelect.style.display = 'none';
+
+    // Create a container for the React Dropdown right before the hidden select
+    const containerId = `dropdown-${modalId}-${labelHint.replace(/\s+/g, '-').toLowerCase()}`;
+    let container = document.getElementById(containerId);
+    if (!container) {
+      container = document.createElement('div');
+      container.id = containerId;
+      nativeSelect.parentNode.insertBefore(container, nativeSelect);
+    }
+
+    // Clean up previous root if it exists
+    if (dropdownRoots.has(containerId)) {
+      dropdownRoots.get(containerId).unmount();
+    }
+
+    // Mount React Dropdown component
+    const root = createRoot(container);
+    const handleChange = (value) => {
+      nativeSelect.value = value;
+      // Trigger change event so any listeners are notified
+      nativeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+
+    root.render(
+      React.createElement(Dropdown, {
+        value: currentValue || '',
+        onChange: handleChange,
+        options: options,
+        placeholder: placeholder,
+        style: { width: '100%' }
+      })
+    );
+
+    dropdownRoots.set(containerId, root);
+  } catch (e) {
+    console.error(`Error setting up dropdown for ${modalId} (${labelHint}):`, e);
   }
-
-  if (!nativeSelect || nativeSelect.tagName !== 'SELECT') return;
-
-  // Store current value
-  const currentValue = nativeSelect.value;
-
-  // Hide the native select
-  nativeSelect.style.display = 'none';
-
-  // Create a container for the React Dropdown right before the hidden select
-  const containerId = `dropdown-${modalId}-${labelHint.replace(/\s+/g, '-').toLowerCase()}`;
-  let container = document.getElementById(containerId);
-  if (!container) {
-    container = document.createElement('div');
-    container.id = containerId;
-    nativeSelect.parentNode.insertBefore(container, nativeSelect);
-  }
-
-  // Clean up previous root if it exists
-  if (dropdownRoots.has(containerId)) {
-    dropdownRoots.get(containerId).unmount();
-  }
-
-  // Mount React Dropdown component
-  const root = createRoot(container);
-  const handleChange = (value) => {
-    nativeSelect.value = value;
-    // Trigger change event so any listeners are notified
-    nativeSelect.dispatchEvent(new Event('change', { bubbles: true }));
-  };
-
-  root.render(
-    React.createElement(Dropdown, {
-      value: currentValue || '',
-      onChange: handleChange,
-      options: options,
-      placeholder: placeholder,
-      style: { width: '100%' }
-    })
-  );
-
-  dropdownRoots.set(containerId, root);
 }
 
 /**
