@@ -222,11 +222,6 @@ export default function ProjectsPage() {
       </div>
 
       <div className="card table-wrap">
-        <div className="mb-3 flex items-center justify-between">
-          <div>
-            <div className="text-[15px] font-bold">Project Register</div>
-          </div>
-        </div>
         <DataTable
           columns={COLUMNS}
           rows={filtered}

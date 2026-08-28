@@ -32,14 +32,6 @@ export function populateCostEmployeeDropdown() {
   sel.innerHTML = '<option value="">Select Employee</option>' +
     state.employees.map(e => `<option value="${e.emp_id}">${e.emp_id} - ${e.name}</option>`).join('');
   if (prev) sel.value = prev;
-  // Update the React Dropdown component with new options
-  const options = [
-    { value: '', label: 'Select Employee' },
-    ...state.employees.map(e => ({ value: e.emp_id, label: `${e.emp_id} - ${e.name}` }))
-  ];
-  if (typeof window.__updateDropdownOptions === 'function') {
-    window.__updateDropdownOptions('modal-cost', 'employee', options);
-  }
 }
 
 export async function loadHourlyCosts() {

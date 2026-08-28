@@ -4,6 +4,7 @@ import usePageAccess, { PAGES } from './usePageAccess.js';
 import useProjectAccess from './useProjectAccess.js';
 import Button from '../../components/ui/Button.jsx';
 import CheckboxDropdown from '../../components/ui/CheckboxDropdown.jsx';
+import Dropdown from '../../components/ui/Dropdown.jsx';
 import SectionTitle from '../../components/ui/SectionTitle.jsx';
 import { get } from '../../services/httpClient.js';
 import { setNavBadge } from '../../bridge/shared/ui.js';
@@ -64,19 +65,15 @@ export default function AccessControlPage() {
 
       <div className="access-grid">
         <div className="access-card">
-          <h4 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><IdCard size={16} /> Employee Page Access</h4>
+          <h4 style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '16px', fontWeight: 600 }}><IdCard size={16} /> Employee Page Access</h4>
           <p>Select the pages an employee can open. Pages without permission show a No Access screen with a request button.</p>
-          <select
-            ref={empSelectRef}
-            className="form-control"
-            style={{ marginBottom: 12 }}
+          <Dropdown
             value={empId}
-            onChange={e => setEmpId(e.target.value)}
-          >
-            {employees.map(e => (
-              <option key={e.emp_id} value={e.emp_id}>{e.name} · {e.designation || e.role || e.department || ''}</option>
-            ))}
-          </select>
+            onChange={setEmpId}
+            options={employees.map(e => ({ value: e.emp_id, label: `${e.name} · ${e.designation || e.role || e.department || ''}` }))}
+            placeholder="Select employee…"
+            style={{ marginBottom: 12, width: '100%' }}
+          />
           <CheckboxDropdown
             options={PAGES}
             selected={pageAccess.allowed}
@@ -91,7 +88,7 @@ export default function AccessControlPage() {
         </div>
 
         <div className="access-card" ref={projectCardRef}>
-          <h4 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><FolderKanban size={16} /> Assigned Projects</h4>
+          <h4 style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '16px', fontWeight: 600 }}><FolderKanban size={16} /> Assigned Projects</h4>
           <p>Users only see project records assigned to them. Admins can assign or remove projects at any time.</p>
           <CheckboxDropdown
             options={projects}
@@ -112,7 +109,7 @@ export default function AccessControlPage() {
 
       <div className="grid-2">
         <div className="card">
-          <SectionTitle icon={Inbox}>Access Requests</SectionTitle>
+          <SectionTitle icon={Inbox} subdued={false}>Access Requests</SectionTitle>
           <div>
             {requests.length === 0 && (
               <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8', fontSize: 13 }}>No access requests</div>
@@ -144,7 +141,7 @@ export default function AccessControlPage() {
         {/* Static reference copy — no code ever populated this dynamically in the legacy
            version either; it's documentation, not live data. */}
         <div className="card">
-          <SectionTitle icon={ListChecks}>Access Rules Summary</SectionTitle>
+          <SectionTitle icon={ListChecks} subdued={false}>Access Rules Summary</SectionTitle>
           <div className="perm-row"><span>Admin</span><span className="badge badge-rose">All pages · All projects</span></div>
           <div className="perm-row"><span>Manager</span><span className="badge badge-rose">Approved pages · Assigned projects</span></div>
           <div className="perm-row"><span>Employee</span><span className="badge badge-rose">Limited pages · Own projects</span></div>

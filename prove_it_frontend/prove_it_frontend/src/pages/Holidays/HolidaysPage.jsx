@@ -168,7 +168,7 @@ export default function HolidaysPage() {
 
       <div className="space-y-5">
         <div className="card" style={{ padding: 20 }}>
-          <h3 className="mb-3 text-[14px] font-bold">Weekly Off Pattern</h3>
+          <h3 className="mb-3" style={{ fontSize: '16px', fontWeight: 600 }}>Weekly Off Pattern</h3>
           <p className="mb-3 text-[13px] text-muted">Days marked here count as "Wk Off" in every payroll run's attendance calc.</p>
           <div className="flex flex-wrap gap-2">
             {WEEKDAYS.map(w => {

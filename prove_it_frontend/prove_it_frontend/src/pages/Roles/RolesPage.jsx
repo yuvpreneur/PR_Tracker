@@ -42,7 +42,7 @@ export default function RolesPage() {
       </div>
 
       <div className="card" id="perm-card">
-        <SectionTitle icon={ROLE_ICONS[role]}>
+        <SectionTitle icon={ROLE_ICONS[role]} subdued={false}>
           PERMISSIONS FOR: <span style={{ color: 'var(--rose)' }}>{role}</span>
         </SectionTitle>
 

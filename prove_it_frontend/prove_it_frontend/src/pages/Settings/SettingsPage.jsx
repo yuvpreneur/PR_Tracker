@@ -37,7 +37,7 @@ export default function SettingsPage() {
       <div className="page-header"><h2><SettingsIcon size={22} /> Settings</h2></div>
       <div className="grid-2">
         <div className="card" id="settings-profile-card">
-          <SectionTitle icon={Building2}>Company Profile</SectionTitle>
+          <SectionTitle icon={Building2} subdued={false}>Company Profile</SectionTitle>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div className="form-group">
               <label className="form-label">Company Name</label>
@@ -75,7 +75,7 @@ export default function SettingsPage() {
         </div>
 
         <div className="card">
-          <SectionTitle icon={Bell}>Notifications</SectionTitle>
+          <SectionTitle icon={Bell} subdued={false}>Notifications</SectionTitle>
           <div id="notif-rows">
             {notifications.map((item, i) => (
               <div className="notif-row" key={item.label}>
@@ -98,7 +98,7 @@ export default function SettingsPage() {
         </div>
 
         <div className="card" id="settings-workflow-card">
-          <SectionTitle icon={Workflow}>Approval Workflow</SectionTitle>
+          <SectionTitle icon={Workflow} subdued={false}>Approval Workflow</SectionTitle>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div className="form-group">
               <label className="form-label">Timesheet Approval Levels</label>
@@ -147,7 +147,7 @@ export default function SettingsPage() {
         </div>
 
         <div className="card" id="settings-backup-card">
-          <SectionTitle icon={Database}>Backup &amp; Data</SectionTitle>
+          <SectionTitle icon={Database} subdued={false}>Backup &amp; Data</SectionTitle>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div className="form-group">
               <label className="form-label">Auto Backup Frequency</label>

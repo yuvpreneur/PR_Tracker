@@ -91,7 +91,7 @@ export default function ApprovalsPage() {
       )}
 
       <div className="card">
-        <SectionTitle icon={ClipboardCheck}>Pending Approvals</SectionTitle>
+        <SectionTitle icon={ClipboardCheck} subdued={false}>Pending Approvals</SectionTitle>
         {rows.length === 0 && (
           <div style={{ textAlign: 'center', padding: 32, color: '#94a3b8', fontSize: 13 }}>
             No pending {filter ? (TYPE_LABEL[filter] || filter) : ''} approvals

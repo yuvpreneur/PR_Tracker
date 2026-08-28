@@ -126,7 +126,7 @@ export default function ReportsPage() {
       <div className="grid-2">
         {categories.map(cat => (
           <div className="card" key={cat.title}>
-            <SectionTitle icon={CATEGORY_ICONS[cat.title]}>{cat.title}</SectionTitle>
+            <SectionTitle icon={CATEGORY_ICONS[cat.title]} subdued={false}>{cat.title}</SectionTitle>
             {cat.keys
               .filter(k => !q || REPORTS[k].title.toLowerCase().includes(q))
               .map(k => <ReportRow key={k} reportKey={k} exportAllowed={exportAllowed} />)}

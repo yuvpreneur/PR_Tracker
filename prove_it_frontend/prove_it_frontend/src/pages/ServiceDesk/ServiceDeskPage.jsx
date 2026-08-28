@@ -87,7 +87,6 @@ export default function ServiceDeskPage() {
       <div dangerouslySetInnerHTML={{ __html: SERVICE_DESK_WORKFLOW_HTML }} />
 
       <div className="card table-wrap">
-        <SectionTitle icon={Ticket}>Ticket Workbench</SectionTitle>
         <DataTable
           columns={COLUMNS}
           rows={tickets}

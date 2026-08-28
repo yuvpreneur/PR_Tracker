@@ -15,65 +15,65 @@ export default function DataTable({ columns, rows, getRowId, pageId, canEdit, ca
   const showActions = !hideActionsColumn && (!!canEdit || !!canDelete || !!renderExtraActions);
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-separate border-spacing-0 text-[13px]">
-        <thead>
+    <table>
+      <thead>
+        <tr>
+          {columns.map(col => (
+            <th key={col.key} style={{ textAlign: col.align || 'left' }}>
+              {col.header}
+            </th>
+          ))}
+          {showActions && <th style={{ textAlign: 'center' }}>Actions</th>}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.length === 0 && (
           <tr>
-            {columns.map(col => (
-              <th key={col.key} className="px-3.5 py-3 text-[11px] font-black uppercase tracking-wide text-ink" style={{ background: 'transparent', textAlign: col.align || 'left' }}>
-                {col.header}
-              </th>
-            ))}
-            {showActions && <th className="px-3.5 py-3 text-[11px] font-black uppercase tracking-wide text-ink" style={{ background: 'transparent', textAlign: 'center' }}>Actions</th>}
+            <td colSpan={columns.length + (showActions ? 1 : 0)} style={{ textAlign: 'center', padding: '28px 12px', color: '#6F7D70' }}>
+              {emptyMessage}
+            </td>
           </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 && (
-            <tr>
-              <td colSpan={columns.length + (showActions ? 1 : 0)} className="p-8 text-center text-[13px] text-slate-400">
-                {emptyMessage}
-              </td>
+        )}
+        {rows.map(row => {
+          const id = getRowId(row);
+          return (
+            <tr key={id}>
+              {columns.map(col => (
+                <td key={col.key} style={{ textAlign: col.align || 'left' }}>
+                  {col.render ? col.render(row) : (row[col.key] ?? '—')}
+                </td>
+              ))}
+              {showActions && (
+                <td style={{ textAlign: 'center' }}>
+                  {editAllowed(row) && (
+                    <button
+                      className="bridge-edit inline-flex items-center gap-1 rounded-md px-2.5 py-1"
+                      data-page={pageId}
+                      data-id={id}
+                      title="Edit"
+                      style={{ fontSize: '12px', background: 'var(--card)', border: '1px solid #DFE5D3', color: '#33523C', cursor: 'pointer' }}
+                    >
+                      <Pencil size={13} />
+                    </button>
+                  )}
+                  {deleteAllowed(row) && (
+                    <button
+                      className="bridge-delete inline-flex items-center gap-1 rounded-md px-2.5 py-1"
+                      data-page={pageId}
+                      data-id={id}
+                      title="Delete"
+                      style={{ fontSize: '12px', background: 'var(--card)', border: '1px solid #DFE5D3', color: '#C4574A', cursor: 'pointer', marginLeft: '6px' }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  )}
+                  {renderExtraActions && renderExtraActions(row)}
+                </td>
+              )}
             </tr>
-          )}
-          {rows.map(row => {
-            const id = getRowId(row);
-            return (
-              <tr key={id} className="border-b border-slate-100">
-                {columns.map(col => (
-                  <td key={col.key} className="px-3 py-2.5" style={{ textAlign: col.align || 'left' }}>
-                    {col.render ? col.render(row) : (row[col.key] ?? '—')}
-                  </td>
-                ))}
-                {showActions && (
-                  <td className="whitespace-nowrap px-3 py-2" style={{ textAlign: 'center' }}>
-                    {editAllowed(row) && (
-                      <button
-                        className="bridge-edit mr-1 inline-flex items-center rounded-md px-2.5 py-1 text-[11px]"
-                        data-page={pageId}
-                        data-id={id}
-                        title="Edit"
-                      >
-                        <Pencil size={13} />
-                      </button>
-                    )}
-                    {deleteAllowed(row) && (
-                      <button
-                        className="bridge-delete inline-flex items-center rounded-md px-2.5 py-1 text-[11px] text-red"
-                        data-page={pageId}
-                        data-id={id}
-                        title="Delete"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    )}
-                    {renderExtraActions && renderExtraActions(row)}
-                  </td>
-                )}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }

@@ -62,11 +62,6 @@ export function populateProjectClientDropdown() {
   const prev = sel.value;
   sel.innerHTML = '<option value="">Select Client</option>' + names.map(n => `<option value="${n}">${n}</option>`).join('');
   if (prev) sel.value = prev;
-  // Update the React Dropdown component
-  const options = [{ value: '', label: 'Select Client' }, ...names.map(n => ({ value: n, label: n }))];
-  if (typeof window.__updateDropdownOptions === 'function') {
-    window.__updateDropdownOptions('modal-project', 'client name', options);
-  }
 }
 
 export function populateManagerDropdown() {
@@ -78,11 +73,6 @@ export function populateManagerDropdown() {
   const prev = sel.value;
   sel.innerHTML = '<option value="">Select Manager</option>' + names.map(n => `<option value="${n}">${n}</option>`).join('');
   if (prev) sel.value = prev;
-  // Update the React Dropdown component
-  const options = [{ value: '', label: 'Select Manager' }, ...names.map(n => ({ value: n, label: n }))];
-  if (typeof window.__updateDropdownOptions === 'function') {
-    window.__updateDropdownOptions('modal-project', 'project manager', options);
-  }
 }
 
 export function populatePCodeProjectDropdown() {
@@ -94,11 +84,6 @@ export function populatePCodeProjectDropdown() {
   sel.innerHTML = '<option value="">Select Project</option>' +
     state.projects.map(p => `<option value="${p.id}">${p.id} · ${p.name}</option>`).join('');
   if (prev) sel.value = prev;
-  // Update the React Dropdown component
-  const options = [{ value: '', label: 'Select Project' }, ...state.projects.map(p => ({ value: p.id, label: `${p.id} · ${p.name}` }))];
-  if (typeof window.__updateDropdownOptions === 'function') {
-    window.__updateDropdownOptions('modal-pcode', 'project', options);
-  }
 }
 
 function populateClientsDropdown() {

@@ -133,30 +133,6 @@ export default function AppLayout() {
           data-lucide-icon={collapsed ? 'collapsed' : 'expanded'}
           onClick={() => setCollapsed(c => !c)}
         >{collapsed ? '▶' : '◀ Collapse'}</button>
-        <div className="sidebar-wave">
-          <svg
-            viewBox="0 0 276 180"
-            style={{ width: '100%', height: 140, pointerEvents: 'none', display: 'block' }}
-            preserveAspectRatio="none"
-          >
-            <defs>
-              <linearGradient id="wave-grad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#F4C0D1" stopOpacity="0.5" />
-                <stop offset="100%" stopColor="#F4C0D1" stopOpacity="0.1" />
-              </linearGradient>
-            </defs>
-            <path
-              d="M0,80 C50,40 80,50 130,90 C160,115 190,50 230,80 C250,95 270,70 276,60 L276,180 L0,180 Z"
-              fill="#F4C0D1"
-              opacity="0.4"
-            />
-            <path
-              d="M0,110 C40,85 70,95 120,125 C150,145 180,90 220,115 C240,128 260,105 276,100 L276,180 L0,180 Z"
-              fill="#ED93B1"
-              opacity="0.3"
-            />
-          </svg>
-        </div>
       </div>
 
       <div id="main">
