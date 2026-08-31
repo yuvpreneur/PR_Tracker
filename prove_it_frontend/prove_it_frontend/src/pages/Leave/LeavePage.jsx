@@ -7,6 +7,7 @@ import DataTable from '../../components/ui/DataTable.jsx';
 import { date } from '../../utils/format.js';
 import { openModal } from '../../bridge/shared/modals.js';
 import usePermissions from '../../hooks/usePermissions.js';
+import { MicroIcons } from '../../components/ui/MicroIcons.jsx';
 
 const COLUMNS = [
   { key: 'name', header: 'Employee' },
@@ -44,9 +45,9 @@ export default function LeavePage() {
       </div>
 
       <div className="mb-5 grid grid-cols-3 gap-4 max-[700px]:grid-cols-1">
-        <StatCard label="Leave Balance" value={loading ? '—' : `${summary?.balance ?? 0} days`} sub="" color="var(--color-green)" icon={CalendarDays} />
-        <StatCard label="Pending Requests" value={loading ? '—' : String(summary?.pending ?? 0)} sub="" color="var(--color-amber)" icon={ClipboardCheck} />
-        <StatCard label="Taken This Year" value={loading ? '—' : `${summary?.taken_this_year ?? 0} days`} sub="" color="var(--color-brand)" icon={History} />
+        <StatCard label="Leave Balance" value={loading ? '—' : `${summary?.balance ?? 0} days`} sub="" color="var(--color-green)" icon={CalendarDays} microIcon={MicroIcons.CalendarCheck} />
+        <StatCard label="Pending Requests" value={loading ? '—' : String(summary?.pending ?? 0)} sub="" color="var(--color-amber)" icon={ClipboardCheck} microIcon={MicroIcons.DocumentTick} />
+        <StatCard label="Taken This Year" value={loading ? '—' : `${summary?.taken_this_year ?? 0} days`} sub="" color="var(--color-brand)" icon={History} microIcon={MicroIcons.GrowthChart} />
       </div>
 
       <div className="card table-wrap">

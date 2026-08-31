@@ -6,6 +6,7 @@ import SectionTitle from '../../components/ui/SectionTitle.jsx';
 import Dropdown from '../../components/ui/Dropdown.jsx';
 import { date, num } from '../../utils/format.js';
 import usePermissions from '../../hooks/usePermissions.js';
+import { MicroIcons } from '../../components/ui/MicroIcons.jsx';
 
 const TYPE_LABEL = { timesheets: 'Timesheet', expenses: 'Expense', leave: 'Leave', access: 'Access Control' };
 // Maps a row's _mod to the Roles & Permissions matrix module it's approved under. 'access'
@@ -79,14 +80,14 @@ export default function ApprovalsPage() {
 
       {isFinanceUser ? (
         <div className="mb-5 grid grid-cols-1 gap-4 max-w-xs">
-          <StatCard label="Pending Expenses" value={loading ? '—' : String(counts.expenses)} sub="" color="var(--color-amber)" icon={Receipt} />
+          <StatCard label="Pending Expenses" value={loading ? '—' : String(counts.expenses)} sub="" color="var(--color-amber)" icon={Receipt} microIcon={MicroIcons.DocumentTick} />
         </div>
       ) : (
         <div className="mb-5 grid grid-cols-4 gap-4 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1">
-          <StatCard label="Pending Timesheets" value={loading ? '—' : String(counts.timesheets)} sub="" color="var(--color-accent)" icon={Clock} />
-          <StatCard label="Pending Expenses" value={loading ? '—' : String(counts.expenses)} sub="" color="var(--color-amber)" icon={Receipt} />
-          <StatCard label="Pending Leave" value={loading ? '—' : String(counts.leave)} sub="" color="var(--color-violet)" icon={CalendarDays} />
-          <StatCard label="Pending Access Control" value={loading ? '—' : String(counts.access)} sub="" color="var(--color-text2)" icon={KeyRound} />
+          <StatCard label="Pending Timesheets" value={loading ? '—' : String(counts.timesheets)} sub="" color="var(--color-accent)" icon={Clock} microIcon={MicroIcons.ClockCheck} />
+          <StatCard label="Pending Expenses" value={loading ? '—' : String(counts.expenses)} sub="" color="var(--color-amber)" icon={Receipt} microIcon={MicroIcons.DocumentTick} />
+          <StatCard label="Pending Leave" value={loading ? '—' : String(counts.leave)} sub="" color="var(--color-violet)" icon={CalendarDays} microIcon={MicroIcons.CalendarCheck} />
+          <StatCard label="Pending Access Control" value={loading ? '—' : String(counts.access)} sub="" color="var(--color-text2)" icon={KeyRound} microIcon={MicroIcons.EmployeeCard} />
         </div>
       )}
 

@@ -11,6 +11,7 @@ import RevenueCostChart from '../../components/widgets/RevenueCostChart.jsx';
 import DualStatSplit from '../../components/widgets/DualStatSplit.jsx';
 import { date, num, formatCurrency } from '../../utils/format.js';
 import Dropdown from '../../components/ui/Dropdown.jsx';
+import { MicroIcons } from '../../components/ui/MicroIcons.jsx';
 
 
 function AdminDashboard({ revenue, expenses, netProfit, pendingApprovals, billableHours, companies, activeProjects, headcount, monthly, profit }) {
@@ -75,16 +76,16 @@ function AdminDashboard({ revenue, expenses, netProfit, pendingApprovals, billab
   return (
     <>
       <div className="stats-row">
-        <StatCard label="Total Revenue" value={formatCurrency(rev)} sub={`${revenue?.active_projects || 0} active projects`} color="#16A36C" icon={IndianRupee} trend={enrichedData.revenue?.trend_pct ? { value: Math.abs(enrichedData.revenue.trend_pct) + '%', direction: enrichedData.revenue.trend_pct > 0 ? 'up' : enrichedData.revenue.trend_pct < 0 ? 'down' : 'flat' } : null} />
-        <StatCard label="Total Expenses" value={formatCurrency(exp)} sub={`${expenses?.active_projects || 0} projects active`} color="#F59E0B" icon={Receipt} trend={enrichedData.expenses?.trend_pct ? { value: Math.abs(enrichedData.expenses.trend_pct) + '%', direction: enrichedData.expenses.trend_pct > 0 ? 'up' : enrichedData.expenses.trend_pct < 0 ? 'down' : 'flat' } : null} />
-        <StatCard label="Net Profit" value={formatCurrency(Math.abs(net))} sub={`Margin ${margin}%${netProfit?.is_loss ? ' (loss)' : ''}`} color="#0086AD" icon={TrendingUp} trend={enrichedData.netProfit?.trend_pct ? { value: Math.abs(enrichedData.netProfit.trend_pct) + '%', direction: enrichedData.netProfit.trend_pct > 0 ? 'up' : enrichedData.netProfit.trend_pct < 0 ? 'down' : 'flat' } : null} />
-        <StatCard label="Pending Approvals" value={String(pendingApprovals?.pending_approvals || 0)} sub={`${pendingApprovals?.pending_timesheets || 0} timesheets pending`} color="#E8607A" icon={ClipboardCheck} trend={enrichedData.pendingApprovals?.trend_pct ? { value: Math.abs(enrichedData.pendingApprovals.trend_pct) + '%', direction: enrichedData.pendingApprovals.trend_pct > 0 ? 'up' : enrichedData.pendingApprovals.trend_pct < 0 ? 'down' : 'flat' } : null} />
+        <StatCard label="Total Revenue" value={formatCurrency(rev)} sub={`${revenue?.active_projects || 0} active projects`} color="#16A36C" icon={IndianRupee} microIcon={MicroIcons.GrowthChart} trend={enrichedData.revenue?.trend_pct ? { value: Math.abs(enrichedData.revenue.trend_pct) + '%', direction: enrichedData.revenue.trend_pct > 0 ? 'up' : enrichedData.revenue.trend_pct < 0 ? 'down' : 'flat' } : null} />
+        <StatCard label="Total Expenses" value={formatCurrency(exp)} sub={`${expenses?.active_projects || 0} projects active`} color="#F59E0B" icon={Receipt} microIcon={MicroIcons.ConnectedDots} trend={enrichedData.expenses?.trend_pct ? { value: Math.abs(enrichedData.expenses.trend_pct) + '%', direction: enrichedData.expenses.trend_pct > 0 ? 'up' : enrichedData.expenses.trend_pct < 0 ? 'down' : 'flat' } : null} />
+        <StatCard label="Net Profit" value={formatCurrency(Math.abs(net))} sub={`Margin ${margin}%${netProfit?.is_loss ? ' (loss)' : ''}`} color="#0086AD" icon={TrendingUp} microIcon={MicroIcons.Target} trend={enrichedData.netProfit?.trend_pct ? { value: Math.abs(enrichedData.netProfit.trend_pct) + '%', direction: enrichedData.netProfit.trend_pct > 0 ? 'up' : enrichedData.netProfit.trend_pct < 0 ? 'down' : 'flat' } : null} />
+        <StatCard label="Pending Approvals" value={String(pendingApprovals?.pending_approvals || 0)} sub={`${pendingApprovals?.pending_timesheets || 0} timesheets pending`} color="#E8607A" icon={ClipboardCheck} microIcon={MicroIcons.DocumentTick} trend={enrichedData.pendingApprovals?.trend_pct ? { value: Math.abs(enrichedData.pendingApprovals.trend_pct) + '%', direction: enrichedData.pendingApprovals.trend_pct > 0 ? 'up' : enrichedData.pendingApprovals.trend_pct < 0 ? 'down' : 'flat' } : null} />
       </div>
       <div className="stats-row">
-        <StatCard label="Companies" value={String(companies?.total_companies || 0)} sub={`${companies?.active_companies || 0} active`} color="#7357E5" icon={Building2} trend={enrichedData.companies?.trend_pct ? { value: Math.abs(enrichedData.companies.trend_pct) + '%', direction: enrichedData.companies.trend_pct > 0 ? 'up' : enrichedData.companies.trend_pct < 0 ? 'down' : 'flat' } : null} />
-        <StatCard label="Active Projects" value={String(activeProjects?.active_projects || 0)} sub={`${activeProjects?.total_projects || 0} total projects`} color="#0086AD" icon={FolderKanban} trend={enrichedData.activeProjects?.trend_pct ? { value: Math.abs(enrichedData.activeProjects.trend_pct) + '%', direction: enrichedData.activeProjects.trend_pct > 0 ? 'up' : enrichedData.activeProjects.trend_pct < 0 ? 'down' : 'flat' } : null} />
-        <StatCard label="Headcount" value={String(headcount?.headcount || 0)} sub={`${headcount?.billable_count || 0} billable`} color="#16A36C" icon={Users} trend={enrichedData.headcount?.trend_pct ? { value: Math.abs(enrichedData.headcount.trend_pct) + '%', direction: enrichedData.headcount.trend_pct > 0 ? 'up' : enrichedData.headcount.trend_pct < 0 ? 'down' : 'flat' } : null} />
-        <StatCard label="Billable Utilisation" value={`${bPct}%`} sub={`${bHrs.toLocaleString('en-IN')} billable hrs`} color="#F59E0B" icon={Percent} trend={enrichedData.billableHours?.trend_pct ? { value: Math.abs(enrichedData.billableHours.trend_pct) + '%', direction: enrichedData.billableHours.trend_pct > 0 ? 'up' : enrichedData.billableHours.trend_pct < 0 ? 'down' : 'flat' } : null} />
+        <StatCard label="Companies" value={String(companies?.total_companies || 0)} sub={`${companies?.active_companies || 0} active`} color="#7357E5" icon={Building2} microIcon={MicroIcons.OrganizationTree} trend={enrichedData.companies?.trend_pct ? { value: Math.abs(enrichedData.companies.trend_pct) + '%', direction: enrichedData.companies.trend_pct > 0 ? 'up' : enrichedData.companies.trend_pct < 0 ? 'down' : 'flat' } : null} />
+        <StatCard label="Active Projects" value={String(activeProjects?.active_projects || 0)} sub={`${activeProjects?.total_projects || 0} total projects`} color="#0086AD" icon={FolderKanban} microIcon={MicroIcons.BriefcaseSpark} trend={enrichedData.activeProjects?.trend_pct ? { value: Math.abs(enrichedData.activeProjects.trend_pct) + '%', direction: enrichedData.activeProjects.trend_pct > 0 ? 'up' : enrichedData.activeProjects.trend_pct < 0 ? 'down' : 'flat' } : null} />
+        <StatCard label="Headcount" value={String(headcount?.headcount || 0)} sub={`${headcount?.billable_count || 0} billable`} color="#16A36C" icon={Users} microIcon={MicroIcons.TeamNetwork} trend={enrichedData.headcount?.trend_pct ? { value: Math.abs(enrichedData.headcount.trend_pct) + '%', direction: enrichedData.headcount.trend_pct > 0 ? 'up' : enrichedData.headcount.trend_pct < 0 ? 'down' : 'flat' } : null} />
+        <StatCard label="Billable Utilisation" value={`${bPct}%`} sub={`${bHrs.toLocaleString('en-IN')} billable hrs`} color="#F59E0B" icon={Percent} microIcon={MicroIcons.ClockCheck} trend={enrichedData.billableHours?.trend_pct ? { value: Math.abs(enrichedData.billableHours.trend_pct) + '%', direction: enrichedData.billableHours.trend_pct > 0 ? 'up' : enrichedData.billableHours.trend_pct < 0 ? 'down' : 'flat' } : null} />
       </div>
       <div className="grid-2 mb-4">
         <div className="card">
@@ -139,10 +140,10 @@ function FinanceDashboard({ billed, received, outstanding, expenses, monthly, pr
   return (
     <>
       <div className="stats-row">
-        <StatCard label="Total Billed" value={formatCurrency(billedAmt)} sub="Invoice amounts raised" color="#0086AD" icon={FileText} />
-        <StatCard label="Total Received" value={formatCurrency(receivedAmt)} sub="Cash collected" color="#16A36C" icon={IndianRupee} />
-        <StatCard label="Outstanding" value={formatCurrency(outstandingAmt)} sub="Unpaid balance" color="#E14D56" icon={AlertCircle} />
-        <StatCard label="Total Expenses" value={formatCurrency(expensesAmt)} sub="Approved expenses" color="#F59E0B" icon={Receipt} />
+        <StatCard label="Total Billed" value={formatCurrency(billedAmt)} sub="Invoice amounts raised" color="#0086AD" icon={FileText} microIcon={MicroIcons.DocumentTick} />
+        <StatCard label="Total Received" value={formatCurrency(receivedAmt)} sub="Cash collected" color="#16A36C" icon={IndianRupee} microIcon={MicroIcons.GrowthChart} />
+        <StatCard label="Outstanding" value={formatCurrency(outstandingAmt)} sub="Unpaid balance" color="#E14D56" icon={AlertCircle} microIcon={MicroIcons.Target} />
+        <StatCard label="Total Expenses" value={formatCurrency(expensesAmt)} sub="Approved expenses" color="#F59E0B" icon={Receipt} microIcon={MicroIcons.ConnectedDots} />
       </div>
       <div className="grid-2 mb-4">
         <div className="card">
@@ -201,10 +202,10 @@ function EmployeeDashboard({ myHours, myExpenses, pendingTimesheets, myTickets, 
   return (
     <>
       <div className="stats-row">
-        <StatCard label="My Hours (All Time)" value={myHrs + 'h'} sub={`${billableHrs}h billable`} color="#16A36C" icon={Clock} />
-        <StatCard label="My Expenses" value={formatCurrency(myExpAmt)} sub={`${expCount} submissions`} color="#F59E0B" icon={Receipt} />
-        <StatCard label="Pending Approvals" value={String(pendingTs)} sub="timesheets awaiting review" color="#7357E5" icon={ClipboardCheck} />
-        <StatCard label="Open Tickets" value={String(openTix)} sub={`${totalTix} raised total`} color="#0086AD" icon={Ticket} />
+        <StatCard label="My Hours (All Time)" value={myHrs + 'h'} sub={`${billableHrs}h billable`} color="#16A36C" icon={Clock} microIcon={MicroIcons.ClockCheck} />
+        <StatCard label="My Expenses" value={formatCurrency(myExpAmt)} sub={`${expCount} submissions`} color="#F59E0B" icon={Receipt} microIcon={MicroIcons.ConnectedDots} />
+        <StatCard label="Pending Approvals" value={String(pendingTs)} sub="timesheets awaiting review" color="#7357E5" icon={ClipboardCheck} microIcon={MicroIcons.DocumentTick} />
+        <StatCard label="Open Tickets" value={String(openTix)} sub={`${totalTix} raised total`} color="#0086AD" icon={Ticket} microIcon={MicroIcons.EmployeeCard} />
       </div>
       <div className="grid-2 mb-4">
         <div className="card">

@@ -8,6 +8,7 @@ import SectionTitle from '../../components/ui/SectionTitle.jsx';
 import Button from '../../components/ui/Button.jsx';
 import { date } from '../../utils/format.js';
 import usePermissions from '../../hooks/usePermissions.js';
+import { MicroIcons } from '../../components/ui/MicroIcons.jsx';
 
 const COLUMNS = [
   { key: 'ticket_no', header: 'Ticket', render: r => <strong>{r.ticket_no || r.id}</strong> },
@@ -77,11 +78,11 @@ export default function ServiceDeskPage() {
       </div>
 
       <div className="mb-5 grid grid-cols-5 gap-4 max-[900px]:grid-cols-3 max-[560px]:grid-cols-1">
-        <StatCard label="Open Tickets" value={loading ? '—' : String(openTickets.length)} sub={loading ? '' : `${highPriorityCount} high priority`} color="var(--color-brand)" icon={Ticket} />
-        <StatCard label="In Progress" value={loading ? '—' : String(inProgressCount)} sub="Being worked on" color="var(--color-accent)" icon={RefreshCw} />
-        <StatCard label="Waiting Approval" value={loading ? '—' : String(waitingApprovalCount)} sub="Needs sign-off" color="var(--color-amber)" icon={Hourglass} />
-        <StatCard label="Critical" value={loading ? '—' : String(criticalCount)} sub="Open & critical priority" color="var(--color-red)" icon={AlertTriangle} />
-        <StatCard label="Cancelled" value={loading ? '—' : String(cancelledCount)} sub="With audit reason" color="var(--color-text2)" icon={XCircle} />
+        <StatCard label="Open Tickets" value={loading ? '—' : String(openTickets.length)} sub={loading ? '' : `${highPriorityCount} high priority`} color="var(--color-brand)" icon={Ticket} microIcon={MicroIcons.EmployeeCard} />
+        <StatCard label="In Progress" value={loading ? '—' : String(inProgressCount)} sub="Being worked on" color="var(--color-accent)" icon={RefreshCw} microIcon={MicroIcons.GrowthChart} />
+        <StatCard label="Waiting Approval" value={loading ? '—' : String(waitingApprovalCount)} sub="Needs sign-off" color="var(--color-amber)" icon={Hourglass} microIcon={MicroIcons.ClockCheck} />
+        <StatCard label="Critical" value={loading ? '—' : String(criticalCount)} sub="Open & critical priority" color="var(--color-red)" icon={AlertTriangle} microIcon={MicroIcons.Target} />
+        <StatCard label="Cancelled" value={loading ? '—' : String(cancelledCount)} sub="With audit reason" color="var(--color-text2)" icon={XCircle} microIcon={MicroIcons.ConnectedDots} />
       </div>
 
       <div dangerouslySetInnerHTML={{ __html: SERVICE_DESK_WORKFLOW_HTML }} />

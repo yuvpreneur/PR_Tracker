@@ -6,6 +6,7 @@ import StatCard from '../../components/ui/StatCard.jsx';
 import SectionTitle from '../../components/ui/SectionTitle.jsx';
 import Badge from '../../components/ui/Badge.jsx';
 import { date } from '../../utils/format.js';
+import { MicroIcons } from '../../components/ui/MicroIcons.jsx';
 
 const money = (value) => `$${Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 
@@ -59,19 +60,19 @@ export default function OverviewPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 18, marginBottom: 28 }}>
         <StatCard
           label="Organizations" value={loading ? '—' : String(data.organizations.total)}
-          sub={`+${data.organizations.new_this_month} this month`} color="#7357E5" icon={Building2}
+          sub={`+${data.organizations.new_this_month} this month`} color="#7357E5" icon={Building2} microIcon={MicroIcons.OrganizationTree}
         />
         <StatCard
           label="Platform Users" value={loading ? '—' : String(data.users.total)}
-          sub="Across all organizations" color="#E8607A" icon={Users}
+          sub="Across all organizations" color="#E8607A" icon={Users} microIcon={MicroIcons.TeamNetwork}
         />
         <StatCard
           label="Active Subscriptions" value={loading ? '—' : String(data.subscriptions.active_paid)}
-          sub={`${data.subscriptions.free_or_trial} on free/trial`} color="#16A36C" icon={Receipt}
+          sub={`${data.subscriptions.free_or_trial} on free/trial`} color="#16A36C" icon={Receipt} microIcon={MicroIcons.GrowthChart}
         />
         <StatCard
           label="MRR" value={loading ? '—' : money(data.mrr)}
-          sub="From active paid plans" color="#F59E0B" icon={DollarSign}
+          sub="From active paid plans" color="#F59E0B" icon={DollarSign} microIcon={MicroIcons.Target}
         />
       </div>
 

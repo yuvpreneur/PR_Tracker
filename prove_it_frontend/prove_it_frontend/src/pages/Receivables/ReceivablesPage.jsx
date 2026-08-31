@@ -8,6 +8,7 @@ import DataTable from '../../components/ui/DataTable.jsx';
 import { date, num } from '../../utils/format.js';
 import { openModal, startCreate, resetFields } from '../../bridge/shared/modals.js';
 import usePermissions from '../../hooks/usePermissions.js';
+import { MicroIcons } from '../../components/ui/MicroIcons.jsx';
 
 // The legacy stats-row here was 4 hardcoded numbers (₹10.0L/₹5.5L/₹4.5L/₹2.0L) that
 // no code ever updated — unlike Service Desk's much larger decorative
@@ -71,10 +72,10 @@ export default function ReceivablesPage() {
       </div>
 
       <div className="mb-5 grid grid-cols-4 gap-4 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1">
-        <StatCard label="Total Billed" value={loading ? '—' : `₹${num(totalBilled)}`} sub="" color="var(--color-accent)" icon={IndianRupee} />
-        <StatCard label="Received" value={loading ? '—' : `₹${num(received)}`} sub="" color="var(--color-green)" icon={Wallet} />
-        <StatCard label="Outstanding" value={loading ? '—' : `₹${num(outstanding)}`} sub="" color="var(--color-amber)" icon={Clock} />
-        <StatCard label="Overdue" value={loading ? '—' : `₹${num(overdue)}`} sub="" color="var(--color-red)" icon={AlertTriangle} />
+        <StatCard label="Total Billed" value={loading ? '—' : `₹${num(totalBilled)}`} sub="" color="var(--color-accent)" icon={IndianRupee} microIcon={MicroIcons.DocumentTick} />
+        <StatCard label="Received" value={loading ? '—' : `₹${num(received)}`} sub="" color="var(--color-green)" icon={Wallet} microIcon={MicroIcons.GrowthChart} />
+        <StatCard label="Outstanding" value={loading ? '—' : `₹${num(outstanding)}`} sub="" color="var(--color-amber)" icon={Clock} microIcon={MicroIcons.ClockCheck} />
+        <StatCard label="Overdue" value={loading ? '—' : `₹${num(overdue)}`} sub="" color="var(--color-red)" icon={AlertTriangle} microIcon={MicroIcons.Target} />
       </div>
 
       <div className="filter-bar">

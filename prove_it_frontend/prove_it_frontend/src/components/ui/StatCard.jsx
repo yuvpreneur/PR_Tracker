@@ -1,6 +1,11 @@
-export default function StatCard({ label, value, sub, color = '#D97A92', icon: Icon, trend }) {
+export default function StatCard({ label, value, sub, color = '#D97A92', icon: Icon, trend, microIcon: MicroIcon }) {
   return (
-    <div className="stat-card-layout">
+    <div className="stat-card-layout" style={{ position: 'relative', overflow: 'hidden' }}>
+      {MicroIcon && (
+        <div style={{ position: 'absolute', bottom: 8, right: 8, opacity: 0.3 }}>
+          <MicroIcon size={32} color={color} opacity={0.3} />
+        </div>
+      )}
       <div className="stat-card-top-row">
         <div className="stat-card-icon-col">
           {Icon && (

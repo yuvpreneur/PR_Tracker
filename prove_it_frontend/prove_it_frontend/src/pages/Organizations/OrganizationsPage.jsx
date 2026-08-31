@@ -5,6 +5,7 @@ import OrgLogoThumb from './OrgLogoThumb.jsx';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import StatCard from '../../components/ui/StatCard.jsx';
+import { MicroIcons } from '../../components/ui/MicroIcons.jsx';
 
 export default function OrganizationsPage() {
   const { organizations, loading, setActive } = useOrganizations();
@@ -22,9 +23,9 @@ export default function OrganizationsPage() {
 
       {organizations.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 20 }}>
-          <StatCard label="Total Organizations" value={String(organizations.length)} color="#7357E5" icon={Building2} />
-          <StatCard label="Active" value={String(activeCount)} sub={`${inactiveCount} inactive`} color="#16A36C" icon={CheckCircle2} />
-          <StatCard label="Inactive" value={String(inactiveCount)} sub={`${activeCount} active`} color="#94A3B8" icon={Ban} />
+          <StatCard label="Total Organizations" value={String(organizations.length)} color="#7357E5" icon={Building2} microIcon={MicroIcons.OrganizationTree} />
+          <StatCard label="Active" value={String(activeCount)} sub={`${inactiveCount} inactive`} color="#16A36C" icon={CheckCircle2} microIcon={MicroIcons.GrowthChart} />
+          <StatCard label="Inactive" value={String(inactiveCount)} sub={`${activeCount} active`} color="#94A3B8" icon={Ban} microIcon={MicroIcons.ConnectedDots} />
         </div>
       )}
 

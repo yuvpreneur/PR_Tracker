@@ -10,6 +10,7 @@ import StatCard from '../../components/ui/StatCard.jsx';
 import { date, formatMoney } from '../../utils/format.js';
 import { toast } from '../../utils/toast.js';
 import usePermissions from '../../hooks/usePermissions.js';
+import { MicroIcons } from '../../components/ui/MicroIcons.jsx';
 
 export default function InvoicesPage() {
   const { can, canCreateOnPage } = usePermissions();
@@ -120,10 +121,10 @@ export default function InvoicesPage() {
       </div>
 
       <div className="mb-5 grid grid-cols-4 gap-4 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1">
-        <StatCard label="Total Billed" value={loading || !summary ? '—' : formatMoney(summary.total_billed, 'INR')} sub="" color="var(--color-accent)" icon={IndianRupee} />
-        <StatCard label="Received" value={loading || !summary ? '—' : formatMoney(summary.total_received, 'INR')} sub="" color="var(--color-green)" icon={Wallet} />
-        <StatCard label="Outstanding" value={loading || !summary ? '—' : formatMoney(summary.outstanding, 'INR')} sub="" color="var(--color-amber)" icon={Clock} />
-        <StatCard label="Overdue" value={loading || !summary ? '—' : formatMoney(summary.overdue, 'INR')} sub="" color="var(--color-red)" icon={AlertTriangle} />
+        <StatCard label="Total Billed" value={loading || !summary ? '—' : formatMoney(summary.total_billed, 'INR')} sub="" color="var(--color-accent)" icon={IndianRupee} microIcon={MicroIcons.DocumentTick} />
+        <StatCard label="Received" value={loading || !summary ? '—' : formatMoney(summary.total_received, 'INR')} sub="" color="var(--color-green)" icon={Wallet} microIcon={MicroIcons.GrowthChart} />
+        <StatCard label="Outstanding" value={loading || !summary ? '—' : formatMoney(summary.outstanding, 'INR')} sub="" color="var(--color-amber)" icon={Clock} microIcon={MicroIcons.ClockCheck} />
+        <StatCard label="Overdue" value={loading || !summary ? '—' : formatMoney(summary.overdue, 'INR')} sub="" color="var(--color-red)" icon={AlertTriangle} microIcon={MicroIcons.Target} />
       </div>
 
       <div className="card table-wrap">

@@ -13,6 +13,7 @@ import { toast } from '../../utils/toast.js';
 import usePermissions from '../../hooks/usePermissions.js';
 import { openModal, startCreate, resetFields } from '../../bridge/shared/modals.js';
 import { get, post } from '../../services/httpClient.js';
+import { MicroIcons } from '../../components/ui/MicroIcons.jsx';
 
 const COLUMNS = [
   { key: 'id', header: 'Code', render: r => <strong>{r.id}</strong> },
@@ -151,15 +152,16 @@ export default function ProjectsPage() {
       )}
 
       <div className="mb-5 grid grid-cols-4 gap-4 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1">
-        <StatCard label="Total Projects" value={String(summary?.total ?? (loading ? '—' : 0))} sub="Across all clients" color="var(--color-brand)" icon={FolderOpen} />
-        <StatCard label="Active Now" value={String(summary?.in_progress ?? (loading ? '—' : 0))} sub="Currently in progress" color="var(--color-green)" icon={Activity} />
-        <StatCard label="On Hold" value={String(summary?.on_hold ?? (loading ? '—' : 0))} sub="Awaiting resumption" color="var(--color-amber)" icon={PauseCircle} />
+        <StatCard label="Total Projects" value={String(summary?.total ?? (loading ? '—' : 0))} sub="Across all clients" color="var(--color-brand)" icon={FolderOpen} microIcon={MicroIcons.BriefcaseSpark} />
+        <StatCard label="Active Now" value={String(summary?.in_progress ?? (loading ? '—' : 0))} sub="Currently in progress" color="var(--color-green)" icon={Activity} microIcon={MicroIcons.GrowthChart} />
+        <StatCard label="On Hold" value={String(summary?.on_hold ?? (loading ? '—' : 0))} sub="Awaiting resumption" color="var(--color-amber)" icon={PauseCircle} microIcon={MicroIcons.ConnectedDots} />
         <StatCard
           label="Portfolio Budget"
           value={loading ? '—' : `₹${num(summary?.total_budget || 0)}`}
           sub={`${summary?.total ?? 0} project${summary?.total === 1 ? '' : 's'} total`}
           color="var(--color-violet)"
           icon={Wallet}
+          microIcon={MicroIcons.Target}
         />
       </div>
 
