@@ -19,7 +19,7 @@ export default function ProgressBar({ value = 0, color = 'brand', label = null }
         </div>
       )}
       <div style={{
-        background: color === 'rose' ? '#E8EFF7' : '#E7F0F4',
+        background: color === 'rose' ? '#F5D5DD' : '#E7F0F4',
         borderRadius: '99px',
         height: '8px',
         overflow: 'hidden',

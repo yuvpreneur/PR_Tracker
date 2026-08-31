@@ -60,8 +60,8 @@ export default function Dropdown({
           gap: '12px',
           width: '100%',
           padding: '12px 16px',
-          background: isOpen ? '#E8EFF7' : '#EEF2F7',
-          border: isOpen ? '1px solid rgba(232, 96, 122, .3)' : '1px solid #DCE5EF',
+          background: isOpen ? '#F3E4E9' : '#F7F8F3',
+          border: isOpen ? '1px solid rgba(232, 96, 122, .3)' : '1px solid #E5E9DC',
           borderRadius: '16px',
           fontSize: '13px',
           fontWeight: 500,
@@ -73,14 +73,14 @@ export default function Dropdown({
         }}
         onMouseEnter={(e) => {
           if (!disabled && !isOpen) {
-            e.currentTarget.style.background = '#E5EEF7';
-            e.currentTarget.style.borderColor = '#D0DEF0';
+            e.currentTarget.style.background = '#F0F0ED';
+            e.currentTarget.style.borderColor = '#D8DCD2';
           }
         }}
         onMouseLeave={(e) => {
           if (!isOpen) {
-            e.currentTarget.style.background = '#EEF2F7';
-            e.currentTarget.style.borderColor = '#DCE5EF';
+            e.currentTarget.style.background = '#F7F8F3';
+            e.currentTarget.style.borderColor = '#E5E9DC';
           }
         }}
       >
@@ -133,9 +133,9 @@ export default function Dropdown({
                   justifyContent: 'space-between',
                   width: '100%',
                   padding: '12px 16px',
-                  background: isSelected ? 'linear-gradient(180deg, #E8EFF7 0%, #DFE8F5 100%)' : '#FFFFFF',
+                  background: isSelected ? 'linear-gradient(180deg, #F3E4E9 0%, #E8D4DC 100%)' : '#FFFFFF',
                   border: 'none',
-                  borderBottom: idx < options.length - 1 ? '1px solid #E5EEF7' : 'none',
+                  borderBottom: idx < options.length - 1 ? '1px solid #F0F0ED' : 'none',
                   fontSize: '13px',
                   fontWeight: 500,
                   color: isSelected ? 'var(--rose)' : 'var(--ink)',
@@ -146,7 +146,7 @@ export default function Dropdown({
                 }}
                 onMouseEnter={(e) => {
                   if (!isSelected) {
-                    e.currentTarget.style.background = '#EEF3F8';
+                    e.currentTarget.style.background = '#F9E8ED';
                   }
                 }}
                 onMouseLeave={(e) => {
