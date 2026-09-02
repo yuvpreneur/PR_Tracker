@@ -23,7 +23,8 @@ export default function ExpensesPage() {
   const [extracting, setExtracting] = useState(false);
   const uploadInputRef = useRef(null);
 
-  const projectName = id => projects.find(p => p.id === id)?.name;
+  const projectsArray = Array.isArray(projects) ? projects : [];
+  const projectName = id => projectsArray.find(p => p.id === id)?.name;
 
   const columns = useMemo(() => [
     { key: 'project_id', header: 'Project', render: r => projectName(r.project_id) || r.project_id },
@@ -51,11 +52,11 @@ export default function ExpensesPage() {
       render: r => (r.status === 'Rejected' ? (r.reject_reason || '—') : (r.description || '—')),
       align: 'center',
     },
-  ], [projects]);
+  ], [projectsArray]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return expenses.filter(e => {
+    return (Array.isArray(expenses) ? expenses : []).filter(e => {
       if (projectId && e.project_id !== projectId) return false;
       if (category && e.category !== category) return false;
       if (status && e.status !== status) return false;
@@ -157,7 +158,7 @@ export default function ExpensesPage() {
           onChange={setProjectId}
           options={[
             { value: '', label: 'All Projects' },
-            ...projects.map(p => ({ value: p.id, label: `${p.id} — ${p.name}` }))
+            ...(Array.isArray(projects) ? projects : []).map(p => ({ value: p.id, label: `${p.id} — ${p.name}` }))
           ]}
           placeholder="All Projects"
           style={{ width: '200px' }}
