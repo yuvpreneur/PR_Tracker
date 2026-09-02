@@ -6,11 +6,12 @@ export function username() {
 }
 
 export async function refreshCaches() {
-  [state.projects, state.employees, state.pcodes, state.bcodes, state.companies] = await Promise.allSettled([
-    get('/api/projects'),
-    get('/api/employees'),
-    get('/api/project-codes'),
-    get('/api/billing-codes'),
-    get('/api/companies'),
+  const results = await Promise.allSettled([
+    get('/api/projects').catch(() => []),
+    get('/api/employees').catch(() => []),
+    get('/api/project-codes').catch(() => []),
+    get('/api/billing-codes').catch(() => []),
+    get('/api/companies').catch(() => []),
   ]).then(rs => rs.map(r => r.value || []));
+  [state.projects, state.employees, state.pcodes, state.bcodes, state.companies] = results;
 }
