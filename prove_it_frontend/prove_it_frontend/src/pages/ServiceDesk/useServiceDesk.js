@@ -15,11 +15,10 @@ export default function useServiceDesk() {
 
   const refresh = useCallback(async () => {
     const rows = await get('/api/tickets').catch(() => []);
-    setTickets(rows || []);
-    // Keeps the legacy `.bridge-edit`/`.bridge-resolve`/`.bridge-close` delegation's
-    // row lookup (bridge/index.js, reads state.tickets) in sync with what's on screen.
-    state.tickets = rows || [];
-    setNavBadge('service-desk', (rows || []).filter(r => OPEN_STATUSES.includes(r.status)).length);
+    const ticketsArray = Array.isArray(rows) ? rows : [];
+    setTickets(ticketsArray);
+    state.tickets = ticketsArray;
+    setNavBadge('service-desk', ticketsArray.filter(r => OPEN_STATUSES.includes(r.status)).length);
     setLoading(false);
   }, []);
 
