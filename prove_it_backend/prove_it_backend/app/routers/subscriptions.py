@@ -77,6 +77,18 @@ def list_plans(db: Database = Depends(get_db)):
     return [_plan_out(p) for p in rows]
 
 
+@router.get("/available-plans", dependencies=[Depends(get_current_user)])
+def list_available_plans(db: Database = Depends(get_db)):
+    """Public list of active subscription plans — accessible to all authenticated users.
+    Used by customer-facing Subscription page to display available plans.
+    Excludes legacy/internal plans (identified by is_legacy_full_access flag)."""
+    rows = db[collections.SUBSCRIPTION_PLANS].find({
+        "is_active": True,
+        "is_legacy_full_access": {"$ne": True}  # Exclude legacy full access plan
+    }).sort("sort_order", ASCENDING)
+    return [_plan_out(p) for p in rows]
+
+
 @router.post("/plans", dependencies=plans_deps)
 def create_plan(payload: PlanCreate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
     _valid_features(payload.features)
@@ -96,23 +108,6 @@ def create_plan(payload: PlanCreate, db: Database = Depends(get_db), cu=Depends(
     log_action(db, user=cu.name, action="CREATE", module="Subscription Plans", org_id=None, record_id=plan_id,
                detail=f"Created plan '{payload.name}'")
     return _plan_out(plan_doc)
-
-
-@router.patch("/plans/{plan_id}", dependencies=plans_deps)
-def update_plan(plan_id: str, payload: PlanUpdate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    plan = db[collections.SUBSCRIPTION_PLANS].find_one({"_id": plan_id})
-    if not plan:
-        raise HTTPException(404, "Plan not found")
-    patch = payload.dict(exclude_none=True)
-    if "features" in patch:
-        _valid_features(patch["features"])
-    if patch:
-        db[collections.SUBSCRIPTION_PLANS].update_one({"_id": plan_id}, {"$set": patch})
-        plan = db[collections.SUBSCRIPTION_PLANS].find_one({"_id": plan_id})
-    log_action(db, user=cu.name, action="UPDATE", module="Subscription Plans", org_id=None, record_id=plan_id,
-               detail=f"Updated plan {plan['name']}")
-    return _plan_out(plan)
-
 
 # ── Free Access grants ───────────────────────────────────────────────────────
 # A "grant" is just an org's normal Subscription doc (see below) with is_free_grant=True
@@ -232,6 +227,15 @@ def list_subscriptions(db: Database = Depends(get_db)):
     return [_sub_out(s["org_id"], s) for s in rows]
 
 
+@router.get("/me", dependencies=[Depends(get_current_user)])
+def get_my_subscription(cu=Depends(get_current_user), db: Database = Depends(get_db)):
+    """Public endpoint — any authenticated user can fetch their own org's subscription."""
+    if not cu.org_id:
+        raise HTTPException(404, "No organization")
+    s = db[collections.SUBSCRIPTIONS].find_one({"_id": cu.org_id})
+    return _sub_out(cu.org_id, s)
+
+
 @router.get("/{org_id}", dependencies=subs_deps)
 def get_subscription(org_id: str, db: Database = Depends(get_db)):
     # Get-or-default, no doc created on read — same idiom as settings.py's
@@ -260,3 +264,20 @@ def assign_subscription(
     log_action(db, user=cu.name, action="UPDATE", module="Subscriptions", org_id=org_id, record_id=org_id,
                detail=f"Set subscription for {org['name']}")
     return _sub_out(org_id, doc)
+
+
+# Parameterized plan route - moved to end to ensure /plans/available is matched first
+@router.patch("/plans/{plan_id}", dependencies=plans_deps)
+def update_plan(plan_id: str, payload: PlanUpdate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    plan = db[collections.SUBSCRIPTION_PLANS].find_one({"_id": plan_id})
+    if not plan:
+        raise HTTPException(404, "Plan not found")
+    patch = payload.dict(exclude_none=True)
+    if "features" in patch:
+        _valid_features(patch["features"])
+    if patch:
+        db[collections.SUBSCRIPTION_PLANS].update_one({"_id": plan_id}, {"$set": patch})
+        plan = db[collections.SUBSCRIPTION_PLANS].find_one({"_id": plan_id})
+    log_action(db, user=cu.name, action="UPDATE", module="Subscription Plans", org_id=None, record_id=plan_id,
+               detail=f"Updated plan {plan['name']}")
+    return _plan_out(plan)
