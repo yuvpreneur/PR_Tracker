@@ -10,11 +10,11 @@ export default function useCustomers() {
 
   const refresh = useCallback(async () => {
     const rows = await get('/api/companies').catch(() => []);
-    setCustomers(rows || []);
+    setCustomers(Array.isArray(rows) ? rows : []);
     // Keeps the legacy `.bridge-edit`/`.bridge-delete` delegation's row lookup
     // (bridge/index.js, reads state.companies — shared with the Companies page) in
     // sync with what's on screen.
-    state.companies = rows || [];
+    state.companies = Array.isArray(rows) ? rows : [];
     setLoading(false);
   }, []);
 

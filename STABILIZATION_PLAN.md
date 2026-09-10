@@ -237,10 +237,14 @@ git push
 
 These are pre-existing on **both** branches and are the reason a single bad response can still white-screen the app:
 
-1. **Unguarded legacy bridge files.** `src/bridge/pages/employees.js` (`state.employees.map`) and
-   `src/bridge/pages/timesheets.js` (`state.bcodes.map`) have no guard on either branch.
-2. **`rows || []` is the wrong guard.** `||` only catches `null`/`undefined`; an object `{}` passes
-   straight through. Every remaining site should use `Array.isArray(rows) ? rows : []`.
+1. ~~**Unguarded legacy bridge files.**~~ **FIXED.** `state.js` now defines the 15 row-cache keys
+   with a setter that coerces any non-array to `[]`, so all ~10 bridge `.map`/`.filter`/`.find`
+   sites are safe regardless of what any writer assigns.
+2. ~~**`rows || []` is the wrong guard.**~~ **PARTIALLY FIXED.** `DataTable` now guards `rows` and
+   `columns` itself, covering all ~20 list pages, and the nine hooks that fed it raw values were
+   converted to `Array.isArray(x) ? x : []`. Roughly 40 `|| []` sites remain elsewhere in the
+   codebase; they are no longer able to crash the bridge or a data table, but they can still
+   surface an empty list where data was expected.
 3. **No React error boundary.** `CompaniesPage` threw during render and took down the whole tree —
    that is why the symptom was a blank screen rather than one broken panel. An error boundary around
    the routed page would contain this class of failure permanently, and is the single highest-value

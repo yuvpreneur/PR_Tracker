@@ -15,12 +15,12 @@ export default function useLeave() {
       get('/api/leave').catch(() => []),
       get('/api/leave/summary').catch(() => null),
     ]);
-    setLeave(rows || []);
+    setLeave(Array.isArray(rows) ? rows : []);
     setSummary(s);
     // Unlike other pages' delegation, Leave's approve/reject handlers use dataset.id
     // directly with no state.leave row lookup — this line isn't fixing a bug, just
     // kept for consistency with every other migrated page's hook.
-    state.leave = rows || [];
+    state.leave = Array.isArray(rows) ? rows : [];
     setLoading(false);
   }, []);
 

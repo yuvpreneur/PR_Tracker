@@ -17,10 +17,10 @@ export default function useTimesheets({ period, projectId, billingCodeId, status
   const refresh = useCallback(async () => {
     const params = { ...tsPeriodRange(period), project_id: projectId, billing_code_id: billingCodeId, status, search };
     const rows = await get('/api/timesheets' + qs(params)).catch(() => []);
-    setTimesheets(rows || []);
+    setTimesheets(Array.isArray(rows) ? rows : []);
     // Keeps the legacy `.bridge-edit`/`.bridge-delete`/`.bridge-approve`/`.bridge-reject`
     // delegation's row lookup (bridge/index.js, reads state.timesheets) in sync.
-    state.timesheets = rows || [];
+    state.timesheets = Array.isArray(rows) ? rows : [];
     setLoading(false);
   }, [period, projectId, billingCodeId, status, search]);
 

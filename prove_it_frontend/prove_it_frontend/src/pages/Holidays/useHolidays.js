@@ -13,7 +13,7 @@ export default function useHolidays() {
       get('/api/holidays').catch(() => []),
       get('/api/settings/weekly-off').catch(() => DEFAULT_WEEKLY_OFF),
     ]);
-    setHolidays(rows || []);
+    setHolidays(Array.isArray(rows) ? rows : []);
     setWeeklyOff(wo || DEFAULT_WEEKLY_OFF);
     setLoading(false);
   }, []);

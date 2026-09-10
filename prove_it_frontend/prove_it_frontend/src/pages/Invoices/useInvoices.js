@@ -17,9 +17,9 @@ export default function useInvoices() {
       get('/api/projects').catch(() => []),
       get('/api/invoices/summary').catch(() => null),
     ]);
-    setInvoices(rows || []);
-    setCompanies(comps || []);
-    setProjects(projs || []);
+    setInvoices(Array.isArray(rows) ? rows : []);
+    setCompanies(Array.isArray(comps) ? comps : []);
+    setProjects(Array.isArray(projs) ? projs : []);
     setSummary(sum);
     setLoading(false);
   }, []);

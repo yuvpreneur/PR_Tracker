@@ -13,7 +13,10 @@ export default function useAuditLog({ module, user, period, search } = {}) {
   const refresh = useCallback(async () => {
     const params = { module, user, ...periodRange(period), search };
     const data = await get('/api/audit-log/' + qs(params)).catch(() => null);
-    const logs = data?.logs || data || [];
+    // `data?.logs || data || []` returned `data` itself when it was a non-array object
+    // (an error body, or a 2xx that didn't parse) — truthy, so it sailed past both `||`
+    // and reached DataTable as `rows`, where .map took the page down.
+    const logs = Array.isArray(data?.logs) ? data.logs : (Array.isArray(data) ? data : []);
     setRows(logs);
     // Keeps the legacy `.bridge-edit`/`.bridge-delete` delegation's row lookup
     // (bridge/index.js, reads state.auditLogs) in sync with what's on screen.

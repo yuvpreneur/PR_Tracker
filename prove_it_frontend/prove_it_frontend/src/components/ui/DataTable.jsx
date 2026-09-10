@@ -5,7 +5,14 @@ import { Pencil, Trash2 } from 'lucide-react';
 // document-level delegated click listener for these per page, so migrated pages
 // don't need to re-implement that wiring — it works on any DOM node with a match,
 // React-rendered or not.
-export default function DataTable({ columns, rows, getRowId, pageId, canEdit, canDelete, renderExtraActions, hideActionsColumn = false, emptyMessage = 'No records found' }) {
+export default function DataTable({ columns: columnsProp, rows: rowsProp, getRowId, pageId, canEdit, canDelete, renderExtraActions, hideActionsColumn = false, emptyMessage = 'No records found' }) {
+  // Every list page feeds `rows` straight from a fetch, and several hooks still hand
+  // over `rows || []` — which only catches null/undefined, so an object (an error body,
+  // or a 2xx whose payload didn't parse as JSON) reaches us intact and `rows.map` takes
+  // down the entire page instead of rendering an empty table. Guard once, here, rather
+  // than trusting all ~20 call sites.
+  const columns = Array.isArray(columnsProp) ? columnsProp : [];
+  const rows = Array.isArray(rowsProp) ? rowsProp : [];
   // canEdit/canDelete may be a flat boolean (same for every row) or a function of
   // the row (e.g. edit allowed if you have blanket edit permission OR own the row).
   const editAllowed = row => (typeof canEdit === 'function' ? canEdit(row) : !!canEdit);
