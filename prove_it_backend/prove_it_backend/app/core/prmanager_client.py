@@ -20,6 +20,7 @@ from app.core import collections
 
 PRMANAGER_BASE_URL = os.environ.get("PRMANAGER_BASE_URL", "").rstrip("/")
 PRMANAGER_SHARED_SECRET = os.environ.get("PRMANAGER_SHARED_SECRET", "")
+PRMANAGER_ANON_KEY = os.environ.get("PRMANAGER_ANON_KEY", "")
 
 _TIMEOUT = 8.0
 
@@ -27,10 +28,13 @@ _TIMEOUT = 8.0
 def _post(entity: str, op: str, tracker_id: str, updated_at: str, fields: dict) -> dict:
     if not PRMANAGER_BASE_URL or not PRMANAGER_SHARED_SECRET:
         raise RuntimeError("PR Manager sync is not configured (PRMANAGER_BASE_URL/PRMANAGER_SHARED_SECRET unset)")
+    headers = {"x-prtracker-secret": PRMANAGER_SHARED_SECRET}
+    if PRMANAGER_ANON_KEY:
+        headers["authorization"] = f"Bearer {PRMANAGER_ANON_KEY}"
     resp = httpx.post(
         f"{PRMANAGER_BASE_URL}/functions/v1/prtracker-sync",
         json={"entity": entity, "op": op, "tracker_id": tracker_id, "updated_at": updated_at, "fields": fields},
-        headers={"x-prtracker-secret": PRMANAGER_SHARED_SECRET},
+        headers=headers,
         timeout=_TIMEOUT,
     )
     resp.raise_for_status()
@@ -151,3 +155,4 @@ def sync_employee_to_pm(db, employee: dict) -> dict:
         update = {"pm_sync_status": "Sync Failed"}
     db[collections.EMPLOYEES].update_one({"_id": employee["emp_id"], "org_id": org_id}, {"$set": update})
     return update
+
