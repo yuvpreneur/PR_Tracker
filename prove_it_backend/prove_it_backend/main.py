@@ -5,8 +5,11 @@ Complete FastAPI Backend
 
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from pathlib import Path
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, JSONResponse
 
 from app.core.database import client, ensure_indexes
 from app.routers import (
@@ -60,7 +63,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost:5173").split(","),
+    allow_origins=os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost:5174").split(","),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -106,6 +109,83 @@ app.include_router(payslips.router,       prefix="/api/payslips",       tags=["P
 app.include_router(integrations.router,   prefix="/api/integrations/prmanager", tags=["PR Manager Sync"])
 
 
-@app.get("/", tags=["Health"])
-def root():
+# ── Trailing-slash normalisation ─────────────────────────────────────────────
+# Every list endpoint is declared `@router.get("/")`, so its real path carries a
+# trailing slash (`/api/employees/`) while the frontend calls `/api/employees`.
+# Starlette would paper over that with a 307, but the redirect is fatal here: the Vite
+# dev server proxies /api from :5174, and Starlette builds an absolute Location from the
+# proxied Host, so the browser is bounced to http://localhost:8000/... — a different
+# origin. Browsers strip the Authorization header across an origin change, so the
+# followed request arrives unauthenticated and every data fetch 401s.
+#
+# Rewriting the path in place keeps the request same-origin (no redirect, no preflight,
+# token intact) and lets both spellings route directly.
+# Derived from the OpenAPI schema rather than app.routes: FastAPI keeps included
+# routers as nested objects, so a flat walk of app.routes sees none of their paths.
+_API_SLASH_PATHS = {
+    path
+    for path in app.openapi()["paths"]
+    if path.startswith("/api/") and path.endswith("/")
+}
+
+
+class TrailingSlashRewrite:
+    """Pure-ASGI so FileResponse/streaming responses pass through untouched."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            path = scope.get("path", "")
+            if not path.endswith("/") and path + "/" in _API_SLASH_PATHS:
+                scope = dict(scope, path=path + "/")
+                # raw_path would otherwise still hold the un-rewritten bytes.
+                scope.pop("raw_path", None)
+        await self.app(scope, receive, send)
+
+
+# Added last, so it sits outermost and rewrites before routing and CORS.
+app.add_middleware(TrailingSlashRewrite)
+
+
+@app.get("/api/health", tags=["Health"])
+def health():
     return {"status": "ok", "app": "Prove IT Catalysts API", "version": "1.0.0"}
+
+
+# ── Static Files & SPA Fallback ──────────────────────────────────────────────
+frontend_dist = (Path(__file__).parent.parent.parent / "prove_it_frontend" / "prove_it_frontend" / "dist").resolve()
+
+# Mount static assets (images, css, js)
+if (frontend_dist / "assets").exists():
+    app.mount("/assets", StaticFiles(directory=frontend_dist / "assets"), name="assets")
+
+
+# The SPA fallback is a 404 handler rather than a catch-all `@app.get("/{path:path}")`
+# route on purpose. Starlette matches routes before it applies its trailing-slash
+# redirect, so a catch-all shadowed every `/api/...` request the frontend makes without
+# the trailing slash the routers declare (`@router.get("/")`) — `/api/employees` was
+# answered with index.html at status 200 instead of redirecting to `/api/employees/`,
+# so every hook's `r.json()` fell through to `{}` and each page died on
+# `rows.map is not a function`. Reaching the app through a 404 instead leaves normal
+# routing (that redirect included) untouched; only genuinely unmatched paths land here.
+@app.exception_handler(404)
+async def spa_fallback(request: Request, exc: HTTPException):
+    # API 404s are real 404s — never answer a data request with HTML.
+    path = request.url.path
+    if path == "/api" or path.startswith("/api/"):
+        return JSONResponse({"detail": exc.detail or "Not found"}, status_code=404)
+
+    # Serve a real file when the path names one, staying inside dist/ so a crafted
+    # path (`/../../secrets`) can't escape the directory. Browsers normalise `..`
+    # away, but a non-browser client can send it verbatim.
+    candidate = (frontend_dist / path.lstrip("/")).resolve()
+    if candidate.is_relative_to(frontend_dist) and candidate.is_file():
+        return FileResponse(candidate)
+
+    # Otherwise hand back index.html so client-side routing can take over.
+    index_path = frontend_dist / "index.html"
+    if index_path.is_file():
+        return FileResponse(index_path)
+    return JSONResponse({"detail": "Not found"}, status_code=404)
