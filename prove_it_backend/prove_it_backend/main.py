@@ -10,6 +10,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
+from starlette.datastructures import MutableHeaders
 
 from app.core.database import client, ensure_indexes
 from app.routers import (
@@ -136,13 +137,34 @@ class TrailingSlashRewrite:
         self.app = app
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] == "http":
-            path = scope.get("path", "")
-            if not path.endswith("/") and path + "/" in _API_SLASH_PATHS:
-                scope = dict(scope, path=path + "/")
-                # raw_path would otherwise still hold the un-rewritten bytes.
-                scope.pop("raw_path", None)
-        await self.app(scope, receive, send)
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path = scope.get("path", "")
+        if not path.endswith("/") and path + "/" in _API_SLASH_PATHS:
+            scope = dict(scope, path=path + "/")
+            # raw_path would otherwise still hold the un-rewritten bytes.
+            scope.pop("raw_path", None)
+
+        if not (path == "/api" or path.startswith("/api/")):
+            await self.app(scope, receive, send)
+            return
+
+        # Mark every API response uncacheable. This is not just hygiene for an
+        # authenticated JSON API: while the SPA catch-all bug was live, `/api/...` was
+        # answered with index.html at status 200, and a FileResponse carries
+        # last-modified/etag but no Cache-Control — so browsers applied heuristic
+        # caching and stored that HTML under the API URL. The bug is fixed, but a
+        # browser that cached a response back then keeps serving it from disk without
+        # ever hitting the network, so every module silently renders empty and no
+        # request shows up in the Network tab. no-store makes that unrepeatable.
+        async def _send(message):
+            if message["type"] == "http.response.start":
+                MutableHeaders(scope=message)["cache-control"] = "no-store"
+            await send(message)
+
+        await self.app(scope, receive, _send)
 
 
 # Added last, so it sits outermost and rewrites before routing and CORS.
