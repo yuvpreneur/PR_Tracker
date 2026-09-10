@@ -18,11 +18,14 @@ export default function useProjectCodes() {
       get('/api/project-codes').catch(() => []),
       get('/api/projects').catch(() => []),
     ]);
-    setPcodes(codes || []);
-    setProjects(projs || []);
+    // `|| []` only catches null/undefined — an object (an error body, or a 2xx whose
+    // payload didn't parse as JSON) slips straight through and blows up .map downstream.
+    const rows = Array.isArray(codes) ? codes : [];
+    setPcodes(rows);
+    setProjects(Array.isArray(projs) ? projs : []);
     // Keeps the legacy `.bridge-edit`/`.bridge-delete` delegation's row lookup
     // (bridge/index.js, reads state.pcodes) in sync with what's actually on screen.
-    state.pcodes = codes || [];
+    state.pcodes = rows;
     // Every page (and its modal) mounts immediately on login regardless of which
     // route is active (see AllPages in AppRoutes.jsx) — refreshing these dropdowns
     // here, rather than only when the legacy nav-click loader happens to run, is

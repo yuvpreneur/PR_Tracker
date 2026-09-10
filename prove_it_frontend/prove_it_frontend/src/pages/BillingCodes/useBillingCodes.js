@@ -18,11 +18,14 @@ export default function useBillingCodes() {
       get('/api/billing-codes').catch(() => []),
       get('/api/projects').catch(() => []),
     ]);
-    setBcodes(codes || []);
-    setProjects(projs || []);
+    // `|| []` only catches null/undefined — an object (an error body, or a 2xx whose
+    // payload didn't parse as JSON) slips straight through and blows up .map downstream.
+    const rows = Array.isArray(codes) ? codes : [];
+    setBcodes(rows);
+    setProjects(Array.isArray(projs) ? projs : []);
     // Keeps the legacy `.bridge-edit`/`.bridge-delete` delegation's row lookup
     // (bridge/index.js, reads state.bcodes) in sync with what's actually on screen.
-    state.bcodes = codes || [];
+    state.bcodes = rows;
     // Every page (and its modal) mounts immediately on login regardless of which
     // route is active (see AllPages in AppRoutes.jsx) — refreshing these dropdowns
     // here, rather than only when the legacy nav-click loader happens to run, is

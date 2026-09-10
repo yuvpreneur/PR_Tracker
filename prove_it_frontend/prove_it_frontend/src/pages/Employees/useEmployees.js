@@ -11,11 +11,14 @@ export default function useEmployees() {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const rows = await get('/api/employees').catch(() => []);
-    setEmployees(rows || []);
+    const raw = await get('/api/employees').catch(() => []);
+    // `|| []` only catches null/undefined — an object (an error body, or a 2xx whose
+    // payload didn't parse as JSON) slips straight through and blows up .map downstream.
+    const rows = Array.isArray(raw) ? raw : [];
+    setEmployees(rows);
     // Keeps the legacy `.bridge-edit`/`.bridge-delete` delegation's row lookup
     // (bridge/index.js, reads state.employees) in sync with what's on screen.
-    state.employees = rows || [];
+    state.employees = rows;
     // Every page (and its modal) mounts immediately on login regardless of which
     // route is active (see AllPages in AppRoutes.jsx) — refreshing these dropdowns
     // here, rather than only when the legacy nav-click loader happens to run, is
