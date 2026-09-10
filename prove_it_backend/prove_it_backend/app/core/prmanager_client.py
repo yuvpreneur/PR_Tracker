@@ -105,10 +105,14 @@ def sync_project_to_pm(db, project: dict) -> dict:
 
 
 def sync_employee_to_pm(db, employee: dict) -> dict:
-    """Sync employee to PR Manager as a member in their organization.
-    Employees are added to their organization directly without project constraints."""
+    """One-directional only (Tracker -> Manager). Membership target is whatever PM
+    Organizations correspond to this employee's existing Assigned-Projects grants
+    (PROJECT_PERMISSIONS, allowed=True) — deliberately NOT "every project" for an
+    employee with no grant rows yet, even though Tracker itself treats that as
+    unrestricted; cross-app account provisioning is higher-stakes than an in-app
+    page-view default. Turning the checkbox off disables (never deletes) PM membership,
+    for an audit trail on PR Manager's side."""
     org_id = employee["org_id"]
-    
     if not employee.get("pm_access_enabled"):
         try:
             result = _post(
@@ -121,11 +125,19 @@ def sync_employee_to_pm(db, employee: dict) -> dict:
         db[collections.EMPLOYEES].update_one({"_id": employee["emp_id"], "org_id": org_id}, {"$set": update})
         return update
 
-    # Find any company in this org to get pm_org_id
-    company = db[collections.COMPANIES].find_one({"org_id": org_id})
-    pm_org_id = company.get("pm_org_id") if company else None
-    
-    if not pm_org_id:
+    grants = db[collections.PROJECT_PERMISSIONS].find({"emp_id": employee["emp_id"], "org_id": org_id, "allowed": True})
+    project_ids = [g["project_id"] for g in grants]
+    if not project_ids:
+        update = {"pm_sync_status": "Blocked", "pm_member_id": None}
+        db[collections.EMPLOYEES].update_one({"_id": employee["emp_id"], "org_id": org_id}, {"$set": update})
+        return update
+
+    pm_org_ids = sorted({
+        p["pm_org_id"] for p in db[collections.PROJECTS].find(
+            {"_id": {"$in": project_ids}, "org_id": org_id, "pm_org_id": {"$ne": None}}
+        )
+    })
+    if not pm_org_ids:
         update = {"pm_sync_status": "Blocked", "pm_member_id": None}
         db[collections.EMPLOYEES].update_one({"_id": employee["emp_id"], "org_id": org_id}, {"$set": update})
         return update
@@ -133,11 +145,7 @@ def sync_employee_to_pm(db, employee: dict) -> dict:
     try:
         result = _post(
             "member", "upsert", employee["emp_id"], employee.get("updated_at", ""),
-            {
-                "name": employee["name"],
-                "email": employee["email"],
-                "pm_org_id": pm_org_id,
-            },
+            {"name": employee["name"], "email": employee["email"], "pm_org_ids": pm_org_ids},
         )
         update = {
             "pm_member_id": result.get("pm_id"),

@@ -230,6 +230,11 @@ def list_subscriptions(db: Database = Depends(get_db)):
 @router.get("/me", dependencies=[Depends(get_current_user)])
 def get_my_subscription(db: Database = Depends(get_db), cu=Depends(get_current_user)):
     """Get the current user's organization's subscription — accessible to any authenticated user."""
+    # Without this, an org-less account (super-admin, or a user not yet attached to an
+    # org) queries {"_id": None}, finds nothing, and _sub_out hands back a *default*
+    # subscription — a silent wrong answer instead of an error.
+    if not cu.org_id:
+        raise HTTPException(404, "No organization")
     s = db[collections.SUBSCRIPTIONS].find_one({"_id": cu.org_id})
     return _sub_out(cu.org_id, s)
 
