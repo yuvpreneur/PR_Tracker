@@ -21,7 +21,7 @@ function populateEmployeeSelect() {
   const sel = accessCard(0)?.querySelector('select.form-control');
   if (!sel || !state.employees.length) return;
   const prev = sel.value;
-  sel.innerHTML = state.employees.map(e => `<option value="${e.emp_id}">${e.name} · ${e.designation || e.role || e.department || ''}</option>`).join('');
+  sel.innerHTML = (Array.isArray(state.employees) ? state.employees : []).map(e => `<option value="${e.emp_id}">${e.name} · ${e.designation || e.role || e.department || ''}</option>`).join('');
   if (prev) sel.value = prev;
 }
 
@@ -29,7 +29,7 @@ async function loadPageAccess(empId) {
   const list = accessCard(0)?.querySelector('.access-list');
   if (!list) return;
   const rows = empId ? await get(`/api/access-control/pages/${empId}`).catch(() => []) : [];
-  const allowed = new Set(rows.filter(r => r.allowed).map(r => r.page));
+  const allowed = new Set((Array.isArray(rows) ? rows : []).filter(r => r.allowed).map(r => r.page));
   list.innerHTML = PAGES.map(p =>
     `<label><input type="checkbox" data-page="${p}" ${allowed.has(p) ? 'checked' : ''}> ${p}</label>`).join('');
 }
@@ -47,8 +47,8 @@ async function loadProjectAccess(empId) {
   const list = accessCard(1)?.querySelector('.project-list');
   if (!list || !state.projects.length) return;
   const rows = empId ? await get(`/api/access-control/projects/${empId}`).catch(() => []) : [];
-  const allowed = new Set(rows.filter(r => r.allowed).map(r => r.project_id));
-  list.innerHTML = state.projects.map(p =>
+  const allowed = new Set((Array.isArray(rows) ? rows : []).filter(r => r.allowed).map(r => r.project_id));
+  list.innerHTML = (Array.isArray(state.projects) ? state.projects : []).map(p =>
     `<label><input type="checkbox" data-project="${p.id}" ${allowed.has(p.id) ? 'checked' : ''}> ${p.name}</label>`).join('');
 }
 

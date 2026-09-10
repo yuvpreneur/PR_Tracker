@@ -70,7 +70,7 @@ export default function AccessControlPage() {
           <Dropdown
             value={empId}
             onChange={setEmpId}
-            options={employees.map(e => ({ value: e.emp_id, label: `${e.name} · ${e.designation || e.role || e.department || ''}` }))}
+            options={(Array.isArray(employees) ? employees : []).map(e => ({ value: e.emp_id, label: `${e.name} · ${e.designation || e.role || e.department || ''}` }))}
             placeholder="Select employee…"
             style={{ marginBottom: 12, width: '100%' }}
           />
@@ -114,7 +114,7 @@ export default function AccessControlPage() {
             {requests.length === 0 && (
               <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8', fontSize: 13 }}>No access requests</div>
             )}
-            {requests.map(r => (
+            {(Array.isArray(requests) ? requests : []).map(r => (
               <div className="request-row" key={r.id}>
                 <strong>
                   {r.requester} requested {r.request_type === 'project'

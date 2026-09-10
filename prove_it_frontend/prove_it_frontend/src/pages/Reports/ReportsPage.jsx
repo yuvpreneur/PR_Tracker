@@ -55,8 +55,8 @@ export default function ReportsPage() {
   const [employees, setEmployees] = useState([]);
 
   useEffect(() => {
-    get('/api/projects').then(rows => setProjects(rows || [])).catch(() => {});
-    get('/api/employees').then(rows => setEmployees(rows || [])).catch(() => {});
+    get('/api/projects').then(rows => setProjects(Array.isArray(rows) ? rows : [])).catch(() => setProjects([]));
+    get('/api/employees').then(rows => setEmployees(Array.isArray(rows) ? rows : [])).catch(() => setEmployees([]));
   }, []);
 
   useEffect(() => {
@@ -84,7 +84,7 @@ export default function ReportsPage() {
           onChange={setProjectId}
           options={[
             { value: '', label: 'All Projects' },
-            ...(Array.isArray(projects) ? projects : []).map(p => ({ value: p.id, label: `${p.id} - ${p.name}` }))
+            ...projects.map(p => ({ value: p.id, label: `${p.id} - ${p.name}` }))
           ]}
           placeholder="All Projects"
           style={{ width: '200px' }}
@@ -94,7 +94,7 @@ export default function ReportsPage() {
           onChange={setEmpId}
           options={[
             { value: '', label: 'All Employees' },
-            ...(Array.isArray(employees) ? employees : []).map(e => ({ value: e.emp_id, label: `${e.emp_id} - ${e.name}` }))
+            ...employees.map(e => ({ value: e.emp_id, label: `${e.emp_id} - ${e.name}` }))
           ]}
           placeholder="All Employees"
           style={{ width: '180px' }}

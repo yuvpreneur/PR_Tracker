@@ -35,12 +35,12 @@ export default function ServiceDeskPage() {
   // Mirrors GET /api/tickets/stats' open/in_progress/waiting_approval/critical/cancelled
   // definitions — computed client-side from the same `tickets` this page already fetched,
   // rather than a second network call for numbers derivable from data already in hand.
-  const openTickets = tickets.filter(t => OPEN_STATUSES.includes(t.status));
-  const highPriorityCount = openTickets.filter(t => t.priority === 'High' || t.priority === 'Critical').length;
-  const inProgressCount = tickets.filter(t => t.status === 'In Progress').length;
-  const waitingApprovalCount = tickets.filter(t => t.status === 'Waiting Approval').length;
-  const criticalCount = openTickets.filter(t => t.priority === 'Critical').length;
-  const cancelledCount = tickets.filter(t => t.status === 'Cancelled').length;
+  const openTickets = (Array.isArray(tickets) ? tickets : []).filter(t => OPEN_STATUSES.includes(t.status));
+  const highPriorityCount = (Array.isArray(openTickets) ? openTickets : []).filter(t => t.priority === 'High' || t.priority === 'Critical').length;
+  const inProgressCount = (Array.isArray(tickets) ? tickets : []).filter(t => t.status === 'In Progress').length;
+  const waitingApprovalCount = (Array.isArray(tickets) ? tickets : []).filter(t => t.status === 'Waiting Approval').length;
+  const criticalCount = (Array.isArray(openTickets) ? openTickets : []).filter(t => t.priority === 'Critical').length;
+  const cancelledCount = (Array.isArray(tickets) ? tickets : []).filter(t => t.status === 'Cancelled').length;
 
   const canEditRow = row => can('Service Desk', 'edit')
     ? !LOCKED_STATUSES.includes(row.status)

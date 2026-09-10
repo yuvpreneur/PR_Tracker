@@ -20,8 +20,8 @@ export default function FreeAccessPage() {
   const [saving, setSaving] = useState(false);
   const [revokingId, setRevokingId] = useState(null);
 
-  const grantedOrgIds = new Set(grants.map(g => g.org_id));
-  const eligibleOrgs = organizations.filter(o => !grantedOrgIds.has(o.id));
+  const grantedOrgIds = new Set((Array.isArray(grants) ? grants : []).map(g => g.org_id));
+  const eligibleOrgs = (Array.isArray(organizations) ? organizations : []).filter(o => !grantedOrgIds.has(o.id));
 
   const submit = async () => {
     if (!orgId || !planId) { setError('Choose an organization and a plan.'); return; }
@@ -66,7 +66,7 @@ export default function FreeAccessPage() {
                   </td>
                 </tr>
               )}
-              {grants.map(g => (
+              {(Array.isArray(grants) ? grants : []).map(g => (
                 <tr key={g.org_id}>
                   <td><strong>{g.org_name}</strong></td>
                   <td>{g.plan_name}</td>
@@ -104,7 +104,7 @@ export default function FreeAccessPage() {
               onChange={setOrgId}
               options={[
                 { value: '', label: 'Choose an organization…' },
-                ...eligibleOrgs.map(o => ({ value: o.id, label: o.name }))
+                ...(Array.isArray(eligibleOrgs) ? eligibleOrgs : []).map(o => ({ value: o.id, label: o.name }))
               ]}
               placeholder="Choose an organization…"
               style={{ width: '100%' }}
@@ -117,7 +117,7 @@ export default function FreeAccessPage() {
               onChange={setPlanId}
               options={[
                 { value: '', label: 'Choose a plan…' },
-                ...plans.filter(p => p.is_active).map(p => ({
+                ...(Array.isArray(plans) ? plans : []).filter(p => p.is_active).map(p => ({
                   value: p.id,
                   label: `${p.name}${p.is_free ? ' (Free)' : ` (${money(p.price_monthly)}/mo)`}`
                 }))

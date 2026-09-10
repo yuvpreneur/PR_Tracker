@@ -12,7 +12,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 function nextInvoiceNo(invoices) {
   const year = new Date().getFullYear();
-  const count = invoices.filter(i => i.invoice_no?.includes(String(year))).length;
+  const count = (Array.isArray(invoices) ? invoices : []).filter(i => i.invoice_no?.includes(String(year))).length;
   return `INV-${year}-${String(count + 1).padStart(4, '0')}`;
 }
 
@@ -106,7 +106,7 @@ export default function InvoiceEditor({ companies, projects, invoices, initialDa
               placeholder="Client / company name"
             />
             <datalist id="invoice-client-options">
-              {companies.map(c => <option key={c.id} value={c.name} />)}
+              {(Array.isArray(companies) ? companies : []).map(c => <option key={c.id} value={c.name} />)}
             </datalist>
           </div>
           <div className="form-group">
@@ -116,7 +116,7 @@ export default function InvoiceEditor({ companies, projects, invoices, initialDa
               onChange={onProjectChange}
               options={[
                 { value: '', label: 'No project' },
-                ...projects.map(p => ({ value: p.id, label: p.name }))
+                ...(Array.isArray(projects) ? projects : []).map(p => ({ value: p.id, label: p.name }))
               ]}
               placeholder="No project"
               style={{ width: '100%' }}

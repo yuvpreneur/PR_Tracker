@@ -56,8 +56,8 @@ export function populateProjectClientDropdown() {
   if (!modal) return;
   const sel = Array.from(modal.querySelectorAll('select')).find(s => (s.options[0]?.text || '').toLowerCase().includes('select client'));
   if (!sel) return;
-  const companyNames = state.companies.map(c => c.name);
-  const existingClients = state.projects.map(p => p.client).filter(Boolean);
+  const companyNames = (Array.isArray(state.companies) ? state.companies : []).map(c => c.name);
+  const existingClients = (Array.isArray(state.projects) ? state.projects : []).map(p => p.client).filter(Boolean);
   const names = [...new Set([...companyNames, ...existingClients])].sort();
   const prev = sel.value;
   sel.innerHTML = '<option value="">Select Client</option>' + names.map(n => `<option value="${n}">${n}</option>`).join('');
@@ -69,10 +69,109 @@ export function populateManagerDropdown() {
   if (!modal) return;
   const sel = Array.from(modal.querySelectorAll('select')).find(s => (s.options[0]?.text || '').toLowerCase().includes('select manager'));
   if (!sel) return;
-  const names = [...new Set(state.employees.map(e => e.name).filter(Boolean))].sort();
+  const names = [...new Set((Array.isArray(state.employees) ? state.employees : []).map(e => e.name).filter(Boolean))].sort();
   const prev = sel.value;
   sel.innerHTML = '<option value="">Select Manager</option>' + names.map(n => `<option value="${n}">${n}</option>`).join('');
   if (prev) sel.value = prev;
+}
+
+export async function populateEmployeesForAssignmentDropdown() {
+  const modal = document.getElementById('modal-project');
+  if (!modal) return;
+  const sel = document.getElementById('project-assign-employees');
+  if (!sel) return;
+  try {
+    const employees = await get('/api/projects/employees-for-assignment');
+    if (!employees) return;
+    const prev = Array.from(sel.selectedOptions).map(o => o.value);
+    sel.innerHTML = '<option value="">Select Employees</option>' + employees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+    prev.forEach(p => { if (p) sel.querySelector(`option[value="${p}"]`)?.setAttribute('selected', 'selected'); });
+
+    if (!sel._customized) {
+      createCheckboxDropdown(sel, employees);
+      sel._customized = true;
+    }
+  } catch (err) {
+    console.error('Failed to load employees for assignment:', err);
+  }
+}
+
+function createCheckboxDropdown(select, employees) {
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'position: relative; margin-bottom: 12px; display: block; width: 100%;';
+  wrapper.id = 'project-assign-employees-wrapper';
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'form-control';
+  button.style.cssText = 'display: flex; align-items: center; justify-content: space-between; cursor: pointer; text-align: left; width: 100%;';
+
+  const summary = document.createElement('span');
+  summary.id = 'project-assign-employees-summary';
+  summary.style.cssText = 'color: #94a3b8;';
+
+  const chevron = document.createElement('span');
+  chevron.style.cssText = 'color: #94a3b8; margin-left: 8px;';
+  chevron.textContent = '▼';
+
+  button.appendChild(summary);
+  button.appendChild(chevron);
+
+  const dropdown = document.createElement('div');
+  dropdown.style.cssText = 'position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 20; background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,.14); padding: 8px; max-height: 260px; overflow-y: auto; display: none;';
+
+  const prev = Array.from(select.selectedOptions).map(o => o.value);
+  dropdown.innerHTML = employees.map(e => `
+    <label style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; font-size: 12px; font-weight: 700; color: var(--slate); cursor: pointer; margin: 0;">
+      <input type="checkbox" value="${e.id}" ${prev.includes(e.id) ? 'checked' : ''} />
+      ${e.name}
+    </label>
+  `).join('');
+
+  dropdown.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+    checkbox.addEventListener('change', () => {
+      const option = select.querySelector(`option[value="${checkbox.value}"]`);
+      if (option) option.selected = checkbox.checked;
+      updateSummary();
+    });
+  });
+
+  button.addEventListener('click', e => {
+    e.preventDefault();
+    dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+    chevron.textContent = dropdown.style.display === 'none' ? '▼' : '▲';
+  });
+
+  if (!document._assignEmpDropdownOutsideWired) {
+    document.addEventListener('click', e => {
+      if (!wrapper.contains(e.target) && dropdown.style.display === 'block') {
+        dropdown.style.display = 'none';
+        chevron.textContent = '▼';
+      }
+    });
+    document._assignEmpDropdownOutsideWired = true;
+  }
+
+  function updateSummary() {
+    const selected = Array.from(select.selectedOptions).filter(o => o.value).length;
+    const total = employees.length;
+    if (selected === 0) {
+      summary.textContent = 'Select Employees';
+      summary.style.color = '#94a3b8';
+    } else if (selected === total) {
+      summary.textContent = `All ${total} employees assigned`;
+      summary.style.color = 'var(--ink)';
+    } else {
+      summary.textContent = `${selected} employees assigned`;
+      summary.style.color = 'var(--ink)';
+    }
+  }
+
+  select.style.display = 'none';
+  wrapper.appendChild(button);
+  wrapper.appendChild(dropdown);
+  select.parentNode.insertBefore(wrapper, select);
+  updateSummary();
 }
 
 export function populatePCodeProjectDropdown() {

@@ -21,7 +21,7 @@ export default function usePageAccess(empId) {
     if (!empId) { setAllowed({}); return; }
     setLoading(true);
     const rows = await get(`/api/access-control/pages/${empId}`).catch(() => []);
-    setAllowed(Object.fromEntries(rows.map(r => [r.page, r.allowed])));
+    setAllowed(Object.fromEntries((Array.isArray(rows) ? rows : []).map(r => [r.page, r.allowed])));
     setLoading(false);
   }, [empId]);
 

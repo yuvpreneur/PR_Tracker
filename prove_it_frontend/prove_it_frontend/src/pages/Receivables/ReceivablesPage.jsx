@@ -25,12 +25,12 @@ export default function ReceivablesPage() {
   const [search, setSearch] = useState('');
 
   const projectName = id => projects.find(p => p.id === id)?.name;
-  const clients = useMemo(() => [...new Set(receivables.map(r => r.client).filter(Boolean))].sort(), [receivables]);
+  const clients = useMemo(() => [...new Set((Array.isArray(receivables) ? receivables : []).map(r => r.client).filter(Boolean))].sort(), [receivables]);
 
-  const totalBilled = useMemo(() => sum(receivables, 'invoice_amount'), [receivables]);
-  const received = useMemo(() => sum(receivables, 'received_amount'), [receivables]);
-  const outstanding = useMemo(() => sum(receivables, 'balance'), [receivables]);
-  const overdue = useMemo(() => sum(receivables.filter(r => r.status === 'Overdue'), 'balance'), [receivables]);
+  const totalBilled = useMemo(() => sum(Array.isArray(receivables) ? receivables : [], 'invoice_amount'), [receivables]);
+  const received = useMemo(() => sum(Array.isArray(receivables) ? receivables : [], 'received_amount'), [receivables]);
+  const outstanding = useMemo(() => sum(Array.isArray(receivables) ? receivables : [], 'balance'), [receivables]);
+  const overdue = useMemo(() => sum((Array.isArray(receivables) ? receivables : []).filter(r => r.status === 'Overdue'), 'balance'), [receivables]);
 
   const columns = useMemo(() => [
     { key: 'project_id', header: 'Project', render: r => projectName(r.project_id) || r.project_id },
@@ -47,7 +47,7 @@ export default function ReceivablesPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return receivables.filter(r => {
+    return (Array.isArray(receivables) ? receivables : []).filter(r => {
       if (projectId && r.project_id !== projectId) return false;
       if (client && r.client !== client) return false;
       if (status && r.status !== status) return false;
@@ -81,11 +81,11 @@ export default function ReceivablesPage() {
       <div className="filter-bar">
         <select className="form-control" value={projectId} onChange={e => setProjectId(e.target.value)}>
           <option value="">All Projects</option>
-          {projects.map(p => <option key={p.id} value={p.id}>{p.id} — {p.name}</option>)}
+          {(Array.isArray(projects) ? projects : []).map(p => <option key={p.id} value={p.id}>{p.id} — {p.name}</option>)}
         </select>
         <select className="form-control" value={client} onChange={e => setClient(e.target.value)}>
           <option value="">All Clients</option>
-          {clients.map(c => <option key={c} value={c}>{c}</option>)}
+          {(Array.isArray(clients) ? clients : []).map(c => <option key={c} value={c}>{c}</option>)}
         </select>
         <select className="form-control" value={status} onChange={e => setStatus(e.target.value)}>
           <option value="">All Status</option>

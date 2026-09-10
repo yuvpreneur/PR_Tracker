@@ -11,8 +11,8 @@ export default function OrganizationsPage() {
   const { organizations, loading, setActive } = useOrganizations();
   const navigate = useNavigate();
 
-  const activeCount = organizations.filter(o => o.is_active).length;
-  const inactiveCount = organizations.length - activeCount;
+  const activeCount = (Array.isArray(organizations) ? organizations : []).filter(o => o.is_active).length;
+  const inactiveCount = (Array.isArray(organizations) ? organizations : []).length - activeCount;
 
   return (
     <div>
@@ -48,7 +48,7 @@ export default function OrganizationsPage() {
                 </td>
               </tr>
             )}
-            {organizations.map(org => (
+            {(Array.isArray(organizations) ? organizations : []).map(org => (
               <tr key={org.id}>
                 <td style={{ width: 46 }}><OrgLogoThumb orgId={org.id} hasLogo={!!org.logo_url} /></td>
                 <td><strong>{org.name}</strong></td>

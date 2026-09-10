@@ -16,9 +16,7 @@ export default function BillingCodesPage() {
   const [billingType, setBillingType] = useState('');
   const [search, setSearch] = useState('');
 
-  const projectsArray = Array.isArray(projects) ? projects : [];
-  const bcodesArray = Array.isArray(bcodes) ? bcodes : [];
-  const projectName = id => projectsArray.find(p => p.id === id)?.name;
+  const projectName = id => projects.find(p => p.id === id)?.name;
 
   const columns = useMemo(() => [
     { key: 'code', header: 'Billing Code', render: r => <strong>{r.code}</strong> },
@@ -30,17 +28,17 @@ export default function BillingCodesPage() {
     { key: 'status', header: 'Status', align: 'center', render: r => <Badge status={r.status} /> },
     { key: 'effective_from', header: 'Eff. From', align: 'center', render: r => date(r.effective_from) },
     { key: 'effective_to', header: 'Eff. To', align: 'center', render: r => date(r.effective_to) },
-  ], [projectsArray]);
+  ], [projects]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return bcodesArray.filter(b => {
+    return bcodes.filter(b => {
       if (projectId && b.project_id !== projectId) return false;
       if (billingType && b.billing_type !== billingType) return false;
       if (q && !`${b.code} ${b.project_code_id} ${projectName(b.project_id) || ''} ${b.client || ''}`.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [bcodesArray, projectsArray, projectId, billingType, search]);
+  }, [bcodes, projects, projectId, billingType, search]);
 
   const handleNew = () => {
     resetFields('modal-bcode');

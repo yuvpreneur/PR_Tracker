@@ -42,7 +42,7 @@ export default function NoAccessPage() {
           <label className="form-label">Project Context</label>
           <select id="request-project-context" className="form-control" value={project} onChange={e => setProject(e.target.value)}>
             <option value="">Select project…</option>
-            {projects.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+            {(Array.isArray(projects) ? projects : []).map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
           </select>
         </div>
         <div className="form-group col-span-2">

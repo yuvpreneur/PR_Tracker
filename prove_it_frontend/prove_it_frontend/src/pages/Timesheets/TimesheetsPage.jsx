@@ -77,7 +77,7 @@ export default function TimesheetsPage() {
           onChange={setProjectId}
           options={[
             { value: '', label: 'All Projects' },
-            ...projects.map(p => ({ value: p.id, label: `${p.id} — ${p.name}` }))
+            ...(Array.isArray(projects) ? projects : []).map(p => ({ value: p.id, label: `${p.id} — ${p.name}` }))
           ]}
           placeholder="All Projects"
           style={{ width: '180px' }}
@@ -87,7 +87,7 @@ export default function TimesheetsPage() {
           onChange={setBillingCodeId}
           options={[
             { value: '', label: 'All Billing Codes' },
-            ...[...new Set(bcodes.map(b => b.code))].sort().map(c => ({ value: c, label: c }))
+            ...[...new Set((Array.isArray(bcodes) ? bcodes : []).map(b => b.code))].sort().map(c => ({ value: c, label: c }))
           ]}
           placeholder="All Billing Codes"
           style={{ width: '160px' }}

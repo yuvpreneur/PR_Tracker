@@ -57,7 +57,7 @@ export default function ApprovalsPage() {
   // so their view only offers the one category they can actually do something with.
   const isFinanceUser = role === 'Finance User';
 
-  const rows = useMemo(() => (filter ? all.filter(r => r._mod === filter) : all), [all, filter]);
+  const rows = useMemo(() => (filter ? (Array.isArray(all) ? all : []).filter(r => r._mod === filter) : (Array.isArray(all) ? all : [])), [all, filter]);
 
   return (
     <div>
@@ -98,7 +98,7 @@ export default function ApprovalsPage() {
             No pending {filter ? (TYPE_LABEL[filter] || filter) : ''} approvals
           </div>
         )}
-        {rows.map(row => {
+        {(Array.isArray(rows) ? rows : []).map(row => {
           const { name, detail } = describeApproval(row);
           const permModule = MOD_TO_PERMISSION_MODULE[row._mod];
           // Expenses is a two-stage chain (Manager confirms business purpose, then Finance

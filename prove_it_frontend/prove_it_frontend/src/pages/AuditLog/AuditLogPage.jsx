@@ -85,7 +85,7 @@ export default function AuditLogPage() {
           onChange={setUser}
           options={[
             { value: '', label: 'All Users' },
-            ...users.map(u => ({ value: u.name, label: u.name }))
+            ...(Array.isArray(users) ? users : []).map(u => ({ value: u.name, label: u.name }))
           ]}
           placeholder="All Users"
           style={{ width: '160px' }}

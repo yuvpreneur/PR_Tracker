@@ -9,6 +9,13 @@ export default defineConfig({
     strictPort: true,
     watch: {
       ignored: ['**/docs/**', '**/node_modules/**']
+    },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false
+      }
     }
   },
 });

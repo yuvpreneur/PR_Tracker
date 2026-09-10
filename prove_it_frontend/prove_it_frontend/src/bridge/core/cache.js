@@ -12,6 +12,14 @@ export async function refreshCaches() {
     get('/api/project-codes').catch(() => []),
     get('/api/billing-codes').catch(() => []),
     get('/api/companies').catch(() => []),
-  ]).then(rs => rs.map(r => r.value || []));
-  [state.projects, state.employees, state.pcodes, state.bcodes, state.companies] = results;
+  ]).then(rs => rs.map(r => {
+    const val = r.value;
+    return Array.isArray(val) ? val : [];
+  }));
+
+  state.projects = results[0] || [];
+  state.employees = results[1] || [];
+  state.pcodes = results[2] || [];
+  state.bcodes = results[3] || [];
+  state.companies = results[4] || [];
 }

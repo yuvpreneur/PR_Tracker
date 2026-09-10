@@ -49,11 +49,11 @@ export default function ProjectsPage() {
     return () => document.removeEventListener('click', onClick);
   }, [exportOpen]);
 
-  const clients = useMemo(() => [...new Set(projects.map(p => p.client).filter(Boolean))].sort(), [projects]);
+  const clients = useMemo(() => [...new Set((Array.isArray(projects) ? projects : []).map(p => p.client).filter(Boolean))].sort(), [projects]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return projects.filter(p => {
+    return (Array.isArray(projects) ? projects : []).filter(p => {
       if (status && p.status !== status) return false;
       if (client && p.client !== client) return false;
       if (q && !`${p.id} ${p.name} ${p.client} ${p.manager}`.toLowerCase().includes(q)) return false;

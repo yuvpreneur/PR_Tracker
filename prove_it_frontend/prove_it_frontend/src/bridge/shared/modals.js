@@ -86,7 +86,7 @@ export function fillSel(el, items, vk, lk, ph = 'Select…') {
   if (!el || el.tagName !== 'SELECT') return;
   const cur = el.value;
   el.innerHTML = `<option value="">${ph}</option>` +
-    items.map(i => `<option value="${i[vk]}">${i[lk]}</option>`).join('');
+    (Array.isArray(items) ? items : []).map(i => `<option value="${i[vk]}">${i[lk]}</option>`).join('');
   if (cur) el.value = cur;
 }
 

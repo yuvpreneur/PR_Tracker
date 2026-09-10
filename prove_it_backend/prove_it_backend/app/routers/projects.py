@@ -6,7 +6,7 @@ from datetime import date, datetime, timezone
 
 from app.core import collections
 from app.core.database import get_db
-from app.core.mongo_utils import like, get_or_404
+from app.core.mongo_utils import like, get_or_404, next_id
 from app.core.security import get_current_user, require_permission
 from app.core.audit import log_action
 from app.core import prmanager_client
@@ -28,6 +28,7 @@ class ProjectCreate(BaseModel):
     budget: float = 0
     est_revenue: float = 0
     est_expense: float = 0
+    assigned_emp_ids: Optional[list] = None
 
 
 class ProjectUpdate(BaseModel):
@@ -100,13 +101,19 @@ def summary(db: Database = Depends(get_db), cu=Depends(get_current_user)):
     }
 
 
+@router.get("/employees-for-assignment")
+def get_employees_for_assignment(db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    employees = list(db[collections.EMPLOYEES].find({"org_id": cu.org_id}, {"_id": 1, "name": 1}).sort("name", 1))
+    return [{"id": e["_id"], "name": e["name"]} for e in employees]
+
+
 @router.post("/", dependencies=[Depends(require_permission("Projects", "create"))])
 def create_project(payload: ProjectCreate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
     if db[collections.PROJECTS].find_one({"_id": payload.id, "org_id": cu.org_id}):
         raise HTTPException(400, "Project ID already exists")
     if payload.status not in STATUSES:
         raise HTTPException(400, f"Invalid status. Choose from: {STATUSES}")
-    doc = payload.dict()
+    doc = payload.dict(exclude={"assigned_emp_ids"})
     doc["_id"] = doc["id"]
     doc["org_id"] = cu.org_id
     if doc["start_date"]: doc["start_date"] = doc["start_date"].isoformat()
@@ -120,6 +127,17 @@ def create_project(payload: ProjectCreate, db: Database = Depends(get_db), cu=De
         "updated_at": datetime.now(timezone.utc).isoformat(),
     })
     db[collections.PROJECTS].insert_one(doc)
+
+    # Assign the project to selected employees
+    if payload.assigned_emp_ids:
+        for emp_id in payload.assigned_emp_ids:
+            pid = next_id(db, collections.PROJECT_PERMISSIONS)
+            db[collections.PROJECT_PERMISSIONS].insert_one({
+                "_id": pid, "id": pid, "emp_id": emp_id,
+                "project_id": doc["id"], "allowed": True,
+                "org_id": cu.org_id,
+            })
+
     log_action(db, user=cu.name, action="CREATE", module="Projects", org_id=cu.org_id, record_id=doc["id"], detail=f"Created project: {doc['name']}")
     doc.update(prmanager_client.sync_project_to_pm(db, doc))
     return _proj_out(doc)

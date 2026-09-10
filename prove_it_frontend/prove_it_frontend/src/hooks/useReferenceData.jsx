@@ -19,12 +19,12 @@ export function ReferenceDataProvider({ children }) {
 
   const refresh = useCallback(async () => {
     const [companies, projects, employees, pcodes, bcodes] = await Promise.allSettled([
-      get('/api/companies'),
-      get('/api/projects'),
-      get('/api/employees'),
-      get('/api/project-codes'),
-      get('/api/billing-codes'),
-    ]).then(rs => rs.map(r => r.value || []));
+      get('/api/companies').catch(() => []),
+      get('/api/projects').catch(() => []),
+      get('/api/employees').catch(() => []),
+      get('/api/project-codes').catch(() => []),
+      get('/api/billing-codes').catch(() => []),
+    ]).then(rs => rs.map(r => Array.isArray(r.value) ? r.value : []));
     setData({ companies, projects, employees, pcodes, bcodes });
     setLoading(false);
   }, []);

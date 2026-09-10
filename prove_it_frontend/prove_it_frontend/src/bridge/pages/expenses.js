@@ -19,21 +19,21 @@ export function populateExpenseModalDropdowns() {
   if (projSel && projSel.tagName === 'SELECT') {
     const prev = projSel.value;
     projSel.innerHTML = '<option value="">Select Project</option>' +
-      state.projects.map(p => `<option value="${p.id}">${p.id} - ${p.name}</option>`).join('');
+      (Array.isArray(state.projects) ? state.projects : []).map(p => `<option value="${p.id}">${p.id} - ${p.name}</option>`).join('');
     if (prev) projSel.value = prev;
   }
   const pcSel = field('modal-expense', 'project code');
   if (pcSel && pcSel.tagName === 'SELECT') {
     const prev = pcSel.value;
     pcSel.innerHTML = '<option value="">Select Project Code</option>' +
-      state.pcodes.map(c => `<option value="${c.code}">${c.code}</option>`).join('');
+      (Array.isArray(state.pcodes) ? state.pcodes : []).map(c => `<option value="${c.code}">${c.code}</option>`).join('');
     if (prev) pcSel.value = prev;
   }
   const bcSel = field('modal-expense', 'billing code');
   if (bcSel && bcSel.tagName === 'SELECT') {
     const prev = bcSel.value;
     bcSel.innerHTML = '<option value="">Select Billing Code</option>' +
-      state.bcodes.map(b => `<option value="${b.code}">${b.code}</option>`).join('');
+      (Array.isArray(state.bcodes) ? state.bcodes : []).map(b => `<option value="${b.code}">${b.code}</option>`).join('');
     if (prev) bcSel.value = prev;
   }
 }
@@ -43,7 +43,7 @@ export async function loadExpenses() {
   state.expenses = rows;
 
   const page = document.getElementById('page-expenses');
-  if (page && state.projects.length) {
+  if (page && (Array.isArray(state.projects) ? state.projects : []).length) {
     page.querySelectorAll('select').forEach(sel => {
       if (sel.closest('[id^="modal"]') || sel.closest('.modal')) return;
       // ExpensesPage.jsx (React) owns #page-expenses now, including its own
@@ -52,14 +52,14 @@ export async function loadExpenses() {
       if (!(sel.options[0]?.text || '').toLowerCase().includes('all projects')) return;
       const prev = sel.value;
       sel.innerHTML = '<option value="">All Projects</option>' +
-        state.projects.map(p => `<option value="${p.id}">${p.id} — ${p.name}</option>`).join('');
+        (Array.isArray(state.projects) ? state.projects : []).map(p => `<option value="${p.id}">${p.id} — ${p.name}</option>`).join('');
       if (prev && prev !== 'All Projects') sel.value = prev;
     });
   }
   populateExpenseModalDropdowns();
 
   renderTable('page-expenses', rows, [
-    { k: 'project_id',      fn: r => state.projects.find(p => p.id === r.project_id)?.name || r.project_id },
+    { k: 'project_id',      fn: r => (Array.isArray(state.projects) ? state.projects : []).find(p => p.id === r.project_id)?.name || r.project_id },
     { k: 'project_code_id', fn: r => r.project_code_id || '—' },
     { k: 'billing_code_id', fn: r => r.billing_code_id || '—' },
     { k: 'category',        fn: r => badge(r.category) },

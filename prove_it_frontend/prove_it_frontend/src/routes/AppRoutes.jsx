@@ -42,6 +42,7 @@ import AccessControlPage from '../pages/AccessControl/AccessControlPage.jsx';
 import AuditLogPage from '../pages/AuditLog/AuditLogPage.jsx';
 import SettingsPage from '../pages/Settings/SettingsPage.jsx';
 import NoAccessPage from '../pages/NoAccess/NoAccessPage.jsx';
+import SubscriptionPage from '../pages/Subscription/SubscriptionPage.jsx';
 
 // Direct URL navigation (typed/bookmarked) didn't exist before real routing — nav-click
 // was the only way to reach a page, and locked items were intercepted there. Now that
@@ -101,6 +102,7 @@ const PAGES = [
   { id: 'access-control', label: 'Access Control', Component: AccessControlPage },
   { id: 'audit', label: 'Audit Log', Component: AuditLogPage },
   { id: 'settings', label: 'Settings', Component: SettingsPage },
+  { id: 'subscription', label: 'Subscription', Component: SubscriptionPage },
 ];
 const PAGE_IDS = new Set(PAGES.map(p => p.id));
 

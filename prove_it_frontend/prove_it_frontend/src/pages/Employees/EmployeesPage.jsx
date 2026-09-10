@@ -30,11 +30,11 @@ export default function EmployeesPage() {
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
 
-  const depts = useMemo(() => [...new Set(employees.map(e => e.department).filter(Boolean))].sort(), [employees]);
+  const depts = useMemo(() => [...new Set((Array.isArray(employees) ? employees : []).map(e => e.department).filter(Boolean))].sort(), [employees]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return employees.filter(e => {
+    return (Array.isArray(employees) ? employees : []).filter(e => {
       if (dept && e.department !== dept) return false;
       if (status && e.status !== status) return false;
       if (q && !`${e.emp_id} ${e.name} ${e.email} ${e.designation || ''}`.toLowerCase().includes(q)) return false;

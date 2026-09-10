@@ -30,17 +30,16 @@ export default function CompaniesPage() {
   const [industry, setIndustry] = useState('');
   const [search, setSearch] = useState('');
 
-  const companiesArray = Array.isArray(companies) ? companies : [];
-  const industries = useMemo(() => [...new Set(companiesArray.map(c => c.industry).filter(Boolean))].sort(), [companiesArray]);
+  const industries = useMemo(() => [...new Set(companies.map(c => c.industry).filter(Boolean))].sort(), [companies]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return companiesArray.filter(c => {
+    return companies.filter(c => {
       if (industry && c.industry !== industry) return false;
       if (q && !`${c.name} ${c.industry} ${c.primary_contact || ''}`.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [companiesArray, industry, search]);
+  }, [companies, industry, search]);
 
   const handleNewCompany = () => {
     resetFields('modal-company');

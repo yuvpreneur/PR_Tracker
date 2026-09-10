@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, ChartColumn, Building2, FolderKanban, Tag, CreditCard, LifeBuoy,
   Users, Banknote, Clock, Palmtree, CalendarDays, Landmark, Receipt, Wallet, FileText, Handshake,
-  Inbox, ClipboardCheck, UserCog, ShieldCheck, KeyRound, ClipboardList, Settings,
+  Inbox, ClipboardCheck, UserCog, ShieldCheck, KeyRound, ClipboardList, Settings, Package, Briefcase,
 } from 'lucide-react';
 
 // Ported verbatim (groups + page ids/labels) from appScript's NAV array in
@@ -18,6 +18,7 @@ export const NAV = [
   { group: 'Delivery', items: [
     { id: 'companies', label: 'Companies', icon: Building2 },
     { id: 'projects', label: 'Projects', icon: FolderKanban },
+    { id: 'project-management', label: 'Project Management', icon: Briefcase, external: true, href: 'http://localhost:5173' },
     { id: 'project-codes', label: 'Project Codes', icon: Tag },
     { id: 'billing-codes', label: 'Billing Codes', icon: CreditCard },
   ] },
@@ -46,6 +47,9 @@ export const NAV = [
     { id: 'access-control', label: 'Access Control', icon: KeyRound },
     { id: 'audit', label: 'Audit Log', icon: ClipboardList },
     { id: 'settings', label: 'Settings', icon: Settings },
+  ] },
+  { group: 'Account', items: [
+    { id: 'subscription', label: 'Subscription', icon: Package },
   ] },
 ];
 

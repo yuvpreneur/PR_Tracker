@@ -348,6 +348,8 @@ export function initApiBridge() {
     wireBtn('modal-project', async () => {
       const id = editId('page-projects');
       const manager = val('modal-project', 'project manager');
+      const assignEmpSelect = document.getElementById('project-assign-employees');
+      const selectedEmpIds = assignEmpSelect ? Array.from(assignEmpSelect.selectedOptions).map(o => o.value).filter(Boolean) : [];
       const body = {
         id: val('modal-project', 'project code'),
         name: val('modal-project', 'project name'),
@@ -359,6 +361,7 @@ export function initApiBridge() {
         budget: parseFloat(val('modal-project', 'budget')) || 0,
         est_revenue: parseFloat(val('modal-project', 'revenue')) || 0,
         est_expense: parseFloat(val('modal-project', 'expense')) || 0,
+        assigned_emp_ids: selectedEmpIds.length > 0 ? selectedEmpIds : null,
       };
       if (id) {
         const { id: _, ...u } = body;

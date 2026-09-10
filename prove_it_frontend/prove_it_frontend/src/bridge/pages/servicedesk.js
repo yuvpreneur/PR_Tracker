@@ -15,7 +15,7 @@ export function populateTicketProjectDropdown() {
   if (!sel || sel.tagName !== 'SELECT') return;
   const prev = sel.value;
   sel.innerHTML = '<option value="">Select Project</option>' +
-    state.projects.map(p => `<option value="${p.id}">${p.id} · ${p.name}</option>`).join('');
+    (Array.isArray(state.projects) ? state.projects : []).map(p => `<option value="${p.id}">${p.id} · ${p.name}</option>`).join('');
   if (prev) sel.value = prev;
 }
 

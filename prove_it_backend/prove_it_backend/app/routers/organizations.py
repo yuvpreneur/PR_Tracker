@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel
 from pymongo.database import Database
+import httpx
 
 from app.core import collections
 from app.core.audit import log_action
@@ -15,6 +16,10 @@ from app.core.database import client, get_db
 from app.core.security import get_current_user, require_platform_permission
 from app.routers.users import create_user_record
 from app.routers.settings import _save_section
+
+PRMANAGER_BASE_URL = os.environ.get("PRMANAGER_BASE_URL", "").rstrip("/")
+PRMANAGER_SHARED_SECRET = os.environ.get("PRMANAGER_SHARED_SECRET", "")
+PRMANAGER_ANON_KEY = os.environ.get("PRMANAGER_ANON_KEY", "")
 
 router = APIRouter()
 
@@ -170,6 +175,24 @@ def create_organization(
 
     log_action(db, user=cu.name, action="CREATE", module="Organizations", org_id=org_id, record_id=org_id,
                detail=f"Created organization '{name}' with initial Admin {admin_username}")
+
+    # Sync organization creation to PR Manager via stored procedure (best-effort, non-blocking)
+    if PRMANAGER_BASE_URL and PRMANAGER_ANON_KEY:
+        try:
+            headers = {"authorization": f"Bearer {PRMANAGER_ANON_KEY}"}
+            httpx.post(
+                f"{PRMANAGER_BASE_URL}/rest/v1/rpc/sync_tracker_organization",
+                json={
+                    "p_tracker_org_id": org_id,
+                    "p_org_name": name,
+                    "p_admin_email": admin_email,
+                },
+                headers=headers,
+                timeout=8.0,
+            )
+        except Exception:
+            pass  # PR Manager sync is best-effort, don't block org creation
+
     return {
         "organization": _org_out(org_doc),
         "admin": {"username": admin_doc["username"], "name": admin_doc["name"], "email": admin_doc["email"]},

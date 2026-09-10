@@ -30,11 +30,11 @@ export default function HourlyCostsPage() {
   const [dept, setDept] = useState('');
   const [search, setSearch] = useState('');
 
-  const depts = useMemo(() => [...new Set(costs.map(c => c.department).filter(Boolean))].sort(), [costs]);
+  const depts = useMemo(() => [...new Set((Array.isArray(costs) ? costs : []).map(c => c.department).filter(Boolean))].sort(), [costs]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return costs.filter(c => {
+    return (Array.isArray(costs) ? costs : []).filter(c => {
       if (dept && c.department !== dept) return false;
       if (q && !`${c.emp_id} ${c.name || ''}`.toLowerCase().includes(q)) return false;
       return true;

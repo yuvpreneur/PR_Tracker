@@ -216,7 +216,7 @@ async function dashEmployee(data, period) {
   if (!content) return;
 
   const me = await currentUser();
-  const empIds = state.employees.filter(e => e.name === me?.name).map(e => e.emp_id);
+  const empIds = (Array.isArray(state.employees) ? state.employees : []).filter(e => e.name === me?.name).map(e => e.emp_id);
 
   const [myTsRows, allExpenses, allTickets] = await Promise.all([
     Promise.all(empIds.map(id => get('/api/timesheets?emp_id=' + id).catch(() => []))).then(rs => rs.flat()),

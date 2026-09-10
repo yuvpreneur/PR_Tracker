@@ -117,7 +117,7 @@ export default function Dropdown({
             overflow: 'hidden'
           }}
         >
-          {options.map((option, idx) => {
+          {(Array.isArray(options) ? options : []).map((option, idx) => {
             const isSelected = option.value === value;
             return (
               <button

@@ -13,8 +13,8 @@ export default function RevenueCostChart({ data = [] }) {
   const CH = H - PAD.t - PAD.b;
   const n = data.length;
 
-  const rev = data.map(d => d.revenue || 0);
-  const cost = data.map(d => d.cost || 0);
+  const rev = (Array.isArray(data) ? data : []).map(d => d.revenue || 0);
+  const cost = (Array.isArray(data) ? data : []).map(d => d.cost || 0);
   const maxV = Math.max(...rev, ...cost, 1);
   const mag = Math.pow(10, Math.floor(Math.log10(maxV)));
   const niceMax = Math.ceil(maxV / mag) * mag || 1;

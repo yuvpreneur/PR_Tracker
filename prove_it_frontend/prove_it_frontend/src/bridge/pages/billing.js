@@ -10,7 +10,7 @@ export function populateBCodeProjectCodeDropdown() {
   if (!sel || sel.tagName !== 'SELECT') return;
   const prev = sel.value;
   sel.innerHTML = '<option value="">Select Project Code</option>' +
-    state.pcodes.map(pc => `<option value="${pc.code}">${pc.code}</option>`).join('');
+    (Array.isArray(state.pcodes) ? state.pcodes : []).map(pc => `<option value="${pc.code}">${pc.code}</option>`).join('');
   if (prev) sel.value = prev;
 }
 
@@ -21,7 +21,7 @@ export async function loadBillingCodes() {
   renderTable('page-billing-codes', rows, [
     { k: 'code',            fn: r => `<strong>${r.code}</strong>` },
     { k: 'project_code_id' },
-    { k: 'project_id',      fn: r => state.projects.find(p => p.id === r.project_id)?.name || r.project_id },
+    { k: 'project_id',      fn: r => (Array.isArray(state.projects) ? state.projects : []).find(p => p.id === r.project_id)?.name || r.project_id },
     { k: 'client',          fn: r => r.client || '—' },
     { k: 'billing_type',    fn: r => badge(r.billing_type) },
     { k: 'rate',            fn: r => `₹${num(r.rate)}${r.billing_type === 'T&M' ? '/hr' : ''}` },
@@ -45,7 +45,7 @@ export async function loadBillingCodes() {
 export function populateRecvBillingCodeSelect(projectId, keepValue) {
   const bcSel = field('modal-recv', 'billing code');
   if (!bcSel || bcSel.tagName !== 'SELECT') return;
-  const codes = projectId ? state.bcodes.filter(b => b.project_id === projectId) : [];
+  const codes = projectId ? (Array.isArray(state.bcodes) ? state.bcodes : []).filter(b => b.project_id === projectId) : [];
   const prev = keepValue !== undefined ? keepValue : bcSel.value;
   bcSel.innerHTML = '<option value="">Select Billing Code</option>' +
     codes.map(b => `<option value="${b.code}">${b.code}</option>`).join('');
@@ -57,7 +57,7 @@ export function populateReceivableModalDropdowns() {
   if (projSel && projSel.tagName === 'SELECT') {
     const prev = projSel.value;
     projSel.innerHTML = '<option value="">Select Project</option>' +
-      state.projects.map(p => `<option value="${p.id}">${p.id} - ${p.name}</option>`).join('');
+      (Array.isArray(state.projects) ? state.projects : []).map(p => `<option value="${p.id}">${p.id} - ${p.name}</option>`).join('');
     if (prev) projSel.value = prev;
 
     // Re-filter (and drop any now-mismatched selection) whenever the project changes.
@@ -74,7 +74,7 @@ export async function loadReceivables() {
   state.receivables = rows;
   populateReceivableModalDropdowns();
   renderTable('page-receivables', rows, [
-    { k: 'project_id',      fn: r => state.projects.find(p => p.id === r.project_id)?.name || r.project_id },
+    { k: 'project_id',      fn: r => (Array.isArray(state.projects) ? state.projects : []).find(p => p.id === r.project_id)?.name || r.project_id },
     { k: 'billing_code_id', fn: r => r.billing_code_id || '—' },
     { k: 'client' },
     { k: 'invoice_no' },

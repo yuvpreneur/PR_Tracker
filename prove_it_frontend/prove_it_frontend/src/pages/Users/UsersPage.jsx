@@ -27,7 +27,7 @@ export default function UsersPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return users.filter(u => {
+    return (Array.isArray(users) ? users : []).filter(u => {
       if (role && u.role !== role) return false;
       if (status === 'pending') { if (!u.pending) return false; }
       else if (status) { if (u.pending || String(u.is_active) !== status) return false; }

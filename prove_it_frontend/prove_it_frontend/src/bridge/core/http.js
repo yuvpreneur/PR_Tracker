@@ -37,7 +37,8 @@ async function _req(method, path, body = null, _retried = false) {
     // 403ing on an admin/manager-only endpoint is expected noise, not a real failure —
     // toasting it just stacks red "Requires role: ..." banners on every role switch.
     // Direct user actions (POST/PATCH/DELETE) still surface their 403s.
-    if (!(r.status === 403 && method === 'GET')) toast(data.detail || 'Request failed', 'error');
+    if (r.status === 403 && method === 'GET') return [];
+    toast(data.detail || 'Request failed', 'error');
     throw new Error(data.detail);
   }
   return data;

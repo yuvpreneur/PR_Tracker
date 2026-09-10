@@ -20,11 +20,12 @@ export default function CheckboxDropdown({
     return () => document.removeEventListener('click', onDocClick);
   }, []);
 
-  const selectedCount = options.filter(o => selected[getKey(o)]).length;
+  const optionsArray = Array.isArray(options) ? options : [];
+  const selectedCount = optionsArray.filter(o => selected[getKey(o)]).length;
   const summary = staticLabel ?? (
     selectedCount === 0 ? placeholder :
-    selectedCount === options.length ? `All ${noun} selected (${options.length})` :
-    `${selectedCount} of ${options.length} ${noun} selected`
+    selectedCount === optionsArray.length ? `All ${noun} selected (${optionsArray.length})` :
+    `${selectedCount} of ${optionsArray.length} ${noun} selected`
   );
 
   return (
@@ -49,7 +50,7 @@ export default function CheckboxDropdown({
             boxShadow: '0 8px 32px rgba(0,0,0,.14)', padding: 8, maxHeight: 260, overflowY: 'auto',
           }}
         >
-          {options.map(opt => {
+          {optionsArray.map(opt => {
             const key = getKey(opt);
             return (
               <label

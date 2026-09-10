@@ -74,7 +74,7 @@ export default function PayRegisterTab() {
 
   const employees = register?.employees || [];
   const totals = register?.totals || {};
-  const unmatched = useMemo(() => employees.filter(e => e.employee_found === false), [employees]);
+  const unmatched = useMemo(() => (Array.isArray(employees) ? employees : []).filter(e => e.employee_found === false), [employees]);
 
   return (
     <div>
@@ -152,7 +152,7 @@ export default function PayRegisterTab() {
                 </td>
               </tr>
             )}
-            {employees.map((row, i) => (
+            {(Array.isArray(employees) ? employees : []).map((row, i) => (
               <tr
                 key={row.code || i}
                 className="border-b border-slate-100"

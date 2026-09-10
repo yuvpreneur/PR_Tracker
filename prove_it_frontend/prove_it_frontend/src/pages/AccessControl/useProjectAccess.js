@@ -23,7 +23,7 @@ export default function useProjectAccess(empId) {
     if (!empId) { toast('Select an employee first', 'error'); return; }
     setSaving(true);
     try {
-      const permissions = projects.map(p => ({ project_id: p.id, allowed: !!allowed[p.id] }));
+      const permissions = (Array.isArray(projects) ? projects : []).map(p => ({ project_id: p.id, allowed: !!allowed[p.id] }));
       await post('/api/access-control/projects', { emp_id: empId, permissions });
       toast('Project access saved');
     } finally {

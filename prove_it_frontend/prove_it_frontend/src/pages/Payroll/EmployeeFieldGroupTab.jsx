@@ -63,8 +63,9 @@ export default function EmployeeFieldGroupTab({ basePath, fields, previewKeys, r
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return employees;
-    return employees.filter(e => `${e.emp_id} ${e.name}`.toLowerCase().includes(q));
+    const empList = Array.isArray(employees) ? employees : [];
+    if (!q) return empList;
+    return empList.filter(e => `${e.emp_id} ${e.name}`.toLowerCase().includes(q));
   }, [employees, search]);
 
   const handleSave = async form => {

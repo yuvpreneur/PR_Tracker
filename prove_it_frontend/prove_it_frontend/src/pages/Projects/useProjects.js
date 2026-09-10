@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { get } from '../../services/httpClient.js';
 import { state } from '../../bridge/core/state.js';
-import { populateProjectClientDropdown, populatePCodeProjectDropdown } from '../../bridge/pages/projects.js';
+import { populateProjectClientDropdown, populatePCodeProjectDropdown, populateEmployeesForAssignmentDropdown } from '../../bridge/pages/projects.js';
 import { populateReceivableModalDropdowns } from '../../bridge/pages/billing.js';
 import { populateExpenseModalDropdowns } from '../../bridge/pages/expenses.js';
 import { populateTimesheetModalDropdowns } from '../../bridge/pages/timesheets.js';
@@ -32,6 +32,7 @@ export default function useProjects() {
     // run, is what keeps them from ever showing stale/fake data.
     populateProjectClientDropdown();
     populatePCodeProjectDropdown();
+    populateEmployeesForAssignmentDropdown();
     populateReceivableModalDropdowns();
     populateExpenseModalDropdowns();
     populateTimesheetModalDropdowns();

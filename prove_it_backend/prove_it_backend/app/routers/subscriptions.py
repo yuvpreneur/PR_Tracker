@@ -228,10 +228,8 @@ def list_subscriptions(db: Database = Depends(get_db)):
 
 
 @router.get("/me", dependencies=[Depends(get_current_user)])
-def get_my_subscription(cu=Depends(get_current_user), db: Database = Depends(get_db)):
-    """Public endpoint — any authenticated user can fetch their own org's subscription."""
-    if not cu.org_id:
-        raise HTTPException(404, "No organization")
+def get_my_subscription(db: Database = Depends(get_db), cu=Depends(get_current_user)):
+    """Get the current user's organization's subscription — accessible to any authenticated user."""
     s = db[collections.SUBSCRIPTIONS].find_one({"_id": cu.org_id})
     return _sub_out(cu.org_id, s)
 

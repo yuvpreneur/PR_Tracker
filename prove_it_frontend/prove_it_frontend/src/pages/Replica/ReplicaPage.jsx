@@ -44,11 +44,7 @@ export default function ReplicaPage() {
       const script = document.createElement('script');
       script.id = 'prove-it-catalysts-runtime';
       script.text = appScript;
-      try {
-        document.body.appendChild(script);
-      } catch (e) {
-        console.error('[legacy runtime] Script injection failed:', e);
-      }
+      document.body.appendChild(script);
 
       // doLogin() (appScript) still does its own nav/dashboard/permission-demo DOM
       // painting (buildNavigation() et al) — all now targeting elements that no
@@ -61,12 +57,7 @@ export default function ReplicaPage() {
       } catch (e) {
         console.warn('[legacy runtime] doLogin() partial failure (expected — nav/shell now owned by React):', e);
       }
-
-      try {
-        initApiBridge();
-      } catch (e) {
-        console.error('[legacy runtime] initApiBridge() failed:', e);
-      }
+      initApiBridge();
     }
 
     // Override doLogout so the Sign out button clears the JWT and returns to React login
