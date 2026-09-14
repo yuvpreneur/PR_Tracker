@@ -32,7 +32,7 @@ export function populateTimesheetModalDropdowns() {
   if (projSel && projSel.tagName === 'SELECT') {
     const prev = projSel.value;
     projSel.innerHTML = '<option value="">Select Project</option>' +
-      state.projects.map(p => `<option value="${p.id}">${p.id} - ${p.name}</option>`).join('');
+      state.projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
     if (prev) projSel.value = prev;
 
     // Re-filter (and drop any now-mismatched selection) whenever the project changes.

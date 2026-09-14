@@ -12,14 +12,14 @@ import { populateFilterDropdowns, wireFilters } from './shared/filters.js';
 import { loadDashboard } from './pages/dashboard.js';
 import { loadCompanies } from './pages/companies.js';
 import { loadCustomers } from './pages/customers.js';
-import { loadProjects, loadProjectCodes } from './pages/projects.js';
-import { loadBillingCodes, loadReceivables, populateRecvBillingCodeSelect } from './pages/billing.js';
+import { loadProjects, loadProjectCodes, populatePCodeProjectDropdown } from './pages/projects.js';
+import { loadBillingCodes, loadReceivables, populateRecvBillingCodeSelect, populateBCodeProjectCodeDropdown } from './pages/billing.js';
 import { loadEmployees, loadHourlyCosts, showCostHistory } from './pages/employees.js';
 import { loadTimesheets, populateTsProjectCodeSelect } from './pages/timesheets.js';
 import { loadLeave } from './pages/leave.js';
-import { loadExpenses } from './pages/expenses.js';
+import { loadExpenses, populateExpProjectCodeSelect, populateExpBillingCodeSelect } from './pages/expenses.js';
 import { loadInvoices, openInvoiceView } from './pages/invoices.js';
-import { loadServiceDesk } from './pages/servicedesk.js';
+import { loadServiceDesk, populateTicketStatusSelect, setTicketModalMode } from './pages/servicedesk.js';
 import { loadApprovals, openApprovalView } from './pages/approvals.js';
 import { loadUsers } from './pages/users.js';
 import { loadAccessRequests, submitPageAccessRequest } from './pages/accesscontrol.js';
@@ -80,15 +80,102 @@ function wireAttachZone(modalId) {
   });
 }
 
-// Strips anything non-digit as the user types — `type="tel"` alone doesn't block
-// letters in any browser, so this is the actual enforcement for "numbers only" fields.
-function wireNumericInput(modalId, hint) {
+// Rewrites an input's value through `clean` on every keystroke, putting the caret back
+// where the typist left it. Without that the caret snaps to the end on each assignment,
+// which makes fixing a character mid-value impossible; the rewrite is skipped entirely
+// when nothing was stripped, which is the overwhelmingly common case.
+function filterInput(input, clean) {
+  input.addEventListener('input', () => {
+    const cleaned = clean(input.value);
+    if (cleaned === input.value) return;
+    const caret = input.selectionStart;
+    const head = input.value.slice(0, caret);
+    input.value = cleaned;
+    const pos = Math.max(0, caret - (head.length - clean(head).length));
+    input.setSelectionRange(pos, pos);
+  });
+}
+
+// Strips anything that isn't part of a number as the user types. `type="tel"` and
+// `inputmode` block nothing in any browser — they only hint at which on-screen keyboard
+// to show — so this is the actual enforcement. `decimal` additionally admits a single
+// '.', for money fields; without it only whole digits survive (Phone).
+function wireNumericInput(modalId, hint, { decimal = false } = {}) {
   const input = field(modalId, hint);
   if (!input) return;
-  input.addEventListener('input', () => {
-    const digits = input.value.replace(/\D/g, '');
-    if (digits !== input.value) input.value = digits;
+  filterInput(input, v => {
+    const digits = v.replace(decimal ? /[^\d.]/g : /\D/g, '');
+    if (!decimal) return digits;
+    // Only the first '.' survives, so a stray second one collapses ("1.2.3" -> "1.23")
+    // rather than the keystroke being silently swallowed mid-correction.
+    const dot = digits.indexOf('.');
+    return dot === -1 ? digits : digits.slice(0, dot + 1) + digits.slice(dot + 1).replace(/[.]/g, '');
   });
+}
+
+// Names only the fields actually left blank. Every one of these checks used to recite
+// the modal's whole required-field list whatever the user had filled in — "Name, Client
+// and Manager required" when only the name was missing — which leaves the typist hunting
+// for a problem in fields that are already fine. Returns true (having toasted) when
+// something is missing, so callers read `if (missingFields([...])) return;`.
+function missingFields(fields) {
+  const missing = fields.filter(([, value]) => !value).map(([label]) => label);
+  if (!missing.length) return false;
+  const list = missing.length === 1
+    ? missing[0]
+    : `${missing.slice(0, -1).join(', ')} and ${missing[missing.length - 1]}`;
+  toast(`${list} ${missing.length === 1 ? 'is' : 'are'} required`, 'error');
+  return true;
+}
+
+// The mirror image of wireNumericInput(), for text fields that should never hold a
+// number: digits (and other stray symbols) are stripped as the user types. Spaces,
+// hyphens, apostrophes and periods always survive — a name field that rejected
+// "Anne-Marie" or "O'Brien" would be worse than one that accepts a digit — and `extra`
+// adds any further literals a particular field needs. Letters are matched with \p{L}
+// rather than A-Za-z so non-Latin scripts survive, with \p{M} alongside it, since the
+// combining marks that carry vowels in Indic and Arabic scripts are not themselves
+// letters (without it "राहुल" gets quietly chewed down to "रहल").
+const NAME_CHAR = /[\p{L}\p{M}\s.'-]/u;
+
+function wireAlphaInput(modalId, hint, extra = '') {
+  const input = field(modalId, hint);
+  if (!input) return;
+  // Tested character by character against a regex *literal* rather than one built from
+  // a string: `\p{L}` inside a template literal is an unrecognized escape that
+  // collapses to a bare `p`, which would silently turn the class into nonsense.
+  // Array.from() iterates by code point, so astral characters survive intact.
+  filterInput(input, v => Array.from(v).filter(ch => NAME_CHAR.test(ch) || extra.includes(ch)).join(''));
+}
+
+// Requires both an "@" and a dotted domain after it. `type="email"` enforces neither
+// here: these modals have no <form>, so the browser's own constraint validation never
+// runs on Save, and even where it does the HTML spec deliberately accepts "a@b" — a
+// dotless domain is legal on an intranet, just never what someone means in this field.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Letters, digits, @ and . — plus _ - + , which real addresses need and which no amount
+// of format-checking afterwards can recover once the keystroke is dropped: hyphens are
+// everywhere in domains (my-company.com), and underscores and plus-tags are common in
+// local parts (first_last@, user+tag@). Everything else — spaces, slashes, brackets — is
+// stripped as it is typed. ASCII only: addresses here are, and an IDN would fail the
+// format check below anyway.
+const EMAIL_CHAR = /[A-Za-z0-9@._+-]/;
+
+function wireEmailInput(modalId, hint = 'email') {
+  const input = field(modalId, hint);
+  if (!input) return;
+  filterInput(input, v => Array.from(v).filter(ch => EMAIL_CHAR.test(ch)).join(''));
+}
+
+// Returns true (having toasted and focused the field) when a non-empty address is
+// malformed. An empty one is left to missingFields(), which is the only thing that knows
+// whether email is required on that particular form.
+function invalidEmail(modalId, email) {
+  if (!email || EMAIL_RE.test(email)) return false;
+  toast('Enter a valid email address, like name@company.com', 'error');
+  field(modalId, 'email')?.focus();
+  return true;
 }
 
 // Sidebar nav icons — appMarkup.js's NAV_ITEMS carries an emoji `icon` per page
@@ -318,10 +405,16 @@ export function initApiBridge() {
   function wireSubmits() {
     // Companies / Customers (shared modal-company — Customers is a finance-facing view of the same records)
     wireNumericInput('modal-company', 'phone');
+    wireAlphaInput('modal-company', 'primary contact');
+    wireEmailInput('modal-company');
+    // '&' and '/' are kept here but not on a person's name — "Oil & Gas" and "IT/ITES"
+    // are industries people actually type, and silently eating the separator would turn
+    // them into "Oil  Gas" / "ITITES".
+    wireAlphaInput('modal-company', 'industry', '&/');
     wireBtn('modal-company', async () => {
       const id = editId('page-companies') || editId('page-customers');
       const body = {
-        name: val('modal-company', 'company name'),
+        name: val('modal-company', 'client name'),
         industry: val('modal-company', 'industry'),
         primary_contact: val('modal-company', 'primary contact') || null,
         email: val('modal-company', 'email') || null,
@@ -330,8 +423,12 @@ export function initApiBridge() {
         billing_address: val('modal-company', 'billing address') || null,
         status: val('modal-company', 'status') || 'Active',
       };
-      if (id) { await patch(`/api/companies/${id}`, body); toast('Company updated'); }
-      else { if (!body.name || !body.industry) { toast('Company Name and Industry required', 'error'); return; } await post('/api/companies', body); toast('Company created'); }
+      // Checked ahead of the create/update split so an edit can't slip a bad address
+      // through the way it can skip the name/industry check below. Email is optional
+      // here — only a non-empty one has to be well formed.
+      if (invalidEmail('modal-company', body.email)) return;
+      if (id) { await patch(`/api/companies/${id}`, body); toast('Client updated'); }
+      else { if (missingFields([['Client Name', body.name], ['Industry', body.industry]])) return; await post('/api/companies', body); toast('Client created'); }
       // Belt-and-suspenders: clear fields the moment a save completes, not only right
       // before the next "+ New X" open — closes the window where an edit's leftover
       // values could leak into whatever opens this modal next.
@@ -345,13 +442,16 @@ export function initApiBridge() {
     });
 
     // Projects
+    wireNumericInput('modal-project', 'budget', { decimal: true });
+    wireNumericInput('modal-project', 'revenue', { decimal: true });
+    wireNumericInput('modal-project', 'expense', { decimal: true });
     wireBtn('modal-project', async () => {
       const id = editId('page-projects');
       const manager = val('modal-project', 'project manager');
       const assignEmpSelect = document.getElementById('project-assign-employees');
       const selectedEmpIds = assignEmpSelect ? Array.from(assignEmpSelect.selectedOptions).map(o => o.value).filter(Boolean) : [];
       const body = {
-        id: val('modal-project', 'project code'),
+        // No code here — the server assigns it (projects.py's _next_project_code).
         name: val('modal-project', 'project name'),
         client: val('modal-project', 'client name'),
         manager: manager === 'Select Manager' ? '' : manager,
@@ -364,11 +464,10 @@ export function initApiBridge() {
         assigned_emp_ids: selectedEmpIds.length > 0 ? selectedEmpIds : null,
       };
       if (id) {
-        const { id: _, ...u } = body;
-        await patch(`/api/projects/${id}`, u);
+        await patch(`/api/projects/${id}`, body);
         toast('Project updated');
       } else {
-        if (!body.id || !body.name || !body.client || !body.manager) { toast('Code, Name, Client and Manager required', 'error'); return; }
+        if (missingFields([['Project Name', body.name], ['Client Name', body.client], ['Project Manager', body.manager]])) return;
         await post('/api/projects', body);
         toast('Project created');
       }
@@ -386,13 +485,14 @@ export function initApiBridge() {
         description: val('modal-pcode', 'description') || null,
         status: val('modal-pcode', 'status') || 'Active',
       };
-      if (!body.code || !body.project_id) { toast('Code and Project required', 'error'); return; }
+      if (missingFields([['Project Code', body.code], ['Project', body.project_id]])) return;
       if (id) { await patch(`/api/project-codes/${id}`, body); toast('Project code updated'); }
       else { await post('/api/project-codes', body); toast('Project code created'); }
       closeModal('modal-pcode'); startCreate('page-project-codes'); loadProjectCodes(); refreshCaches();
     });
 
     // Billing Codes
+    wireNumericInput('modal-bcode', 'billing rate', { decimal: true });
     wireBtn('modal-bcode', async () => {
       const id = editId('page-billing-codes');
       const projectCodeId = val('modal-bcode', 'project code');
@@ -408,7 +508,7 @@ export function initApiBridge() {
         effective_to: val('modal-bcode', 'effective to') || null,
         status: val('modal-bcode', 'status') || 'Active',
       };
-      if (!body.code || !body.project_code_id) { toast('Code and Project Code required', 'error'); return; }
+      if (missingFields([['Billing Code', body.code], ['Project Code', body.project_code_id]])) return;
       if (id) {
         const { project_id: _, ...u } = body;
         await patch(`/api/billing-codes/${id}`, u);
@@ -421,6 +521,10 @@ export function initApiBridge() {
     });
 
     // Employees
+    wireNumericInput('modal-emp', 'phone');
+    wireAlphaInput('modal-emp', 'full name');
+    wireAlphaInput('modal-emp', 'designation');
+    wireEmailInput('modal-emp');
     wireBtn('modal-emp', async () => {
       const id = editId('page-employees');
       const body = {
@@ -436,16 +540,21 @@ export function initApiBridge() {
         status: val('modal-emp', 'status') || 'Active',
         pm_access_enabled: checked('modal-emp', 'allow pr manager'),
       };
-      if (!body.emp_id || !body.name || !body.email) {
-        toast('ID, Name and Email required', 'error');
-        return;
-      }
+      // Listed in form order: Employee ID, Full Name, Email, Phone.
+      if (missingFields([
+        ['Employee ID', body.emp_id],
+        ['Full Name', body.name],
+        ['Email', body.email],
+        ['Phone', body.phone],
+      ])) return;
+      if (invalidEmail('modal-emp', body.email)) return;
       if (id) { await patch(`/api/employees/${id}`, body); toast('Employee updated'); }
       else { await post('/api/employees/', body); toast('Employee created'); }
       closeModal('modal-emp'); startCreate('page-employees'); loadEmployees(); refreshCaches();
     });
 
     // Hourly Costs
+    wireNumericInput('modal-cost', 'hourly cost', { decimal: true });
     wireBtn('modal-cost', async () => {
       const id = editId('page-hourly-cost');
       const body = {
@@ -454,8 +563,12 @@ export function initApiBridge() {
         effective_from: val('modal-cost', 'effective from') || null,
         effective_to: val('modal-cost', 'effective to') || null,
       };
+      // Checked ahead of the create/update split: a blank Effective From on an edit
+      // sends null, which the PATCH drops rather than applies, so it would silently
+      // keep the old date instead of reporting anything.
+      if (missingFields([['Employee', body.emp_id], ['Effective From', body.effective_from]])) return;
       if (id) { const { emp_id: _, ...u } = body; await patch(`/api/hourly-costs/${id}`, u); toast('Cost updated'); }
-      else { if (!body.emp_id) { toast('Employee required', 'error'); return; } await post('/api/hourly-costs', body); toast('Cost record created'); }
+      else { await post('/api/hourly-costs', body); toast('Cost record created'); }
       closeModal('modal-cost'); startCreate('page-hourly-cost'); loadHourlyCosts();
     });
 
@@ -468,7 +581,7 @@ export function initApiBridge() {
         to_date: val('modal-leave', 'to date'),
         reason: val('modal-leave', 'reason') || null,
       };
-      if (!body.from_date || !body.to_date) { toast('From Date and To Date required', 'error'); return; }
+      if (missingFields([['From Date', body.from_date], ['To Date', body.to_date]])) return;
       await post('/api/leave', body);
       toast('Leave request submitted');
       closeModal('modal-leave'); loadLeave();
@@ -494,7 +607,7 @@ export function initApiBridge() {
         return;
       }
       if (id) { const { entry_date: __, project_id: ___, ...u } = body; await patch(`/api/timesheets/${id}`, u); toast('Timesheet updated'); }
-      else { if (!body.entry_date || !body.project_id) { toast('Date and Project required', 'error'); return; } await post('/api/timesheets', body); toast('Timesheet submitted'); }
+      else { if (missingFields([['Date', body.entry_date], ['Project', body.project_id]])) return; await post('/api/timesheets', body); toast('Timesheet submitted'); }
       closeModal('modal-timesheet'); startCreate('page-timesheets'); loadTimesheets();
     });
 
@@ -537,7 +650,7 @@ export function initApiBridge() {
         await patch(`/api/expenses/${id}`, u);
         toast('Expense updated');
       } else {
-        if (!body.project_id || !body.category || !body.expense_date) { toast('Project, Category and Date required', 'error'); return; }
+        if (missingFields([['Project', body.project_id], ['Expense Category', body.category], ['Expense Date', body.expense_date]])) return;
         await post('/api/expenses', body);
         toast('Expense submitted');
       }
@@ -560,7 +673,7 @@ export function initApiBridge() {
         received_amount: parseFloat(val('modal-recv', 'received amount')) || 0,
         status: val('modal-recv', 'payment status') || 'Pending',
       };
-      if (!body.project_id || !body.invoice_no) { toast('Project and Invoice No required', 'error'); return; }
+      if (missingFields([['Project', body.project_id], ['Invoice Number', body.invoice_no]])) return;
       if (body.billing_code_id && !state.bcodes.some(b => b.code === body.billing_code_id && b.project_id === body.project_id)) {
         toast('That billing code does not belong to the selected project', 'error');
         return;
@@ -577,6 +690,7 @@ export function initApiBridge() {
     });
 
     // Service Desk Tickets
+    wireAlphaInput('modal-ticket', 'requester');
     const SLA_HOURS = { '4 hours': 4, '8 hours': 8, '1 business day': 24, '3 business days': 72 };
     wireBtn('modal-ticket', async () => {
       const id = editId('page-service-desk');
@@ -584,40 +698,45 @@ export function initApiBridge() {
       const slaHours = SLA_HOURS[slaChoice];
       const body = {
         subject: val('modal-ticket', 'subject'),
-        // Falls back to the display NAME, not username() — is_own_record() compares
-        // requester against current_user.name (see the same fix on modal-expense above).
-        requester: val('modal-ticket', 'requester') || state.currentUser?.name || username(),
+        // Deliberately no fallback to the signed-in user: leaving this blank used to file
+        // the ticket under whoever was logged in, silently and invisibly. It is required
+        // below instead, so the requester is always someone's explicit choice.
+        requester: val('modal-ticket', 'requester'),
         project_id: val('modal-ticket', 'project') || null,
         queue: val('modal-ticket', 'assignment queue'),
         priority: val('modal-ticket', 'priority') || 'Medium',
         sla_deadline: slaHours ? new Date(Date.now() + slaHours * 3600 * 1000).toISOString() : null,
+        // Only on edit: the Status field is hidden while creating, since tickets.py
+        // always starts a new ticket Open. Sending it here would just be noise.
+        ...(id ? { status: val('modal-ticket', 'status') || 'Open' } : {}),
       };
+      // Listed in the order they appear on the form, so the message tracks the eye.
+      // Category/Priority/Assignment Queue/Target SLA are <select>s whose first option
+      // is a real value, never a "choose one" placeholder, so they cannot be empty —
+      // Project is the only dropdown here that can.
+      if (missingFields([
+        ['Subject', body.subject],
+        ['Requester', body.requester],
+        ['Project', body.project_id],
+        ['Assignment Queue', body.queue],
+      ])) return;
       if (id) {
-        const { requester: _, project_id: __, ...u } = body;
-        await patch(`/api/tickets/${id}`, u);
+        // The whole body goes to PATCH: requester/project_id used to be stripped here,
+        // and were missing from TicketUpdate besides, so editing either one appeared to
+        // do nothing at all.
+        await patch(`/api/tickets/${id}`, body);
         toast('Ticket updated');
       } else {
-        if (!body.subject || !body.queue) { toast('Subject and Queue required', 'error'); return; }
         await post('/api/tickets', body);
         toast('Ticket created');
       }
       closeModal('modal-ticket'); startCreate('page-service-desk'); loadServiceDesk();
     });
 
-    // Cancel Ticket
-    wireBtn('modal-ticket-cancel', async () => {
-      const ticketNo = val('modal-ticket-cancel', 'ticket number');
-      const t = state.tickets.find(x => x.ticket_no === ticketNo);
-      if (!t) { toast('Ticket number not found', 'error'); return; }
-      const reasonChoice = val('modal-ticket-cancel', 'cancellation reason');
-      const remarks = val('modal-ticket-cancel', 'remarks');
-      const reason = remarks ? `${reasonChoice}: ${remarks}` : reasonChoice;
-      await post(`/api/tickets/${t.id}/cancel`, { reason });
-      toast('Ticket cancelled');
-      closeModal('modal-ticket-cancel'); loadServiceDesk();
-    });
 
     // Users
+    wireAlphaInput('modal-user', 'full name');
+    wireEmailInput('modal-user');
     wireBtn('modal-user', async () => {
       const id = editId('page-users');
       const name = val('modal-user', 'full name');
@@ -636,9 +755,10 @@ export function initApiBridge() {
         toast('Only Admin can create or promote an Admin/Manager account', 'error');
         return;
       }
+      if (invalidEmail('modal-user', body.email)) return;
       if (id) { await patch(`/api/users/${id}`, { name: body.name, email: body.email, role: body.role }); toast('User updated'); }
       else {
-        if (!body.name || !body.email) { toast('Name and Email required', 'error'); return; }
+        if (missingFields([['Full Name', body.name], ['Email', body.email]])) return;
         await post('/api/users', body);
         toast(`User created — login username: ${body.username}`);
       }
@@ -655,7 +775,7 @@ export function initApiBridge() {
         record_id: val('modal-audit', 'record id') || null,
         detail: val('modal-audit', 'detail') || null,
       };
-      if (!body.user || !body.module || !body.action) { toast('User, Module and Action required', 'error'); return; }
+      if (missingFields([['User', body.user], ['Module', body.module], ['Action', body.action]])) return;
       if (id) { await patch(`/api/audit-log/${id}`, body); toast('Audit entry updated'); }
       else { await post('/api/audit-log/', body); toast('Audit entry added'); }
       closeModal('modal-audit'); startCreate('page-audit'); loadAudit();
@@ -792,7 +912,7 @@ export function initApiBridge() {
       if (editBtn) {
         const row = state.companies.find(c => String(c.id) === editBtn.dataset.id);
         if (!row) return;
-        set('modal-company', 'company name', row.name);
+        set('modal-company', 'client name', row.name);
         set('modal-company', 'industry', row.industry);
         set('modal-company', 'primary contact', row.primary_contact || '');
         set('modal-company', 'email', row.email || '');
@@ -806,9 +926,9 @@ export function initApiBridge() {
       }
       const delBtn = e.target.closest('.bridge-delete[data-page="page-companies"]');
       if (delBtn) {
-        if (!confirm('Delete this company?')) return;
+        if (!confirm('Delete this client?')) return;
         await del(`/api/companies/${delBtn.dataset.id}`);
-        toast('Company deleted');
+        toast('Client deleted');
         loadCompanies();
       }
     });
@@ -819,7 +939,7 @@ export function initApiBridge() {
       if (editBtn) {
         const row = state.companies.find(c => String(c.id) === editBtn.dataset.id);
         if (!row) return;
-        set('modal-company', 'company name', row.name);
+        set('modal-company', 'client name', row.name);
         set('modal-company', 'industry', row.industry);
         set('modal-company', 'primary contact', row.primary_contact || '');
         set('modal-company', 'email', row.email || '');
@@ -852,7 +972,6 @@ export function initApiBridge() {
       if (editBtn) {
         const row = state.projects.find(p => String(p.id) === editBtn.dataset.id);
         if (!row) return;
-        set('modal-project', 'project code', row.id);
         set('modal-project', 'project name', row.name);
         set('modal-project', 'client name', row.client || '');
         set('modal-project', 'project manager', row.manager || '');
@@ -885,6 +1004,9 @@ export function initApiBridge() {
         const row = state.pcodes.find(c => String(c.code) === editBtn.dataset.id);
         if (!row) return;
         set('modal-pcode', 'project code', row.code);
+        // This row's own project is "taken" by this row, so the list has to be rebuilt
+        // keeping it before the value can be selected.
+        populatePCodeProjectDropdown(row.project_id);
         const modal = document.getElementById('modal-pcode');
         const projectSel = Array.from(modal?.querySelectorAll('select') || []).find(s => (s.options[0]?.text || '').toLowerCase().includes('select project'));
         if (projectSel) projectSel.value = row.project_id;
@@ -913,6 +1035,9 @@ export function initApiBridge() {
         const row = state.bcodes.find(b => String(b.code) === editBtn.dataset.id);
         if (!row) return;
         set('modal-bcode', 'billing code', row.code);
+        // This row's own project code is "taken" by this row, so the list has to be
+        // rebuilt keeping it before the value can be selected.
+        populateBCodeProjectCodeDropdown(row.project_code_id);
         set('modal-bcode', 'project code', row.project_code_id);
         set('modal-bcode', 'billing type', row.billing_type);
         set('modal-bcode', 'billing rate', row.rate ?? 0);
@@ -1018,8 +1143,11 @@ export function initApiBridge() {
         const row = state.expenses.find(x => String(x.id) === editBtn.dataset.id);
         if (!row) return;
         set('modal-expense', 'project', row.project_id || '');
-        set('modal-expense', 'project code', row.project_code_id || '');
-        set('modal-expense', 'billing code', row.billing_code_id || '');
+        // Each list is filtered by the one above it, so it has to be rebuilt for this
+        // row's project/code before its value can be selected — set() silently does
+        // nothing when the <option> isn't present.
+        populateExpProjectCodeSelect(row.project_id || '', row.project_code_id || '');
+        populateExpBillingCodeSelect(row.project_code_id || '', row.billing_code_id || '');
         set('modal-expense', 'expense category', row.category);
         set('modal-expense', 'expense date', row.expense_date || '');
         set('modal-expense', 'amount', row.amount ?? 0);
@@ -1275,9 +1403,16 @@ export function initApiBridge() {
       if (editBtn) {
         const row = state.tickets.find(t => String(t.id) === editBtn.dataset.id);
         if (!row) return;
+        // Every field the form can save has to be loaded here. Requester and Project
+        // were left out, so they kept whatever the previous ticket put in the DOM and
+        // the form showed one ticket's subject beside another's requester.
         set('modal-ticket', 'subject', row.subject);
+        set('modal-ticket', 'requester', row.requester || '');
+        set('modal-ticket', 'project', row.project_id || '');
         set('modal-ticket', 'assignment queue', row.queue || '');
         set('modal-ticket', 'priority', row.priority || 'Medium');
+        setTicketModalMode(true);
+        populateTicketStatusSelect(row.status);
         startEdit('page-service-desk', row.id);
         openModal('modal-ticket');
         return;

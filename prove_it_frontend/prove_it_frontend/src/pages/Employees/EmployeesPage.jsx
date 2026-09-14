@@ -14,6 +14,7 @@ const COLUMNS = [
   { key: 'department', header: 'Dept', render: r => r.department || '—', align: 'center' },
   { key: 'designation', header: 'Designation', render: r => r.designation || '—', align: 'center' },
   { key: 'email', header: 'Email', align: 'center' },
+  { key: 'phone', header: 'Phone', render: r => r.phone || '—', align: 'center' },
   { key: 'status', header: 'Status', render: r => <Badge status={r.status} />, align: 'center' },
   { key: 'billable', header: 'Billing', render: r => <Badge status={r.billable ? 'Billable' : 'Non-Billable'} />, align: 'center' },
   {
@@ -37,7 +38,7 @@ export default function EmployeesPage() {
     return (Array.isArray(employees) ? employees : []).filter(e => {
       if (dept && e.department !== dept) return false;
       if (status && e.status !== status) return false;
-      if (q && !`${e.emp_id} ${e.name} ${e.email} ${e.designation || ''}`.toLowerCase().includes(q)) return false;
+      if (q && !`${e.emp_id} ${e.name} ${e.email} ${e.phone || ''} ${e.designation || ''}`.toLowerCase().includes(q)) return false;
       return true;
     });
   }, [employees, dept, status, search]);

@@ -15,7 +15,10 @@ router = APIRouter()
 class CostCreate(BaseModel):
     emp_id: str
     hourly_cost: float
-    effective_from: Optional[date] = None
+    # Required: this is the field the rate history is ordered by (see
+    # latest_hourly_costs() in core/reporting.py, which sorts on it to find an
+    # employee's current rate), so a row without one has no place in the timeline.
+    effective_from: date
     effective_to: Optional[date] = None
 
 

@@ -76,12 +76,29 @@ def list_codes(project_id: Optional[str] = Query(None), billing_type: Optional[s
     return [_out(b) for b in db[collections.BILLING_CODES].find(query)]
 
 
+def _project_code_taken(db: Database, project_code_id: str, org_id, excluding: str = None):
+    """The billing code already sitting on this project code, if any.
+
+    A project code carries one billing code, so the Create form hides project codes that
+    are already spoken for. This is the same rule enforced server-side, since the form is
+    not the only way in. `excluding` skips the row being edited, which naturally occupies
+    its own project code.
+    """
+    query = {"project_code_id": project_code_id, "org_id": org_id}
+    if excluding is not None:
+        query["_id"] = {"$ne": excluding}
+    return db[collections.BILLING_CODES].find_one(query)
+
+
 @router.post("/", dependencies=[Depends(require_permission("Billing Codes", "create"))])
 def create(payload: BCCreate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
     if db[collections.BILLING_CODES].find_one({"_id": payload.code, "org_id": cu.org_id}):
         raise HTTPException(400, "Billing code already exists")
     if payload.billing_type not in BILLING_TYPES:
         raise HTTPException(400, f"billing_type must be one of {BILLING_TYPES}")
+    existing = _project_code_taken(db, payload.project_code_id, cu.org_id)
+    if existing:
+        raise HTTPException(400, f"Project code {payload.project_code_id} already has billing code {existing['code']}")
     doc = payload.dict()
     doc["_id"] = doc["code"]
     doc["org_id"] = cu.org_id
@@ -106,6 +123,11 @@ def update(code: str, payload: BCUpdate, db: Database = Depends(get_db), cu=Depe
         # client, so the two can never drift out of sync when reassigning.
         pcode = get_or_404(db, collections.PROJECT_CODES, patch["project_code_id"], cu.org_id, "Project code not found")
         patch["project_id"] = pcode["project_id"]
+        # Reassigning onto a project code that another billing code already holds would
+        # create the same duplicate the POST path refuses.
+        clash = _project_code_taken(db, patch["project_code_id"], cu.org_id, excluding=code)
+        if clash:
+            raise HTTPException(400, f"Project code {patch['project_code_id']} already has billing code {clash['code']}")
 
     if new_code and new_code != code:
         if db[collections.BILLING_CODES].find_one({"_id": new_code, "org_id": cu.org_id}):

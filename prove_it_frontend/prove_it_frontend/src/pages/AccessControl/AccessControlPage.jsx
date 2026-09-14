@@ -68,6 +68,7 @@ export default function AccessControlPage() {
           <h4 style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '16px', fontWeight: 600 }}><IdCard size={16} /> Employee Page Access</h4>
           <p>Select the pages an employee can open. Pages without permission show a No Access screen with a request button.</p>
           <Dropdown
+            ref={empSelectRef}
             value={empId}
             onChange={setEmpId}
             options={(Array.isArray(employees) ? employees : []).map(e => ({ value: e.emp_id, label: `${e.name} · ${e.designation || e.role || e.department || ''}` }))}

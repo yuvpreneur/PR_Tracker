@@ -6,6 +6,7 @@ import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
 import Dropdown from '../../components/ui/Dropdown.jsx';
 import { openModal, startCreate, resetFields } from '../../bridge/shared/modals.js';
+import { populatePCodeProjectDropdown } from '../../bridge/pages/projects.js';
 import usePermissions from '../../hooks/usePermissions.js';
 
 export default function ProjectCodesPage() {
@@ -37,6 +38,9 @@ export default function ProjectCodesPage() {
   const handleNew = () => {
     resetFields('modal-pcode');
     startCreate('page-project-codes');
+    // Drops the project left selectable by the last Edit, and picks up any project
+    // claimed since this page loaded, so Create never offers a taken one.
+    populatePCodeProjectDropdown();
     openModal('modal-pcode');
   };
 

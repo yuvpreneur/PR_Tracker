@@ -57,10 +57,27 @@ def list_codes(project_id: Optional[str] = Query(None), status: Optional[str] = 
     return [_out(pc) for pc in db[collections.PROJECT_CODES].find(query)]
 
 
+def _project_taken(db: Database, project_id: str, org_id, excluding: str = None):
+    """The project code already sitting on this project, if any.
+
+    A project carries one project code, mirroring the one-billing-code-per-project-code
+    rule in billing_codes.py. The Create form hides projects that already have one; this
+    is the same rule enforced server-side, since the form is not the only way in.
+    `excluding` skips the row being edited, which naturally occupies its own project.
+    """
+    query = {"project_id": project_id, "org_id": org_id}
+    if excluding is not None:
+        query["_id"] = {"$ne": excluding}
+    return db[collections.PROJECT_CODES].find_one(query)
+
+
 @router.post("/", dependencies=[Depends(require_permission("Project Codes", "create"))])
 def create(payload: PCCreate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
     if db[collections.PROJECT_CODES].find_one({"_id": payload.code, "org_id": cu.org_id}):
         raise HTTPException(400, "Code already exists")
+    existing = _project_taken(db, payload.project_id, cu.org_id)
+    if existing:
+        raise HTTPException(400, f"That project already has project code {existing['code']}")
     doc = payload.dict()
     doc["_id"] = doc["code"]
     doc["org_id"] = cu.org_id
@@ -74,6 +91,13 @@ def update(code: str, payload: PCUpdate, db: Database = Depends(get_db), cu=Depe
     pc = get_or_404(db, collections.PROJECT_CODES, code, cu.org_id, "Not found")
     patch = payload.dict(exclude_none=True)
     new_code = patch.pop("code", None)
+
+    if "project_id" in patch:
+        # Reassigning onto a project that another code already holds would create the
+        # same duplicate the POST path refuses.
+        clash = _project_taken(db, patch["project_id"], cu.org_id, excluding=code)
+        if clash:
+            raise HTTPException(400, f"That project already has project code {clash['code']}")
 
     if new_code and new_code != code:
         if db[collections.PROJECT_CODES].find_one({"_id": new_code, "org_id": cu.org_id}):

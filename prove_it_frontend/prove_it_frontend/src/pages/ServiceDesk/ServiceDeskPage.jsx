@@ -1,4 +1,4 @@
-import { Ticket, RefreshCw, Hourglass, AlertTriangle, XCircle, Check, X, Plus } from 'lucide-react';
+import { Ticket, RefreshCw, Hourglass, AlertTriangle, CheckCircle2, Check, X, Plus } from 'lucide-react';
 import useServiceDesk from './useServiceDesk.js';
 import { SERVICE_DESK_WORKFLOW_HTML } from './serviceDeskDashboardStatic.js';
 import Badge from '../../components/ui/Badge.jsx';
@@ -9,6 +9,8 @@ import Button from '../../components/ui/Button.jsx';
 import { date } from '../../utils/format.js';
 import usePermissions from '../../hooks/usePermissions.js';
 import { MicroIcons } from '../../components/ui/MicroIcons.jsx';
+import { openModal, startCreate, resetFields } from '../../bridge/shared/modals.js';
+import { setTicketModalMode } from '../../bridge/pages/servicedesk.js';
 
 const COLUMNS = [
   { key: 'ticket_no', header: 'Ticket', render: r => <strong>{r.ticket_no || r.id}</strong> },
@@ -21,18 +23,18 @@ const COLUMNS = [
   { key: 'sla_deadline', header: 'SLA', render: r => r.sla_deadline ? date(r.sla_deadline) : '—', align: 'center' },
 ];
 
-const LOCKED_STATUSES = ['Closed', 'Cancelled'];
+const LOCKED_STATUSES = ['Closed'];
 // Self-service editing (the requester editing their own ticket) stops once it's
 // Resolved too — mirrors the "Pending only" self-edit window on Timesheets/Expenses.
-// Someone with Service Desk:edit can still edit regardless of status (until Closed/Cancelled).
-const OWN_EDIT_LOCKED_STATUSES = ['Resolved', 'Closed', 'Cancelled'];
+// Someone with Service Desk:edit can still edit regardless of status (until Closed).
+const OWN_EDIT_LOCKED_STATUSES = ['Resolved', 'Closed'];
 const OPEN_STATUSES = ['Open', 'In Progress', 'Waiting Approval'];
 
 export default function ServiceDeskPage() {
   const { can, isMine } = usePermissions();
   const { tickets, loading } = useServiceDesk();
 
-  // Mirrors GET /api/tickets/stats' open/in_progress/waiting_approval/critical/cancelled
+  // Mirrors GET /api/tickets/stats' open/in_progress/waiting_approval/critical/closed_total
   // definitions — computed client-side from the same `tickets` this page already fetched,
   // rather than a second network call for numbers derivable from data already in hand.
   const openTickets = (Array.isArray(tickets) ? tickets : []).filter(t => OPEN_STATUSES.includes(t.status));
@@ -40,7 +42,10 @@ export default function ServiceDeskPage() {
   const inProgressCount = (Array.isArray(tickets) ? tickets : []).filter(t => t.status === 'In Progress').length;
   const waitingApprovalCount = (Array.isArray(tickets) ? tickets : []).filter(t => t.status === 'Waiting Approval').length;
   const criticalCount = (Array.isArray(openTickets) ? openTickets : []).filter(t => t.priority === 'Critical').length;
-  const cancelledCount = (Array.isArray(tickets) ? tickets : []).filter(t => t.status === 'Cancelled').length;
+  // Everything that has reached the end of the pipeline. Resolved counts here because a
+  // resolved ticket is finished work — Closed is only the sign-off that follows it — so
+  // the card is not stuck on 0 for every ticket awaiting that last step.
+  const closedCount = (Array.isArray(tickets) ? tickets : []).filter(t => ['Resolved', 'Closed'].includes(t.status)).length;
 
   const canEditRow = row => can('Service Desk', 'edit')
     ? !LOCKED_STATUSES.includes(row.status)
@@ -68,11 +73,27 @@ export default function ServiceDeskPage() {
     return null;
   };
 
+  // These modals are persistent DOM nodes shared between Create and Edit, so opening one
+  // without clearing it first shows whatever was last typed or loaded into it. This
+  // button used to call the legacy global openModal(), which only toggles a CSS class —
+  // it reset neither the fields nor the Create/Edit state, so "Create Ticket" could
+  // arrive pre-filled and, after a cancelled Edit, still be holding that row's id and
+  // quietly update it instead of creating. Same three calls every other page's "+ New"
+  // makes.
+  const handleNew = () => {
+    resetFields('modal-ticket');
+    startCreate('page-service-desk');
+    // Restores the "Create" heading/button after an Edit, and hides the Status field —
+    // every new ticket starts Open, so that dropdown belongs to Edit only.
+    setTicketModalMode(false);
+    openModal('modal-ticket');
+  };
+
   return (
     <div>
       <div className="page-header">
         <h2><Ticket size={22} /> Service Desk Integration</h2>
-        <Button variant="primary" onClick={() => openModal('modal-ticket')}>
+        <Button variant="primary" onClick={handleNew}>
           <Plus size={14} /> Create Ticket
         </Button>
       </div>
@@ -82,7 +103,7 @@ export default function ServiceDeskPage() {
         <StatCard label="In Progress" value={loading ? '—' : String(inProgressCount)} sub="Being worked on" color="var(--color-accent)" icon={RefreshCw} microIcon={MicroIcons.GrowthChart} />
         <StatCard label="Waiting Approval" value={loading ? '—' : String(waitingApprovalCount)} sub="Needs sign-off" color="var(--color-amber)" icon={Hourglass} microIcon={MicroIcons.ClockCheck} />
         <StatCard label="Critical" value={loading ? '—' : String(criticalCount)} sub="Open & critical priority" color="var(--color-red)" icon={AlertTriangle} microIcon={MicroIcons.Target} />
-        <StatCard label="Cancelled" value={loading ? '—' : String(cancelledCount)} sub="With audit reason" color="var(--color-text2)" icon={XCircle} microIcon={MicroIcons.ConnectedDots} />
+        <StatCard label="Closed" value={loading ? '—' : String(closedCount)} sub="Resolved & closed" color="var(--color-green)" icon={CheckCircle2} microIcon={MicroIcons.DocumentTick} />
       </div>
 
       <div dangerouslySetInnerHTML={{ __html: SERVICE_DESK_WORKFLOW_HTML }} />

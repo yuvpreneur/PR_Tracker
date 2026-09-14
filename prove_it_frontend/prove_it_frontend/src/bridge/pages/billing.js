@@ -5,13 +5,26 @@ import { renderTable } from '../shared/table.js';
 import { field } from '../shared/modals.js';
 import { can, noActionsColumn } from '../shared/permissions.js';
 
-export function populateBCodeProjectCodeDropdown() {
+// A project code carries one billing code, so any project code that already has one is
+// left out of this list — offering it again is the only way the duplicate gets created.
+// billing_codes.py refuses the same pairing server-side; this just stops the user walking
+// into a rejection.
+//
+// `keepProjectCode` is the project code of the row being edited. It is "taken" by
+// definition (by that very row), so without this it would vanish from its own edit form
+// and the prefill below would not stick — set() cannot select an <option> that is absent.
+export function populateBCodeProjectCodeDropdown(keepProjectCode) {
   const sel = field('modal-bcode', 'project code');
   if (!sel || sel.tagName !== 'SELECT') return;
   const prev = sel.value;
+  const taken = new Set((Array.isArray(state.bcodes) ? state.bcodes : []).map(b => b.project_code_id));
+  const available = (Array.isArray(state.pcodes) ? state.pcodes : [])
+    .filter(pc => !taken.has(pc.code) || pc.code === keepProjectCode);
   sel.innerHTML = '<option value="">Select Project Code</option>' +
-    (Array.isArray(state.pcodes) ? state.pcodes : []).map(pc => `<option value="${pc.code}">${pc.code}</option>`).join('');
-  if (prev) sel.value = prev;
+    available.map(pc => `<option value="${pc.code}">${pc.code}</option>`).join('');
+  // Restoring `prev` unconditionally would leave a stale value on a <select> that no
+  // longer offers it, which reads as blank but still submits.
+  sel.value = available.some(pc => pc.code === prev) ? prev : '';
 }
 
 export async function loadBillingCodes() {
@@ -57,7 +70,7 @@ export function populateReceivableModalDropdowns() {
   if (projSel && projSel.tagName === 'SELECT') {
     const prev = projSel.value;
     projSel.innerHTML = '<option value="">Select Project</option>' +
-      (Array.isArray(state.projects) ? state.projects : []).map(p => `<option value="${p.id}">${p.id} - ${p.name}</option>`).join('');
+      (Array.isArray(state.projects) ? state.projects : []).map(p => `<option value="${p.id}">${p.name}</option>`).join('');
     if (prev) projSel.value = prev;
 
     // Re-filter (and drop any now-mismatched selection) whenever the project changes.

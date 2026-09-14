@@ -96,6 +96,20 @@ export const startEdit   = (pg, id) => { editState[pg] = { id, editing: true }; 
 export const startCreate = pg       => { editState[pg] = { id: null, editing: false }; };
 export const editId      = pg       => editState[pg]?.id || null;
 
+// These modals are one DOM node serving both Create and Edit, but their heading and
+// primary button are static markup that always reads "Create ...". Opening one to edit an
+// existing record therefore offered a "Create Ticket" button that would in fact update it.
+// Pass the wording for whichever mode is being opened; omit a key to leave it alone.
+export function setModalMode(modalId, { title, action } = {}) {
+  const modal = document.getElementById(modalId);
+  if (!modal) return;
+  const heading = modal.querySelector('.modal-header h3');
+  if (heading && title) heading.textContent = title;
+  // Same selector wireBtn() uses, so the label always tracks the button that submits.
+  const btn = modal.querySelector('.btn-primary, .btn-danger, button[type="submit"]');
+  if (btn && action) btn.textContent = action;
+}
+
 // Wire a modal's primary button to an async submit handler
 export function wireBtn(modalId, onSubmit) {
   const modal = document.getElementById(modalId);

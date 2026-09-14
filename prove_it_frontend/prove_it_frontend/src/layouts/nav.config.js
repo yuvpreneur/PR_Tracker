@@ -16,7 +16,7 @@ export const NAV = [
     { id: 'reports', label: 'Reports', icon: ChartColumn },
   ] },
   { group: 'Delivery', items: [
-    { id: 'companies', label: 'Companies', icon: Building2 },
+    { id: 'companies', label: 'Clients', icon: Building2 },
     { id: 'projects', label: 'Projects', icon: FolderKanban },
     { id: 'project-management', label: 'Project Management', icon: Briefcase, external: true, href: 'http://localhost:5173' },
     { id: 'project-codes', label: 'Project Codes', icon: Tag },

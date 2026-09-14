@@ -2,7 +2,7 @@ import { Handshake, Plus } from 'lucide-react';
 import useCustomers from './useCustomers.js';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
-import { openModal, startCreate, resetFields } from '../../bridge/shared/modals.js';
+import { openModal, startCreate, resetFields, setModalMode } from '../../bridge/shared/modals.js';
 import usePermissions from '../../hooks/usePermissions.js';
 
 const COLUMNS = [
@@ -22,6 +22,7 @@ export default function CustomersPage() {
   const handleNew = () => {
     resetFields('modal-company');
     startCreate('page-customers');
+    setModalMode('modal-company', { title: 'Add Customer' });
     openModal('modal-company');
   };
 

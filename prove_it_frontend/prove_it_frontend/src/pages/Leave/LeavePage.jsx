@@ -5,7 +5,7 @@ import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
 import { date } from '../../utils/format.js';
-import { openModal } from '../../bridge/shared/modals.js';
+import { openModal, resetFields } from '../../bridge/shared/modals.js';
 import usePermissions from '../../hooks/usePermissions.js';
 import { MicroIcons } from '../../components/ui/MicroIcons.jsx';
 
@@ -40,7 +40,7 @@ export default function LeavePage() {
       <div className="page-header">
         <h2><Palmtree size={22} /> Leave</h2>
         {canCreateOnPage('leave') && (
-          <Button variant="primary" onClick={() => openModal('modal-leave')}><Plus size={15} /> Apply Leave</Button>
+          <Button variant="primary" onClick={() => { resetFields('modal-leave'); openModal('modal-leave'); }}><Plus size={15} /> Apply Leave</Button>
         )}
       </div>
 

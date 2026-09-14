@@ -80,7 +80,7 @@ function PageGate({ id, label, active, children }) {
 const PAGES = [
   { id: 'dashboard', label: 'Dashboard', Component: DashboardPage },
   { id: 'reports', label: 'Reports', Component: ReportsPage },
-  { id: 'companies', label: 'Companies', Component: CompaniesPage },
+  { id: 'companies', label: 'Clients', Component: CompaniesPage },
   { id: 'projects', label: 'Projects', Component: ProjectsPage },
   { id: 'project-codes', label: 'Project Codes', Component: ProjectCodesPage },
   { id: 'billing-codes', label: 'Billing Codes', Component: BillingCodesPage },

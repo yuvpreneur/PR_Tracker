@@ -4,7 +4,7 @@ import { state } from '../../bridge/core/state.js';
 import { setNavBadge } from '../../bridge/shared/ui.js';
 
 // Mirrors ServiceDeskPage.jsx's OPEN_STATUSES — tickets still needing action, as opposed
-// to Resolved/Closed/Cancelled — used here only to size the sidebar nav badge.
+// to Resolved/Closed — used here only to size the sidebar nav badge.
 const OPEN_STATUSES = ['Open', 'In Progress', 'Waiting Approval'];
 
 // No filter bar exists on this page in the legacy markup — a single unfiltered

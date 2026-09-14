@@ -20,7 +20,7 @@ class EmpCreate(BaseModel):
     department: Optional[str] = None
     designation: Optional[str] = None
     email: str
-    phone: Optional[str] = None
+    phone: str
     joining_date: Optional[date] = None
     relieving_date: Optional[date] = None
     role: str = "Employee"
@@ -88,6 +88,9 @@ def list_employees(
 def create(payload: EmpCreate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
     if db[collections.EMPLOYEES].find_one({"_id": payload.emp_id, "org_id": cu.org_id}):
         raise HTTPException(400, "Employee ID already exists")
+    # `phone: str` rejects a missing key but not an empty or blank one.
+    if not payload.phone.strip():
+        raise HTTPException(400, "Phone is required")
     doc = payload.dict()
     doc["_id"] = doc["emp_id"]
     doc["org_id"] = cu.org_id
@@ -116,6 +119,8 @@ def update_employee(emp_id: str, payload: EmpUpdate, db: Database = Depends(get_
     e = get_or_404(db, collections.EMPLOYEES, emp_id, cu.org_id, "Employee not found")
     patch = payload.dict(exclude_none=True)
     new_emp_id = patch.pop("emp_id", None)
+    if "phone" in patch and not patch["phone"].strip():
+        raise HTTPException(400, "Phone is required")
     if "joining_date" in patch: patch["joining_date"] = patch["joining_date"].isoformat()
     if "relieving_date" in patch: patch["relieving_date"] = patch["relieving_date"].isoformat()
     if "pm_access_enabled" in patch:

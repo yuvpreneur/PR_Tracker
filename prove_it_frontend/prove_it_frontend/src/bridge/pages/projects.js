@@ -174,15 +174,29 @@ function createCheckboxDropdown(select, employees) {
   updateSummary();
 }
 
-export function populatePCodeProjectDropdown() {
+// A project carries one project code, the same way a project code carries one billing
+// code (see populateBCodeProjectCodeDropdown) — a project that already has one is left
+// out, since offering it again is the only way the duplicate gets created.
+// project_codes.py refuses the same pairing server-side.
+//
+// `keepProjectId` is the project of the row being edited: taken by that very row, so
+// without this it would vanish from its own edit form and the prefill could not select
+// it. Labelled by name alone — this modal is where a project *code* is authored, so a
+// leading "P001 ·" would read as if the code were already decided.
+export function populatePCodeProjectDropdown(keepProjectId) {
   const modal = document.getElementById('modal-pcode');
   if (!modal) return;
   const sel = Array.from(modal.querySelectorAll('select')).find(s => (s.options[0]?.text || '').toLowerCase().includes('select project'));
   if (!sel) return;
   const prev = sel.value;
+  const taken = new Set((Array.isArray(state.pcodes) ? state.pcodes : []).map(pc => pc.project_id));
+  const available = (Array.isArray(state.projects) ? state.projects : [])
+    .filter(p => !taken.has(p.id) || p.id === keepProjectId);
   sel.innerHTML = '<option value="">Select Project</option>' +
-    state.projects.map(p => `<option value="${p.id}">${p.id} · ${p.name}</option>`).join('');
-  if (prev) sel.value = prev;
+    available.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  // Restoring `prev` unconditionally would leave a stale value on a <select> that no
+  // longer offers it, which reads as blank but still submits.
+  sel.value = available.some(p => p.id === prev) ? prev : '';
 }
 
 function populateClientsDropdown() {

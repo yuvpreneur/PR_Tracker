@@ -100,6 +100,7 @@ export default function ReportsPage() {
           style={{ width: '180px' }}
         />
         <Dropdown
+          id="reports-period"
           value={period}
           onChange={setPeriod}
           options={[

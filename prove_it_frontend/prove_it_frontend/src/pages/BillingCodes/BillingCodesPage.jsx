@@ -7,6 +7,7 @@ import DataTable from '../../components/ui/DataTable.jsx';
 import Dropdown from '../../components/ui/Dropdown.jsx';
 import { date, num } from '../../utils/format.js';
 import { openModal, startCreate, resetFields } from '../../bridge/shared/modals.js';
+import { populateBCodeProjectCodeDropdown } from '../../bridge/pages/billing.js';
 import usePermissions from '../../hooks/usePermissions.js';
 
 export default function BillingCodesPage() {
@@ -45,6 +46,9 @@ export default function BillingCodesPage() {
   const handleNew = () => {
     resetFields('modal-bcode');
     startCreate('page-billing-codes');
+    // Drops the project code left selectable by the last Edit, and picks up any project
+    // code claimed since this page loaded, so Create never offers a taken one.
+    populateBCodeProjectCodeDropdown();
     openModal('modal-bcode');
   };
 

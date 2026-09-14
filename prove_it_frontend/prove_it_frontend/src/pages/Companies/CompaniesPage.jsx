@@ -5,11 +5,11 @@ import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
 import Dropdown from '../../components/ui/Dropdown.jsx';
-import { openModal, startCreate, resetFields } from '../../bridge/shared/modals.js';
+import { openModal, startCreate, resetFields, setModalMode } from '../../bridge/shared/modals.js';
 import usePermissions from '../../hooks/usePermissions.js';
 
 const COLUMNS = [
-  { key: 'name', header: 'Company', render: r => <strong>{r.name}</strong> },
+  { key: 'name', header: 'Client', render: r => <strong>{r.name}</strong> },
   { key: 'industry', header: 'Industry', align: 'center' },
   { key: 'primary_contact', header: 'Primary Contact', align: 'center', render: r => r.primary_contact || '—' },
   { key: 'active_projects', header: 'Active Projects', align: 'center' },
@@ -45,15 +45,19 @@ export default function CompaniesPage() {
   const handleNewCompany = () => {
     resetFields('modal-company');
     startCreate('page-companies');
+    // modal-company is shared with the Customers page, whose own heading stays
+    // "Add Customer" — the records are the same, the two pages just name them
+    // differently, so each sets the wording it wants on open.
+    setModalMode('modal-company', { title: 'Add Client' });
     openModal('modal-company');
   };
 
   return (
     <div>
       <div className="page-header">
-        <h2><Building2 size={22} /> Companies</h2>
+        <h2><Building2 size={22} /> Clients</h2>
         {canCreateOnPage('companies') && (
-          <Button variant="primary" onClick={handleNewCompany}><Plus size={15} /> New Company</Button>
+          <Button variant="primary" onClick={handleNewCompany}><Plus size={15} /> New Client</Button>
         )}
       </div>
 
