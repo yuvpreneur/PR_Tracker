@@ -1,3 +1,4 @@
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pymongo.database import Database
 from pydantic import BaseModel
@@ -18,9 +19,10 @@ STATUSES = ["Not Started", "In Progress", "On Hold", "Completed", "Cancelled"]
 
 
 class ProjectCreate(BaseModel):
-    # No `id` — the project's code is assigned by the server (see _next_project_code).
-    # It used to be typed into the New Project form, which read as a duplicate of the
-    # separate Project Codes module, where codes really are authored per project.
+    # No `id` — the server assigns an opaque one (see create_project). It used to be a
+    # human-readable code typed into the New Project form, which read as a duplicate of
+    # the separate Project Codes module, where codes are actually meant to be authored
+    # per project — this is just the project's internal identifier, not one.
     name: str
     client: str
     manager: str
@@ -109,27 +111,17 @@ def get_employees_for_assignment(db: Database = Depends(get_db), cu=Depends(get_
     return [{"id": e["_id"], "name": e["name"]} for e in employees]
 
 
-def _next_project_code(db: Database) -> str:
-    """Assigns the next free project code (P001, P002, ...).
-
-    The free-slot check deliberately ignores org_id, unlike every other query in this
-    module: a project's code becomes its Mongo `_id`, which is unique across the whole
-    collection, so two organizations genuinely cannot share one. The counter makes that
-    cheap in the normal case; the loop only spins for codes that already exist, which is
-    what lets this run against a database seeded before the counter existed.
-    """
-    while True:
-        code = f"P{next_id(db, 'projects'):03d}"
-        if not db[collections.PROJECTS].find_one({"_id": code}, {"_id": 1}):
-            return code
-
-
 @router.post("/", dependencies=[Depends(require_permission("Projects", "create"))])
 def create_project(payload: ProjectCreate, db: Database = Depends(get_db), cu=Depends(get_current_user)):
     if payload.status not in STATUSES:
         raise HTTPException(400, f"Invalid status. Choose from: {STATUSES}")
     doc = payload.dict(exclude={"assigned_emp_ids"})
-    doc["id"] = _next_project_code(db)
+    # Opaque, not a human-readable code — Project Codes (app/routers/project_codes.py)
+    # is the module where codes are actually authored per project; this is only the
+    # project's own internal identifier, unique across the whole collection the same
+    # way the old P001/P002 sequence was (still referenced everywhere else as
+    # project_id), just without looking like a second, competing code scheme.
+    doc["id"] = uuid.uuid4().hex
     doc["_id"] = doc["id"]
     doc["org_id"] = cu.org_id
     if doc["start_date"]: doc["start_date"] = doc["start_date"].isoformat()

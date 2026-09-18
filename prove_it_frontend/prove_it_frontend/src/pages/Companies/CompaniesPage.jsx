@@ -5,6 +5,8 @@ import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
 import Dropdown from '../../components/ui/Dropdown.jsx';
+import Modal from '../../components/ui/Modal.jsx';
+import ReadOnlyField from '../../components/ui/ReadOnlyField.jsx';
 import { openModal, startCreate, resetFields, setModalMode } from '../../bridge/shared/modals.js';
 import usePermissions from '../../hooks/usePermissions.js';
 
@@ -29,6 +31,10 @@ export default function CompaniesPage() {
   const { companies, loading } = useCompanies();
   const [industry, setIndustry] = useState('');
   const [search, setSearch] = useState('');
+  // The client currently shown in the read-only View modal (row click) — separate from
+  // any edit-modal state, since this is deliberately just a look, not the Edit form
+  // (see modal-company, still reachable only from the kebab menu's Edit item).
+  const [viewingClient, setViewingClient] = useState(null);
 
   const companiesArray = Array.isArray(companies) ? companies : [];
   const industries = useMemo(() => [...new Set(companiesArray.map(c => c.industry).filter(Boolean))].sort(), [companiesArray]);
@@ -92,9 +98,39 @@ export default function CompaniesPage() {
           pageId="page-companies"
           canEdit={can('Companies', 'edit')}
           canDelete={can('Companies', 'delete')}
+          actionsAsKebab
+          onRowClick={setViewingClient}
           emptyMessage={loading ? 'Loading…' : 'No records found'}
         />
       </div>
+
+      {viewingClient && (
+        <Modal title={viewingClient.name} onClose={() => setViewingClient(null)}>
+          {/* Same .form-grid modal-company's own Edit form uses, so this reads as the
+              read-only counterpart of that layout rather than a different pattern. No
+              "Client Name" field — the modal title already shows it. */}
+          <div className="form-grid">
+            <ReadOnlyField label="Industry" value={viewingClient.industry} />
+            <ReadOnlyField label="Primary Contact" value={viewingClient.primary_contact} />
+            <ReadOnlyField label="Email" value={viewingClient.email} />
+            <ReadOnlyField label="Phone" value={viewingClient.phone} />
+            <ReadOnlyField label="GSTIN" value={viewingClient.gstin} />
+            <ReadOnlyField label="Status" value={<Badge status={viewingClient.status} />} />
+            <ReadOnlyField label="Billing Address" value={viewingClient.billing_address} wide />
+            <ReadOnlyField label="Active Projects" value={viewingClient.active_projects} />
+            <ReadOnlyField label="Lifetime Value" value={`₹${(viewingClient.lifetime_value || 0).toLocaleString('en-IN')}`} />
+            <ReadOnlyField
+              label="PR Manager"
+              wide
+              value={
+                <span title={viewingClient.pm_missing_fields?.length ? `Needs: ${viewingClient.pm_missing_fields.join(', ')}` : undefined}>
+                  <Badge status={viewingClient.pm_sync_status} />
+                </span>
+              }
+            />
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

@@ -5,6 +5,8 @@ import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
 import Dropdown from '../../components/ui/Dropdown.jsx';
+import Modal from '../../components/ui/Modal.jsx';
+import ReadOnlyField from '../../components/ui/ReadOnlyField.jsx';
 import { date } from '../../utils/format.js';
 import { viewAttachment, uploadFile } from '../../services/httpClient.js';
 import usePermissions from '../../hooks/usePermissions.js';
@@ -22,6 +24,10 @@ export default function ExpensesPage() {
   const [search, setSearch] = useState('');
   const [extracting, setExtracting] = useState(false);
   const uploadInputRef = useRef(null);
+  // The expense currently shown in the read-only View modal (row click) — same pattern
+  // as every other page: a separate look-only surface, not the Edit form (modal-expense,
+  // still reachable only from the kebab menu's Edit item).
+  const [viewingExpense, setViewingExpense] = useState(null);
 
   const projectsArray = Array.isArray(projects) ? projects : [];
   const projectName = id => projectsArray.find(p => p.id === id)?.name;
@@ -120,13 +126,36 @@ export default function ExpensesPage() {
     return false;
   };
 
+  // Styled to match KebabMenu's own Edit item exactly (flat row, icon + label, same
+  // hover) rather than the small bordered pills these used to be as standalone buttons
+  // next to it — they now land inside that same popover as `extra` (see DataTable).
+  const menuItemStyle = {
+    display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+    padding: '7px 10px', border: 'none', background: 'transparent',
+    cursor: 'pointer', fontSize: 12, fontWeight: 600, borderRadius: 6, textAlign: 'left',
+  };
+  const onMenuItemHover = e => (e.currentTarget.style.background = 'var(--soft)');
+  const onMenuItemUnhover = e => (e.currentTarget.style.background = 'transparent');
+
   const renderExtraActions = row => {
     if (row.status !== 'Pending' && row.status !== 'Pending Finance') return null;
     if (isMine(row, 'submitted_by') || !canActOnStage(row)) return null;
     return (
       <>
-        <button className="bridge-approve ml-1 rounded-md px-2.5 py-0.5 text-[11px] text-green" data-page="page-expenses" data-id={row.id} title="Approve"><Check size={14} /> Approve</button>
-        <button className="bridge-reject ml-1 rounded-md px-2.5 py-0.5 text-[11px] text-red" data-page="page-expenses" data-id={row.id} title="Reject"><X size={14} /> Reject</button>
+        <button
+          className="bridge-approve" data-page="page-expenses" data-id={row.id} title="Approve"
+          style={{ ...menuItemStyle, color: '#16A36C' }}
+          onMouseEnter={onMenuItemHover} onMouseLeave={onMenuItemUnhover}
+        >
+          <Check size={13} /> Approve
+        </button>
+        <button
+          className="bridge-reject" data-page="page-expenses" data-id={row.id} title="Reject"
+          style={{ ...menuItemStyle, color: '#C4574A' }}
+          onMouseEnter={onMenuItemHover} onMouseLeave={onMenuItemUnhover}
+        >
+          <X size={13} /> Reject
+        </button>
       </>
     );
   };
@@ -208,9 +237,52 @@ export default function ExpensesPage() {
           canDelete={canDeleteRow}
           renderExtraActions={renderExtraActions}
           hideActionsColumn={noActionsColumn('expenses')}
+          actionsAsKebab
+          onRowClick={setViewingExpense}
           emptyMessage={loading ? 'Loading…' : 'No records found'}
         />
       </div>
+
+      {viewingExpense && (
+        <Modal
+          title={`${viewingExpense.submitted_by} — ${date(viewingExpense.expense_date)}`}
+          onClose={() => setViewingExpense(null)}
+        >
+          {/* Mirrors modal-expense's own field order (global.css's .form-grid) —
+              Project, Project Code, Billing Code, Category, Amount, Vendor, then
+              Description and the Receipt attachment full-width — minus Expense Date
+              (already the modal title alongside who submitted it). project_id is
+              resolved to a name like the table does; project_code_id/billing_code_id
+              stay raw, also matching the table. Appends Status/Submitted By/Manager
+              Approved By/Approved By/Reject Reason as separate fields, rather than the
+              table's single combined "Reason" column that swaps between description
+              and reject_reason depending on status — a detail view has room to show
+              both plainly instead of picking one. */}
+          <div className="form-grid">
+            <ReadOnlyField label="Project" value={projectName(viewingExpense.project_id) || viewingExpense.project_id} />
+            <ReadOnlyField label="Project Code" value={viewingExpense.project_code_id} />
+            <ReadOnlyField label="Billing Code" value={viewingExpense.billing_code_id} />
+            <ReadOnlyField label="Category" value={<Badge status={viewingExpense.category} />} />
+            <ReadOnlyField label="Amount (₹)" value={`₹${viewingExpense.amount.toLocaleString('en-IN')}`} />
+            <ReadOnlyField label="Vendor" value={viewingExpense.vendor} />
+            <ReadOnlyField label="Description" value={viewingExpense.description} wide />
+            <ReadOnlyField
+              label="Receipt"
+              wide
+              value={viewingExpense.receipt_url ? (
+                <button type="button" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline', fontSize: 14 }} onClick={() => viewAttachment(viewingExpense.receipt_url)}>
+                  <Paperclip size={13} style={{ verticalAlign: 'middle', marginRight: 4 }} />View
+                </button>
+              ) : null}
+            />
+            <ReadOnlyField label="Status" value={<Badge status={viewingExpense.status} />} />
+            <ReadOnlyField label="Submitted By" value={viewingExpense.submitted_by} />
+            <ReadOnlyField label="Manager Approved By" value={viewingExpense.manager_approved_by} />
+            <ReadOnlyField label="Approved By" value={viewingExpense.approved_by} />
+            <ReadOnlyField label="Reject Reason" value={viewingExpense.status === 'Rejected' ? viewingExpense.reject_reason : null} wide />
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

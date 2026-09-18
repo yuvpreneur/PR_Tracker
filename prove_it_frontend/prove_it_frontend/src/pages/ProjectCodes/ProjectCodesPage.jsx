@@ -5,6 +5,8 @@ import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
 import Dropdown from '../../components/ui/Dropdown.jsx';
+import Modal from '../../components/ui/Modal.jsx';
+import ReadOnlyField from '../../components/ui/ReadOnlyField.jsx';
 import { openModal, startCreate, resetFields } from '../../bridge/shared/modals.js';
 import { populatePCodeProjectDropdown } from '../../bridge/pages/projects.js';
 import usePermissions from '../../hooks/usePermissions.js';
@@ -15,12 +17,19 @@ export default function ProjectCodesPage() {
   const [projectId, setProjectId] = useState('');
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
+  // The project code currently shown in the read-only View modal (row click) — same
+  // pattern as Clients/Projects: a separate look-only surface, not the Edit form
+  // (modal-pcode, still reachable only from the kebab menu's Edit item).
+  const [viewingCode, setViewingCode] = useState(null);
 
   const projectName = id => projects.find(p => p.id === id)?.name;
 
   const columns = useMemo(() => [
     { key: 'code', header: 'Project Code', render: r => <strong>{r.code}</strong> },
-    { key: 'project_id', header: 'Project', align: 'center', render: r => { const n = projectName(r.project_id); return n ? `${r.project_id} · ${n}` : r.project_id; } },
+    // Just the name — project_id is now an opaque internal id (see app/routers/projects.py),
+    // not a human-facing code, so showing it alongside the name is noise, not context.
+    // Falls back to the raw id only if the project can't be resolved (e.g. deleted).
+    { key: 'project_id', header: 'Project', align: 'center', render: r => projectName(r.project_id) || r.project_id },
     { key: 'description', header: 'Description', align: 'center', render: r => r.description || '—' },
     { key: 'status', header: 'Status', align: 'center', render: r => <Badge status={r.status} /> },
   ], [projects]);
@@ -59,7 +68,7 @@ export default function ProjectCodesPage() {
           onChange={setProjectId}
           options={[
             { value: '', label: 'All Projects' },
-            ...projects.map(p => ({ value: p.id, label: `${p.id} · ${p.name}` }))
+            ...projects.map(p => ({ value: p.id, label: p.name }))
           ]}
           placeholder="All Projects"
           style={{ width: '200px' }}
@@ -95,9 +104,25 @@ export default function ProjectCodesPage() {
           pageId="page-project-codes"
           canEdit={can('Project Codes', 'edit')}
           canDelete={can('Project Codes', 'delete')}
+          actionsAsKebab
+          onRowClick={setViewingCode}
           emptyMessage={loading ? 'Loading…' : 'No records found'}
         />
       </div>
+
+      {viewingCode && (
+        <Modal title={viewingCode.code} onClose={() => setViewingCode(null)}>
+          {/* modal-pcode's own Create/Edit form is a plain single-column stack (no
+              .form-grid — unlike modal-company/modal-project), so this matches that
+              exactly rather than forcing a two-column layout it doesn't have. No
+              "Project Code" field — the modal title already shows it. */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <ReadOnlyField label="Project" value={projectName(viewingCode.project_id) || viewingCode.project_id} />
+            <ReadOnlyField label="Description" value={viewingCode.description} />
+            <ReadOnlyField label="Status" value={<Badge status={viewingCode.status} />} />
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

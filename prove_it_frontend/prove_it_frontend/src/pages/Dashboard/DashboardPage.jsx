@@ -89,11 +89,11 @@ function AdminDashboard({ revenue, expenses, netProfit, pendingApprovals, billab
       </div>
       <div className="grid-2 mb-4">
         <div className="card">
-          <SectionTitle icon={BarChart3} right={<KebabMenu />} iconColor="var(--rose)" subdued={false}>Monthly Revenue vs Cost</SectionTitle>
+          <SectionTitle icon={BarChart3} iconColor="var(--rose)" subdued={false}>Monthly Revenue vs Cost</SectionTitle>
           <RevenueCostChart data={monthly} />
         </div>
         <div className="card">
-          <SectionTitle icon={Clock} right={<KebabMenu />} iconColor="var(--rose)" subdued={false}>Billable vs Non-Billable Hours</SectionTitle>
+          <SectionTitle icon={Clock} iconColor="var(--rose)" subdued={false}>Billable vs Non-Billable Hours</SectionTitle>
           <DualStatSplit stats={[
             { label: 'Billable hrs', value: bHrs, color: 'var(--color-green)' },
             { label: 'Non-billable hrs', value: nbHrs, color: 'var(--color-amber)' },
@@ -101,7 +101,7 @@ function AdminDashboard({ revenue, expenses, netProfit, pendingApprovals, billab
         </div>
       </div>
       <div className="card">
-        <SectionTitle icon={FolderKanban} right={<KebabMenu />} iconColor="var(--rose)" subdued={false}>Project Overview — All Projects</SectionTitle>
+        <SectionTitle icon={FolderKanban} iconColor="var(--rose)" subdued={false}>Project Overview — All Projects</SectionTitle>
         <DataTable
           columns={projColumns}
           rows={(profit || []).slice(0, 6)}
@@ -237,7 +237,11 @@ function EmployeeDashboard({ myHours, myExpenses, pendingTimesheets, myTickets, 
 
 export default function DashboardPage() {
   const [period, setPeriod] = useState('last_month');
-  const data = useDashboardData(period);
+  // Only meaningful while period === 'custom'; kept separate from `period` itself so
+  // switching back to a preset doesn't lose whatever range was last picked.
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  const data = useDashboardData(period, { from: customFrom, to: customTo });
   const { roleKey, loading, monthly, profit } = data;
 
   return (
@@ -246,18 +250,52 @@ export default function DashboardPage() {
         <h2>
           <LayoutDashboard size={22} /> Dashboard
         </h2>
-        <Dropdown
-          value={period}
-          onChange={setPeriod}
-          options={[
-            { value: 'last_month', label: 'Last Month' },
-            { value: 'this_month', label: 'This Month' },
-            { value: 'q1_2026', label: 'Q1 2026' },
-            { value: 'fy_2025_26', label: 'FY 2025-26' },
-          ]}
-          placeholder="Select period"
-          style={{ width: '200px' }}
-        />
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Dropdown
+            value={period}
+            onChange={setPeriod}
+            options={[
+              { value: 'last_month', label: 'Last Month' },
+              { value: 'this_month', label: 'This Month' },
+              // Falsy value -> qs() drops it from the query string entirely, so every
+              // dashboard/reports endpoint falls back to its unfiltered branch (see
+              // app/core/reporting.py's period_date_filter(None) -> None). Last/This
+              // Month recompute relative to today, but data can still fall outside
+              // both (e.g. a month neither one covers) — this is the escape hatch for
+              // that gap, and for anything Custom Range below can also reach.
+              { value: '', label: 'All Time' },
+              // Reveals the from/to date inputs below instead of resolving to a range
+              // itself — see useDashboardData.js, which reads customFrom/customTo
+              // (not `period`) as the actual query whenever period === 'custom'.
+              { value: 'custom', label: 'Custom Range' },
+            ]}
+            placeholder="Select period"
+            style={{ width: '200px' }}
+          />
+          {period === 'custom' && (
+            <>
+              <input
+                type="date"
+                className="form-control"
+                value={customFrom}
+                max={customTo || undefined}
+                onChange={e => setCustomFrom(e.target.value)}
+                style={{ width: '150px' }}
+                aria-label="Custom range start date"
+              />
+              <span style={{ color: 'var(--muted, #94a3b8)' }}>to</span>
+              <input
+                type="date"
+                className="form-control"
+                value={customTo}
+                min={customFrom || undefined}
+                onChange={e => setCustomTo(e.target.value)}
+                style={{ width: '150px' }}
+                aria-label="Custom range end date"
+              />
+            </>
+          )}
+        </div>
       </div>
 
       {loading ? (

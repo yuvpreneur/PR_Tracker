@@ -10,7 +10,11 @@ import useAuth from '../../hooks/useAuth.jsx';
 // not about serializing the requests.
 const ROLE_KEY = { Admin: 'admin', Manager: 'admin', 'Finance User': 'finance', Employee: 'employee' };
 
-export default function useDashboardData(period) {
+// period === 'custom' means customRange.{from,to} drives the query instead of a named
+// preset — the backend's resolve_date_filter() (app/core/reporting.py) gives an
+// explicit range priority over `period` for exactly this reason. A one-sided range
+// (only `from` or only `to`) is valid and left open-ended, matching the backend.
+export default function useDashboardData(period, customRange) {
   const { user } = useAuth();
   const roleKey = ROLE_KEY[user?.role] || 'admin';
   const [loading, setLoading] = useState(true);
@@ -39,7 +43,9 @@ export default function useDashboardData(period) {
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    const p = qs({ period });
+    const p = period === 'custom'
+      ? qs({ date_from: customRange?.from, date_to: customRange?.to })
+      : qs({ period });
 
     if (roleKey === 'employee') {
       const [hours, exp, pendingTs, tickets, tsRows, expRows] = await Promise.all([
@@ -68,7 +74,7 @@ export default function useDashboardData(period) {
         get('/api/dashboard/finance/outstanding').catch(() => null),
         get('/api/dashboard/finance/total-expenses' + p).catch(() => null),
         get('/api/reports/monthly-revenue' + p).catch(() => null),
-        get('/api/reports/project-profitability').catch(() => null),
+        get('/api/reports/project-profitability' + p).catch(() => null),
       ]);
       setBilled(b); setReceived(r); setOutstanding(o); setExpenses(e);
       setMonthly(monthlyData || []); setProfit(profitData || []);
@@ -88,7 +94,7 @@ export default function useDashboardData(period) {
       get('/api/dashboard/admin/active-projects').catch(() => null),
       get('/api/dashboard/admin/headcount').catch(() => null),
       get('/api/reports/monthly-revenue' + p).catch(() => null),
-      get('/api/reports/project-profitability').catch(() => null),
+      get('/api/reports/project-profitability' + p).catch(() => null),
     ]);
     setRevenue(rev); setExpenses(exp); setNetProfit(net);
     setPendingApprovals(pending); setBillableHours(bh);
@@ -100,7 +106,7 @@ export default function useDashboardData(period) {
     // every time the Dashboard loads.
     refreshNotifBadge();
     setLoading(false);
-  }, [roleKey, period]);
+  }, [roleKey, period, customRange?.from, customRange?.to]);
 
   useEffect(() => { refresh(); }, [refresh]);
 

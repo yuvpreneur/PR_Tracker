@@ -5,6 +5,8 @@ import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
 import Dropdown from '../../components/ui/Dropdown.jsx';
+import Modal from '../../components/ui/Modal.jsx';
+import ReadOnlyField from '../../components/ui/ReadOnlyField.jsx';
 import { date, num } from '../../utils/format.js';
 import { openModal, startCreate, resetFields } from '../../bridge/shared/modals.js';
 import { populateBCodeProjectCodeDropdown } from '../../bridge/pages/billing.js';
@@ -16,6 +18,10 @@ export default function BillingCodesPage() {
   const [projectId, setProjectId] = useState('');
   const [billingType, setBillingType] = useState('');
   const [search, setSearch] = useState('');
+  // The billing code currently shown in the read-only View modal (row click) — same
+  // pattern as Clients/Projects/Project Codes: a separate look-only surface, not the
+  // Edit form (modal-bcode, still reachable only from the kebab menu's Edit item).
+  const [viewingBCode, setViewingBCode] = useState(null);
 
   const projectsArray = Array.isArray(projects) ? projects : [];
   const bcodesArray = Array.isArray(bcodes) ? bcodes : [];
@@ -104,9 +110,32 @@ export default function BillingCodesPage() {
           pageId="page-billing-codes"
           canEdit={can('Billing Codes', 'edit')}
           canDelete={can('Billing Codes', 'delete')}
+          actionsAsKebab
+          onRowClick={setViewingBCode}
           emptyMessage={loading ? 'Loading…' : 'No records found'}
         />
       </div>
+
+      {viewingBCode && (
+        <Modal title={viewingBCode.code} onClose={() => setViewingBCode(null)}>
+          {/* Mirrors modal-bcode's own field order (global.css's .form-grid, no
+              col-span-2 there either) — Project Code, Billing Type, Rate, Effective
+              From/To, Status — minus Billing Code (already the modal title), plus
+              Project/Client appended the same way other View modals append fields
+              the Edit form doesn't ask for directly (they're derived from Project
+              Code server-side, not independently editable — see billing_codes.py). */}
+          <div className="form-grid">
+            <ReadOnlyField label="Project Code" value={viewingBCode.project_code_id} />
+            <ReadOnlyField label="Billing Type" value={<Badge status={viewingBCode.billing_type} />} />
+            <ReadOnlyField label="Rate (₹)" value={`₹${num(viewingBCode.rate)}${viewingBCode.billing_type === 'T&M' ? '/hr' : ''}`} />
+            <ReadOnlyField label="Effective From" value={date(viewingBCode.effective_from)} />
+            <ReadOnlyField label="Effective To" value={date(viewingBCode.effective_to)} />
+            <ReadOnlyField label="Status" value={<Badge status={viewingBCode.status} />} />
+            <ReadOnlyField label="Project" value={projectName(viewingBCode.project_id) || viewingBCode.project_id} />
+            <ReadOnlyField label="Client" value={viewingBCode.client} />
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

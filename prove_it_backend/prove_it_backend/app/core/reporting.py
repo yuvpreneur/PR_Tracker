@@ -27,6 +27,26 @@ def period_date_filter(period: Optional[str]) -> Optional[dict]:
     return {"$gte": start.isoformat(), "$lte": end.isoformat()}
 
 
+def resolve_date_filter(period: Optional[str], date_from: Optional[date], date_to: Optional[date]) -> Optional[dict]:
+    """$gte/$lte filter combining a named period preset with an explicit custom range.
+
+    An explicit date_from/date_to — the Dashboard's "Custom Range" picker — wins over
+    the period preset entirely, the same way picking a period already overrides the
+    endpoint's unfiltered default. Unlike period_range() (which always has both ends,
+    defaulting to this_month), a custom range may be open-ended on either side — only
+    the bound actually given is added to the filter, so "from X, no end" or "no start,
+    up to Y" both work rather than silently collapsing to a fixed preset.
+    """
+    if date_from or date_to:
+        f = {}
+        if date_from:
+            f["$gte"] = date_from.isoformat()
+        if date_to:
+            f["$lte"] = date_to.isoformat()
+        return f
+    return period_date_filter(period)
+
+
 def group_by(docs, key: str) -> dict:
     """Groups an already-fetched cursor/list of docs by a field, for O(1) per-parent
     lookup instead of a fresh query per parent (project, employee, ...)."""

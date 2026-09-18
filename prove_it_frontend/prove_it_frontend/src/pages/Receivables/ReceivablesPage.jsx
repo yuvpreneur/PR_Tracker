@@ -5,6 +5,8 @@ import StatCard from '../../components/ui/StatCard.jsx';
 import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
+import Modal from '../../components/ui/Modal.jsx';
+import ReadOnlyField from '../../components/ui/ReadOnlyField.jsx';
 import { date, num } from '../../utils/format.js';
 import { openModal, startCreate, resetFields } from '../../bridge/shared/modals.js';
 import usePermissions from '../../hooks/usePermissions.js';
@@ -23,6 +25,10 @@ export default function ReceivablesPage() {
   const [client, setClient] = useState('');
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
+  // The receivable currently shown in the read-only View modal (row click) — same
+  // pattern as every other page: a separate look-only surface, not the Edit form
+  // (modal-recv, still reachable only from the kebab menu's Edit item).
+  const [viewingRecv, setViewingRecv] = useState(null);
 
   const projectName = id => projects.find(p => p.id === id)?.name;
   const clients = useMemo(() => [...new Set((Array.isArray(receivables) ? receivables : []).map(r => r.client).filter(Boolean))].sort(), [receivables]);
@@ -114,9 +120,32 @@ export default function ReceivablesPage() {
           pageId="page-receivables"
           canEdit={can('Receivables', 'edit')}
           canDelete={can('Receivables', 'delete')}
+          actionsAsKebab
+          onRowClick={setViewingRecv}
           emptyMessage={loading ? 'Loading…' : 'No records found'}
         />
       </div>
+
+      {viewingRecv && (
+        <Modal title={viewingRecv.invoice_no} onClose={() => setViewingRecv(null)}>
+          {/* Mirrors modal-recv's own field order (global.css's .form-grid) — Project,
+              Billing Code, Client, Invoice Date, Due Date, Invoice Amount, Received
+              Amount, then Payment Status full-width — minus Invoice Number (already
+              the modal title). Appends Balance, a computed field already in the table
+              but not something the Create form asks for directly. */}
+          <div className="form-grid">
+            <ReadOnlyField label="Project" value={projectName(viewingRecv.project_id) || viewingRecv.project_id} />
+            <ReadOnlyField label="Billing Code" value={viewingRecv.billing_code_id} />
+            <ReadOnlyField label="Client" value={viewingRecv.client} />
+            <ReadOnlyField label="Invoice Date" value={date(viewingRecv.invoice_date)} />
+            <ReadOnlyField label="Due Date" value={date(viewingRecv.due_date)} />
+            <ReadOnlyField label="Invoice Amount (₹)" value={`₹${num(viewingRecv.invoice_amount)}`} />
+            <ReadOnlyField label="Received Amount (₹)" value={`₹${num(viewingRecv.received_amount)}`} />
+            <ReadOnlyField label="Status" value={<Badge status={viewingRecv.status} />} wide />
+            <ReadOnlyField label="Balance (₹)" value={`₹${num(viewingRecv.balance)}`} />
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

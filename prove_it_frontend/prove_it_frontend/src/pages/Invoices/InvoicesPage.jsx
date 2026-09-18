@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { FileText, Plus, Eye, Pencil, Trash2, IndianRupee, Wallet, Clock, AlertTriangle } from 'lucide-react';
+import { FileText, Plus, Pencil, Trash2, IndianRupee, Wallet, Clock, AlertTriangle } from 'lucide-react';
 import useInvoices from './useInvoices.js';
 import InvoiceEditor from './InvoiceEditor.jsx';
 import InvoiceDetail from './InvoiceDetail.jsx';
@@ -52,18 +52,39 @@ export default function InvoicesPage() {
   const handleRecordPayment = async (id, amount) => { const updated = await recordPayment(id, amount); setSelectedInvoice(updated); return updated; };
   const handleVoid = async id => { const updated = await voidInvoice(id); setSelectedInvoice(updated); return updated; };
 
+  // Styled to match KebabMenu's own Edit/Delete items exactly (flat row, icon + label,
+  // same hover) rather than the small bordered pills these used to be as standalone
+  // buttons — they now land inside that same popover as `extra` (see DataTable). These
+  // stay plain onClick handlers (not the bridge-edit/bridge-delete convention other
+  // pages use) since Invoices already manages its own view/edit/delete via local state.
+  const menuItemStyle = {
+    display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+    padding: '7px 10px', border: 'none', background: 'transparent',
+    cursor: 'pointer', fontSize: 12, fontWeight: 600, borderRadius: 6, textAlign: 'left',
+  };
+  const onMenuItemHover = e => (e.currentTarget.style.background = 'var(--soft)');
+  const onMenuItemUnhover = e => (e.currentTarget.style.background = 'transparent');
+
+  // No "View" item here anymore — the row itself is now the View trigger (onRowClick
+  // below), same as every other page's kebab (Edit/Delete only, View lives on the row).
+  // Keeping a View item too would just be the same action twice.
   const renderExtraActions = row => (
     <>
-      <button className="mr-1 inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px]" onClick={() => handleView(row)} title="View">
-        <Eye size={13} /> View
-      </button>
       {canEdit && row.status === 'draft' && (
-        <button className="mr-1 inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px]" onClick={() => handleEditDraft(row)} title="Edit">
+        <button
+          style={{ ...menuItemStyle, color: 'var(--ink)' }}
+          onMouseEnter={onMenuItemHover} onMouseLeave={onMenuItemUnhover}
+          onClick={() => handleEditDraft(row)} title="Edit"
+        >
           <Pencil size={13} /> Edit
         </button>
       )}
       {canDelete && row.status === 'draft' && (
-        <button className="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] text-red" onClick={() => handleDelete(row)} title="Delete">
+        <button
+          style={{ ...menuItemStyle, color: '#C4574A' }}
+          onMouseEnter={onMenuItemHover} onMouseLeave={onMenuItemUnhover}
+          onClick={() => handleDelete(row)} title="Delete"
+        >
           <Trash2 size={13} /> Delete
         </button>
       )}
@@ -136,6 +157,8 @@ export default function InvoicesPage() {
           canEdit={false}
           canDelete={false}
           renderExtraActions={renderExtraActions}
+          actionsAsKebab
+          onRowClick={handleView}
           emptyMessage={loading ? 'Loading…' : 'No records found'}
         />
       </div>

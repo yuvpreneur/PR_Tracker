@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, Query
 from pymongo.database import Database
 from typing import Optional
+from datetime import date
 
 from app.core import collections
 from app.core.database import get_db
 from app.core.security import get_current_user, require_permission
 from app.core.permissions import my_emp_ids
-from app.core.reporting import period_date_filter
+from app.core.reporting import resolve_date_filter
 
 router = APIRouter()
 
@@ -17,8 +18,13 @@ router = APIRouter()
 
 
 @router.get("/admin/total-revenue", dependencies=[Depends(require_permission("Reports", "view"))])
-def total_revenue(period: Optional[str] = Query(None), db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    date_filter = period_date_filter(period)
+def total_revenue(
+    period: Optional[str] = Query(None),
+    date_from: Optional[date] = Query(None),
+    date_to: Optional[date] = Query(None),
+    db: Database = Depends(get_db), cu=Depends(get_current_user),
+):
+    date_filter = resolve_date_filter(period, date_from, date_to)
     query = {"invoice_date": date_filter, "org_id": cu.org_id} if date_filter else {"org_id": cu.org_id}
     recvs = list(db[collections.RECEIVABLES].find(query))
     active_projects = db[collections.PROJECTS].count_documents({"status": "In Progress", "org_id": cu.org_id})
@@ -29,8 +35,13 @@ def total_revenue(period: Optional[str] = Query(None), db: Database = Depends(ge
 
 
 @router.get("/admin/total-expenses", dependencies=[Depends(require_permission("Reports", "view"))])
-def total_expenses(period: Optional[str] = Query(None), db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    date_filter = period_date_filter(period)
+def total_expenses(
+    period: Optional[str] = Query(None),
+    date_from: Optional[date] = Query(None),
+    date_to: Optional[date] = Query(None),
+    db: Database = Depends(get_db), cu=Depends(get_current_user),
+):
+    date_filter = resolve_date_filter(period, date_from, date_to)
     query = {"status": "Approved", "org_id": cu.org_id}
     if date_filter:
         query["expense_date"] = date_filter
@@ -43,8 +54,13 @@ def total_expenses(period: Optional[str] = Query(None), db: Database = Depends(g
 
 
 @router.get("/admin/net-profit", dependencies=[Depends(require_permission("Reports", "view"))])
-def net_profit(period: Optional[str] = Query(None), db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    date_filter = period_date_filter(period)
+def net_profit(
+    period: Optional[str] = Query(None),
+    date_from: Optional[date] = Query(None),
+    date_to: Optional[date] = Query(None),
+    db: Database = Depends(get_db), cu=Depends(get_current_user),
+):
+    date_filter = resolve_date_filter(period, date_from, date_to)
     recv_query = {"invoice_date": date_filter, "org_id": cu.org_id} if date_filter else {"org_id": cu.org_id}
     exp_query = {"status": "Approved", "org_id": cu.org_id}
     if date_filter:
@@ -68,8 +84,13 @@ def pending_approvals_card(db: Database = Depends(get_db), cu=Depends(get_curren
 
 
 @router.get("/admin/billable-hours", dependencies=[Depends(require_permission("Reports", "view"))])
-def billable_hours(period: Optional[str] = Query(None), db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    date_filter = period_date_filter(period)
+def billable_hours(
+    period: Optional[str] = Query(None),
+    date_from: Optional[date] = Query(None),
+    date_to: Optional[date] = Query(None),
+    db: Database = Depends(get_db), cu=Depends(get_current_user),
+):
+    date_filter = resolve_date_filter(period, date_from, date_to)
     query = {"status": "Approved", "org_id": cu.org_id}
     if date_filter:
         query["entry_date"] = date_filter
@@ -112,16 +133,26 @@ def headcount_card(db: Database = Depends(get_db), cu=Depends(get_current_user))
 
 
 @router.get("/finance/total-billed", dependencies=[Depends(require_permission("Reports", "view"))])
-def total_billed(period: Optional[str] = Query(None), db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    date_filter = period_date_filter(period)
+def total_billed(
+    period: Optional[str] = Query(None),
+    date_from: Optional[date] = Query(None),
+    date_to: Optional[date] = Query(None),
+    db: Database = Depends(get_db), cu=Depends(get_current_user),
+):
+    date_filter = resolve_date_filter(period, date_from, date_to)
     query = {"invoice_date": date_filter, "org_id": cu.org_id} if date_filter else {"org_id": cu.org_id}
     recvs = list(db[collections.RECEIVABLES].find(query))
     return {"total_billed": sum(r["invoice_amount"] for r in recvs)}
 
 
 @router.get("/finance/total-received", dependencies=[Depends(require_permission("Reports", "view"))])
-def total_received(period: Optional[str] = Query(None), db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    date_filter = period_date_filter(period)
+def total_received(
+    period: Optional[str] = Query(None),
+    date_from: Optional[date] = Query(None),
+    date_to: Optional[date] = Query(None),
+    db: Database = Depends(get_db), cu=Depends(get_current_user),
+):
+    date_filter = resolve_date_filter(period, date_from, date_to)
     query = {"invoice_date": date_filter, "org_id": cu.org_id} if date_filter else {"org_id": cu.org_id}
     recvs = list(db[collections.RECEIVABLES].find(query))
     return {"total_received": sum(r["received_amount"] for r in recvs)}
@@ -137,8 +168,13 @@ def outstanding(db: Database = Depends(get_db), cu=Depends(get_current_user)):
 
 
 @router.get("/finance/total-expenses", dependencies=[Depends(require_permission("Reports", "view"))])
-def finance_total_expenses(period: Optional[str] = Query(None), db: Database = Depends(get_db), cu=Depends(get_current_user)):
-    date_filter = period_date_filter(period)
+def finance_total_expenses(
+    period: Optional[str] = Query(None),
+    date_from: Optional[date] = Query(None),
+    date_to: Optional[date] = Query(None),
+    db: Database = Depends(get_db), cu=Depends(get_current_user),
+):
+    date_filter = resolve_date_filter(period, date_from, date_to)
     query = {"status": "Approved", "org_id": cu.org_id}
     if date_filter:
         query["expense_date"] = date_filter

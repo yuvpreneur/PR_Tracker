@@ -5,6 +5,8 @@ import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
 import Dropdown from '../../components/ui/Dropdown.jsx';
+import Modal from '../../components/ui/Modal.jsx';
+import ReadOnlyField from '../../components/ui/ReadOnlyField.jsx';
 import usePermissions from '../../hooks/usePermissions.js';
 import { openModal, startCreate, set, resetFields } from '../../bridge/shared/modals.js';
 
@@ -24,6 +26,10 @@ export default function UsersPage() {
   const [role, setRole] = useState('');
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
+  // The user currently shown in the read-only View modal (row click) — same pattern as
+  // every other page: a separate look-only surface, not the Edit form (modal-user,
+  // still reachable only from the kebab menu's Edit item).
+  const [viewingUser, setViewingUser] = useState(null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -65,14 +71,25 @@ export default function UsersPage() {
   const canTouchRow = row => !row.pending && (isAdmin || (isManager && row.role !== 'Admin' && row.role !== 'Manager'));
   const canApprove = row => row.pending && canCreateOnPage('users') && (isAdmin || (isManager && row.role !== 'Admin' && row.role !== 'Manager'));
 
+  // Styled to match KebabMenu's own Edit/Delete items exactly (flat row, icon + label,
+  // same hover) rather than the small bordered pill this used to be as a standalone
+  // button next to them — this now lands inside that same popover as `extra` (see
+  // DataTable), so it needs to read as one more row in that list, not a separate control.
   const renderExtraActions = row => (
     canApprove(row) && (
       <button
-        className="rounded-md px-2.5 py-0.5 text-[11px] text-green"
-        onClick={() => handleApprove(row)}
         title="Approve access"
+        style={{
+          display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+          padding: '7px 10px', border: 'none', background: 'transparent',
+          cursor: 'pointer', fontSize: 12, fontWeight: 600, borderRadius: 6,
+          color: '#16A36C', textAlign: 'left',
+        }}
+        onClick={() => handleApprove(row)}
+        onMouseEnter={e => (e.currentTarget.style.background = 'var(--soft)')}
+        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
       >
-        <Check size={14} /> Approve
+        <Check size={13} /> Approve
       </button>
     )
   );
@@ -130,9 +147,32 @@ export default function UsersPage() {
           canEdit={canTouchRow}
           canDelete={canTouchRow}
           renderExtraActions={renderExtraActions}
+          actionsAsKebab
+          onRowClick={setViewingUser}
           emptyMessage={loading ? 'Loading…' : 'No records found'}
         />
       </div>
+
+      {viewingUser && (
+        <Modal title={viewingUser.name} onClose={() => setViewingUser(null)}>
+          {/* Mirrors modal-user's own real fields (global.css's .form-grid) — Email,
+              Role — minus Full Name (already the modal title). Skips its "Employee ID"
+              input, which UserCreate/_user_out() never actually had a field for (dead
+              markup, not real data — same situation as Service Desk's "Category"/
+              "Description") and Temporary Password (write-only, never returned).
+              Appends Username/Status, real fields the Create form doesn't ask for
+              directly (username is just a copy of the name at creation time — see
+              bridge/index.js's modal-user submit handler — but it's the actual login
+              credential, worth showing on its own the same way Employees keeps
+              Employee ID visible alongside Name). */}
+          <div className="form-grid">
+            <ReadOnlyField label="Email" value={viewingUser.email} />
+            <ReadOnlyField label="Role" value={<Badge status={viewingUser.role} />} />
+            <ReadOnlyField label="Username" value={viewingUser.username} />
+            <ReadOnlyField label="Status" value={<Badge status={viewingUser.pending ? 'Pending' : (viewingUser.is_active ? 'Active' : 'Inactive')} />} />
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

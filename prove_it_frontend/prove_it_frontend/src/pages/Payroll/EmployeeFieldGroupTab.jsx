@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Pencil, Loader2, Search } from 'lucide-react';
 import useEmployeeFieldGroup from './useEmployeeFieldGroup.js';
 import Modal from '../../components/ui/Modal.jsx';
+import ReadOnlyField from '../../components/ui/ReadOnlyField.jsx';
 import Button from '../../components/ui/Button.jsx';
 import { toast } from '../../utils/toast.js';
 import usePermissions from '../../hooks/usePermissions.js';
@@ -58,6 +59,10 @@ export default function EmployeeFieldGroupTab({ basePath, fields, previewKeys, r
   const { employees, loading, updateFields } = useEmployeeFieldGroup(basePath);
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState(null);
+  // The employee currently shown in the read-only View modal (row click) — same pattern
+  // as every other page: a separate look-only surface, not the Edit form above. Shows
+  // every field the Edit form would (read-only + editable together), just not editable.
+  const [viewing, setViewing] = useState(null);
 
   const previewFields = useMemo(() => fields.filter(f => previewKeys.includes(f.key)), [fields, previewKeys]);
 
@@ -109,7 +114,7 @@ export default function EmployeeFieldGroupTab({ basePath, fields, previewKeys, r
               </tr>
             )}
             {filtered.map(e => (
-              <tr key={e.emp_id} className="border-b border-slate-100">
+              <tr key={e.emp_id} className="border-b border-slate-100 cursor-pointer" onClick={() => setViewing(e)}>
                 <td className="px-3 py-2.5"><strong>{e.emp_id}</strong></td>
                 <td className="px-3 py-2.5" style={{ textAlign: 'center' }}>{e.name}</td>
                 {previewFields.map(f => <td key={f.key} className="px-3 py-2.5" style={{ textAlign: 'center' }}>{e[f.key] || '—'}</td>)}
@@ -117,7 +122,10 @@ export default function EmployeeFieldGroupTab({ basePath, fields, previewKeys, r
                   {canEdit && (
                     <button
                       className="inline-flex items-center rounded-md px-2.5 py-1 text-[11px]"
-                      onClick={() => setEditing(e)}
+                      // Plain onClick, not the kebab/bridge convention other pages use —
+                      // this Edit button has no other document-level listener depending
+                      // on the click reaching further, so stopping it here is safe.
+                      onClick={e2 => { e2.stopPropagation(); setEditing(e); }}
                       title="Edit"
                     >
                       <Pencil size={13} />
@@ -133,6 +141,20 @@ export default function EmployeeFieldGroupTab({ basePath, fields, previewKeys, r
       {editing && (
         <Modal title={`${modalTitlePrefix} — ${editing.name}`} onClose={() => setEditing(null)} width={640}>
           <FieldGroupForm employee={editing} fields={fields} readOnlyKeys={readOnlyKeys} onSave={handleSave} onCancel={() => setEditing(null)} />
+        </Modal>
+      )}
+
+      {viewing && (
+        <Modal title={`${modalTitlePrefix} — ${viewing.name}`} onClose={() => setViewing(null)} width={640}>
+          {/* Every field this group has — the table only shows previewKeys, and the Edit
+              form (above) is the only other place that shows the rest, so this mirrors
+              that form's own full field set (fields, not just previewFields) rather
+              than repeating the table's narrower preview. */}
+          <div className="form-grid">
+            <ReadOnlyField label="Code" value={viewing.emp_id} />
+            <ReadOnlyField label="Name" value={viewing.name} />
+            {fields.map(f => <ReadOnlyField key={f.key} label={f.label} value={viewing[f.key]} />)}
+          </div>
         </Modal>
       )}
     </div>
