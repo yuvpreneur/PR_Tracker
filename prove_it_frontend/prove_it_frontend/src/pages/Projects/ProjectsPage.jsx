@@ -8,8 +8,6 @@ import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
 import Dropdown from '../../components/ui/Dropdown.jsx';
-import Modal from '../../components/ui/Modal.jsx';
-import ReadOnlyField from '../../components/ui/ReadOnlyField.jsx';
 import { date, num } from '../../utils/format.js';
 import { toast } from '../../utils/toast.js';
 import usePermissions from '../../hooks/usePermissions.js';
@@ -18,7 +16,8 @@ import { get, post } from '../../services/httpClient.js';
 import { MicroIcons } from '../../components/ui/MicroIcons.jsx';
 
 const COLUMNS = [
-  { key: 'name', header: 'Project Name', render: r => <strong>{r.name}</strong> },
+  { key: 'id', header: 'Code', render: r => <strong>{r.id}</strong> },
+  { key: 'name', header: 'Project Name' },
   { key: 'client', header: 'Client', align: 'center' },
   { key: 'manager', header: 'Manager', align: 'center' },
   { key: 'start_date', header: 'Start', align: 'center', render: r => date(r.start_date) },
@@ -42,10 +41,6 @@ export default function ProjectsPage() {
   const [search, setSearch] = useState('');
   const [exportOpen, setExportOpen] = useState(false);
   const exportRef = useRef(null);
-  // The project currently shown in the read-only View modal (row click) — same pattern
-  // as Clients: a separate look-only surface, not the Edit form (modal-project, still
-  // reachable only from the kebab menu's Edit item).
-  const [viewingProject, setViewingProject] = useState(null);
 
   useEffect(() => {
     if (!exportOpen) return;
@@ -236,40 +231,9 @@ export default function ProjectsPage() {
           pageId="page-projects"
           canEdit={can('Projects', 'edit')}
           canDelete={can('Projects', 'delete')}
-          actionsAsKebab
-          onRowClick={setViewingProject}
           emptyMessage={loading ? 'Loading…' : 'No records found'}
         />
       </div>
-
-      {viewingProject && (
-        <Modal title={viewingProject.name} onClose={() => setViewingProject(null)}>
-          {/* Mirrors modal-project's own field order/spans (global.css's .form-grid) —
-              Client full-width, Manager/Status, Start/End, Budget/Est. Revenue, Est.
-              Expense full-width — minus Project Name (already the modal title) and
-              Assign Employees (not part of what GET /api/projects returns), plus PR
-              Manager appended the same way Clients appends its own view-only field. */}
-          <div className="form-grid">
-            <ReadOnlyField label="Client" value={viewingProject.client} wide />
-            <ReadOnlyField label="Manager" value={viewingProject.manager} />
-            <ReadOnlyField label="Status" value={<Badge status={viewingProject.status} />} />
-            <ReadOnlyField label="Start Date" value={date(viewingProject.start_date)} />
-            <ReadOnlyField label="End Date" value={date(viewingProject.end_date)} />
-            <ReadOnlyField label="Budget (₹)" value={num(viewingProject.budget || 0)} />
-            <ReadOnlyField label="Est. Revenue (₹)" value={num(viewingProject.est_revenue || 0)} />
-            <ReadOnlyField label="Est. Expense (₹)" value={num(viewingProject.est_expense || 0)} wide />
-            <ReadOnlyField
-              label="PR Manager"
-              wide
-              value={
-                <span title={viewingProject.pm_missing_fields?.length ? `Needs: ${viewingProject.pm_missing_fields.join(', ')}` : undefined}>
-                  <Badge status={viewingProject.pm_sync_status} />
-                </span>
-              }
-            />
-          </div>
-        </Modal>
-      )}
     </div>
   );
 }

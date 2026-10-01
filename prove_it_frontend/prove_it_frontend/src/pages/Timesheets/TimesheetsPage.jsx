@@ -5,8 +5,6 @@ import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
 import Dropdown from '../../components/ui/Dropdown.jsx';
-import Modal from '../../components/ui/Modal.jsx';
-import ReadOnlyField from '../../components/ui/ReadOnlyField.jsx';
 import { date } from '../../utils/format.js';
 import { get } from '../../services/httpClient.js';
 import usePermissions from '../../hooks/usePermissions.js';
@@ -34,10 +32,6 @@ export default function TimesheetsPage() {
   const [search, setSearch] = useState('');
   const [projects, setProjects] = useState([]);
   const [bcodes, setBcodes] = useState([]);
-  // The entry currently shown in the read-only View modal (row click) — same pattern
-  // as the other pages: a separate look-only surface, not the Edit form
-  // (modal-timesheet, still reachable only from the kebab menu's Edit item).
-  const [viewingEntry, setViewingEntry] = useState(null);
 
   useEffect(() => {
     get('/api/projects').then(rows => setProjects(rows || [])).catch(() => {});
@@ -144,35 +138,9 @@ export default function TimesheetsPage() {
           canDelete={canDeleteRow}
           renderExtraActions={renderExtraActions}
           hideActionsColumn={noActionsColumn('timesheets')}
-          actionsAsKebab
-          onRowClick={setViewingEntry}
           emptyMessage={loading ? 'Loading…' : 'No records found'}
         />
       </div>
-
-      {viewingEntry && (
-        <Modal title={`${viewingEntry.name || viewingEntry.emp_id} — ${date(viewingEntry.entry_date)}`} onClose={() => setViewingEntry(null)}>
-          {/* Mirrors modal-timesheet's own field order (global.css's .form-grid) —
-              Project, Project Code, Billing Code, Hours, Billable, then Work
-              Description full-width (the real `notes` field) — minus Date, which the
-              modal title already encodes alongside the employee's name. project_id/
-              project_code_id/billing_code_id shown raw, matching this page's own
-              COLUMNS convention (unlike Billing/Project Codes, which resolve names).
-              Appends Status/Employee ID/Approved By, real fields the Create form
-              doesn't ask for (a new entry starts Pending and unapproved by definition). */}
-          <div className="form-grid">
-            <ReadOnlyField label="Project" value={viewingEntry.project_id} />
-            <ReadOnlyField label="Project Code" value={viewingEntry.project_code_id} />
-            <ReadOnlyField label="Billing Code" value={viewingEntry.billing_code_id} />
-            <ReadOnlyField label="Hours" value={`${viewingEntry.hours}h`} />
-            <ReadOnlyField label="Billable" value={<Badge status={viewingEntry.billable ? 'Billable' : 'Non-Billable'} />} />
-            <ReadOnlyField label="Work Description" value={viewingEntry.notes} wide />
-            <ReadOnlyField label="Status" value={<Badge status={viewingEntry.status} />} />
-            <ReadOnlyField label="Employee ID" value={viewingEntry.emp_id} />
-            <ReadOnlyField label="Approved By" value={viewingEntry.approved_by} />
-          </div>
-        </Modal>
-      )}
     </div>
   );
 }

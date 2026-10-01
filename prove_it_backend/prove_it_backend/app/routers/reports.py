@@ -5,12 +5,7 @@ from datetime import date
 from app.core import collections
 from app.core.database import get_db
 from app.core.security import require_permission, get_current_user
-from app.core.reporting import (
-    period_range as _period_range,
-    resolve_date_filter as _resolve_date_filter,
-    group_by as _group_by,
-    latest_hourly_costs as _latest_hourly_costs,
-)
+from app.core.reporting import period_range as _period_range, group_by as _group_by, latest_hourly_costs as _latest_hourly_costs
 
 router = APIRouter()
 
@@ -87,13 +82,14 @@ def dashboard_summary(
 def project_profitability(
     project_id: Optional[str] = Query(None),
     period: Optional[str] = Query(None, description="this_month|last_month|q1_2026|fy_2025_26"),
-    date_from: Optional[date] = Query(None),
-    date_to: Optional[date] = Query(None),
     db: Database = Depends(get_db),
     cu=Depends(get_current_user),
 ):
     """Revenue vs cost per project."""
-    date_filter = _resolve_date_filter(period, date_from, date_to)
+    date_filter = None
+    if period:
+        start, end = _period_range(period)
+        date_filter = {"$gte": start.isoformat(), "$lte": end.isoformat()}
 
     proj_query = {"id": project_id, "org_id": cu.org_id} if project_id else {"org_id": cu.org_id}
     projects = list(db[collections.PROJECTS].find(proj_query))
@@ -257,17 +253,12 @@ def receivables_aging(project_id: Optional[str] = Query(None), db: Database = De
 @router.get("/monthly-revenue", dependencies=[Depends(require_permission("Reports", "view"))])
 def monthly_revenue(
     period: Optional[str] = Query(None, description="this_month|last_month|q1_2026|fy_2025_26"),
-    date_from: Optional[date] = Query(None),
-    date_to: Optional[date] = Query(None),
     year: int = Query(2026),
     db: Database = Depends(get_db),
     cu=Depends(get_current_user),
 ):
-    """Monthly breakdown of receivables received and expenses, over the given period (or full calendar year if no period given). An explicit date_from/date_to (custom range) wins over period, same as project_profitability."""
-    if date_from or date_to:
-        start = date_from or date(year, 1, 1)
-        end = date_to or date(year, 12, 31)
-    elif period:
+    """Monthly breakdown of receivables received and expenses, over the given period (or full calendar year if no period given)."""
+    if period:
         start, end = _period_range(period)
     else:
         start, end = date(year, 1, 1), date(year, 12, 31)

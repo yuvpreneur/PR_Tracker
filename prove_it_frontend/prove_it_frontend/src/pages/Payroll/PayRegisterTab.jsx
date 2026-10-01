@@ -1,12 +1,9 @@
 import { useMemo, useRef, useState } from 'react';
 import { Upload, Loader2, Trash2, AlertTriangle } from 'lucide-react';
 import usePayRegister from './usePayRegister.js';
-import { COLUMNS, SECTIONS } from './payRegisterColumns.js';
+import { COLUMNS, SECTION_COLUMN_COUNTS } from './payRegisterColumns.js';
 import Button from '../../components/ui/Button.jsx';
 import Dropdown from '../../components/ui/Dropdown.jsx';
-import Modal from '../../components/ui/Modal.jsx';
-import ReadOnlyField from '../../components/ui/ReadOnlyField.jsx';
-import SectionTitle from '../../components/ui/SectionTitle.jsx';
 import { toast } from '../../utils/toast.js';
 import { payPeriodLabel as formatPeriod } from '../../utils/format.js';
 import usePermissions from '../../hooks/usePermissions.js';
@@ -58,13 +55,6 @@ export default function PayRegisterTab() {
   const canDelete = can('Payroll', 'delete');
   const { periods, period, setPeriod, register, loading, uploading, upload, remove, saveCompanyInfo } = usePayRegister();
   const fileInputRef = useRef(null);
-  // The row currently shown in the read-only View modal (row click) — same pattern as
-  // every other page. There's no per-row Edit form here to distinguish it from (this
-  // whole table is read-only, bulk-uploaded data — the "edit" for it is re-uploading
-  // the file), but with ~60 columns split across 6 sections and only 3 kept visible
-  // while scrolling (FROZEN_KEYS), seeing one employee's full row still means a lot of
-  // horizontal scrolling — this puts all of it in one place instead.
-  const [viewing, setViewing] = useState(null);
 
   const handleFileChange = async e => {
     const file = e.target.files?.[0];
@@ -165,8 +155,7 @@ export default function PayRegisterTab() {
             {(Array.isArray(employees) ? employees : []).map((row, i) => (
               <tr
                 key={row.code || i}
-                className="border-b border-slate-100 cursor-pointer"
-                onClick={() => setViewing(row)}
+                className="border-b border-slate-100"
                 style={row.employee_found === false ? { background: 'var(--amber-soft)' } : undefined}
               >
                 {COLUMNS.map((c, ci) => (
@@ -200,35 +189,6 @@ export default function PayRegisterTab() {
           )}
         </table>
       </div>
-
-      {viewing && (
-        <Modal title={fmtText(viewing.name)} onClose={() => setViewing(null)} width={720}>
-          {/* Grouped by SECTIONS (payRegisterColumns.js) instead of one flat list —
-              there are ~60 fields here, and they already come with that structure
-              (the same grouping payroll.py's Excel parser reads them under), so
-              reusing it keeps this readable instead of a 60-row wall. Skips `name`
-              (the modal title) and `s_no` (the row's position in the sheet, not
-              data about the employee). */}
-          {SECTIONS.map(section => {
-            const cols = COLUMNS.filter(c => c.section === section.key && c.key !== 'name' && c.key !== 's_no');
-            if (cols.length === 0) return null;
-            return (
-              <div key={section.key} style={{ marginBottom: 20 }}>
-                <SectionTitle>{section.label}</SectionTitle>
-                <div className="form-grid">
-                  {cols.map(c => (
-                    <ReadOnlyField
-                      key={c.key}
-                      label={c.header}
-                      value={c.type === 'number' ? fmtNum(viewing[c.key]) : fmtText(viewing[c.key])}
-                    />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </Modal>
-      )}
     </div>
   );
 }

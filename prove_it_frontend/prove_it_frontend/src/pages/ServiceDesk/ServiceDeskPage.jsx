@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Ticket, RefreshCw, Hourglass, AlertTriangle, CheckCircle2, Check, X, Plus } from 'lucide-react';
 import useServiceDesk from './useServiceDesk.js';
 import { SERVICE_DESK_WORKFLOW_HTML } from './serviceDeskDashboardStatic.js';
@@ -7,8 +6,6 @@ import DataTable from '../../components/ui/DataTable.jsx';
 import StatCard from '../../components/ui/StatCard.jsx';
 import SectionTitle from '../../components/ui/SectionTitle.jsx';
 import Button from '../../components/ui/Button.jsx';
-import Modal from '../../components/ui/Modal.jsx';
-import ReadOnlyField from '../../components/ui/ReadOnlyField.jsx';
 import { date } from '../../utils/format.js';
 import usePermissions from '../../hooks/usePermissions.js';
 import { MicroIcons } from '../../components/ui/MicroIcons.jsx';
@@ -36,10 +33,6 @@ const OPEN_STATUSES = ['Open', 'In Progress', 'Waiting Approval'];
 export default function ServiceDeskPage() {
   const { can, isMine } = usePermissions();
   const { tickets, loading } = useServiceDesk();
-  // The ticket currently shown in the read-only View modal (row click) — same pattern
-  // as Clients/Projects/Project Codes/Billing Codes: a separate look-only surface, not
-  // the Edit form (modal-ticket, still reachable only from the kebab menu's Edit item).
-  const [viewingTicket, setViewingTicket] = useState(null);
 
   // Mirrors GET /api/tickets/stats' open/in_progress/waiting_approval/critical/closed_total
   // definitions — computed client-side from the same `tickets` this page already fetched,
@@ -58,42 +51,22 @@ export default function ServiceDeskPage() {
     ? !LOCKED_STATUSES.includes(row.status)
     : (isMine(row, 'requester') && !OWN_EDIT_LOCKED_STATUSES.includes(row.status));
 
-  // Styled to match KebabMenu's own Edit item exactly (flat row, icon + label, same
-  // hover) rather than the small bordered pill these used to be as standalone buttons
-  // next to it — they now land inside that same popover as `extra` (see DataTable), so
-  // they need to read as more rows in that list, not separate controls.
-  const menuItemStyle = {
-    display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-    padding: '7px 10px', border: 'none', background: 'transparent',
-    cursor: 'pointer', fontSize: 12, fontWeight: 600, borderRadius: 6, textAlign: 'left',
-  };
-  const onMenuItemHover = e => (e.currentTarget.style.background = 'var(--soft)');
-  const onMenuItemUnhover = e => (e.currentTarget.style.background = 'transparent');
-
   const renderExtraActions = row => {
     const canManage = can('Service Desk', 'approve');
     const mine = isMine(row, 'requester');
     if (OPEN_STATUSES.includes(row.status)) {
       if (!canManage) return null;
       return (
-        <button
-          className="bridge-resolve" data-page="page-service-desk" data-id={row.id} title="Resolve"
-          style={{ ...menuItemStyle, color: '#16A36C' }}
-          onMouseEnter={onMenuItemHover} onMouseLeave={onMenuItemUnhover}
-        >
-          <Check size={13} /> Resolve
+        <button className="bridge-resolve ml-1 rounded-md px-2.5 py-0.5 text-[11px] text-green" data-page="page-service-desk" data-id={row.id} title="Resolve">
+          <Check size={14} /> Resolve
         </button>
       );
     }
     if (row.status === 'Resolved') {
       if (!canManage && !mine) return null;
       return (
-        <button
-          className="bridge-close" data-page="page-service-desk" data-id={row.id} title="Close"
-          style={{ ...menuItemStyle, color: 'var(--ink)' }}
-          onMouseEnter={onMenuItemHover} onMouseLeave={onMenuItemUnhover}
-        >
-          <X size={13} /> Close
+        <button className="bridge-close ml-1 rounded-md px-2.5 py-0.5 text-[11px]" data-page="page-service-desk" data-id={row.id} title="Close">
+          <X size={14} /> Close
         </button>
       );
     }
@@ -144,37 +117,9 @@ export default function ServiceDeskPage() {
           canEdit={canEditRow}
           canDelete={false}
           renderExtraActions={renderExtraActions}
-          actionsAsKebab
-          onRowClick={setViewingTicket}
           emptyMessage={loading ? 'Loading…' : 'No records found'}
         />
       </div>
-
-      {viewingTicket && (
-        <Modal title={viewingTicket.ticket_no || viewingTicket.id} onClose={() => setViewingTicket(null)}>
-          {/* Mirrors modal-ticket's own field order (global.css's .form-grid) — Subject
-              full-width, then Requester/Project, Queue/Priority — but skips its
-              "Category" and "Description" inputs, which the backend's TicketCreate/
-              _out() never actually had a field for (dead markup from the original
-              static prototype, not real data). Appends Resolution/Assigned To/
-              Created/Updated At, which GET /api/tickets does return but neither the
-              table nor the Create form show, the same way other View modals append
-              real fields their own Edit form doesn't ask for. */}
-          <div className="form-grid">
-            <ReadOnlyField label="Subject" value={viewingTicket.subject} wide />
-            <ReadOnlyField label="Requester" value={viewingTicket.requester} />
-            <ReadOnlyField label="Project" value={viewingTicket.project_id} />
-            <ReadOnlyField label="Queue" value={viewingTicket.queue} />
-            <ReadOnlyField label="Priority" value={<Badge status={viewingTicket.priority} />} />
-            <ReadOnlyField label="Status" value={<Badge status={viewingTicket.status} />} />
-            <ReadOnlyField label="SLA Deadline" value={viewingTicket.sla_deadline ? date(viewingTicket.sla_deadline) : '—'} />
-            <ReadOnlyField label="Resolution" value={viewingTicket.resolution} wide />
-            <ReadOnlyField label="Assigned To" value={viewingTicket.assigned_to} />
-            <ReadOnlyField label="Created At" value={date(viewingTicket.created_at)} />
-            <ReadOnlyField label="Updated At" value={date(viewingTicket.updated_at)} />
-          </div>
-        </Modal>
-      )}
     </div>
   );
 }

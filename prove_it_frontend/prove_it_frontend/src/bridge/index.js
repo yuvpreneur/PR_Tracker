@@ -148,20 +148,6 @@ function wireAlphaInput(modalId, hint, extra = '') {
   filterInput(input, v => Array.from(v).filter(ch => NAME_CHAR.test(ch) || extra.includes(ch)).join(''));
 }
 
-// Letters and digits only — for identifier fields (GSTIN / Tax ID) where every separator
-// is noise: the value is a code, not prose, so spaces, punctuation and symbols are
-// stripped as they are typed. ASCII deliberately, unlike NAME_CHAR above: these are
-// machine-checkable registration numbers issued in A-Z0-9 (a GSTIN is exactly
-// 22AAAAA0000A1Z5), so \p{L} would admit look-alike letters from other scripts that no
-// tax authority would ever accept.
-const ALNUM_CHAR = /[A-Za-z0-9]/;
-
-function wireAlnumInput(modalId, hint) {
-  const input = field(modalId, hint);
-  if (!input) return;
-  filterInput(input, v => Array.from(v).filter(ch => ALNUM_CHAR.test(ch)).join(''));
-}
-
 // Requires both an "@" and a dotted domain after it. `type="email"` enforces neither
 // here: these modals have no <form>, so the browser's own constraint validation never
 // runs on Save, and even where it does the HTML spec deliberately accepts "a@b" — a
@@ -419,13 +405,8 @@ export function initApiBridge() {
   function wireSubmits() {
     // Companies / Customers (shared modal-company — Customers is a finance-facing view of the same records)
     wireNumericInput('modal-company', 'phone');
-    // '&' is kept on the client name for the same reason it is kept on the industry
-    // below — "Johnson & Johnson" is a name people actually type, and eating the
-    // ampersand would leave "Johnson  Johnson".
-    wireAlphaInput('modal-company', 'client name', '&');
     wireAlphaInput('modal-company', 'primary contact');
     wireEmailInput('modal-company');
-    wireAlnumInput('modal-company', 'gstin');
     // '&' and '/' are kept here but not on a person's name — "Oil & Gas" and "IT/ITES"
     // are industries people actually type, and silently eating the separator would turn
     // them into "Oil  Gas" / "ITITES".
@@ -678,11 +659,6 @@ export function initApiBridge() {
     });
 
     // Receivables / Invoices (shared modal-recv — Invoices is a view+edit layer over the same data)
-    // Same filter (and same '&' exception) as modal-company's client name — this field
-    // holds the very same company names, just typed on the finance side.
-    wireAlphaInput('modal-recv', 'client name', '&');
-    wireNumericInput('modal-recv', 'invoice amount', { decimal: true });
-    wireNumericInput('modal-recv', 'received amount', { decimal: true });
     wireBtn('modal-recv', async () => {
       const invoiceEdit = editId('page-invoices');
       const id = editId('page-receivables') || invoiceEdit;
@@ -1282,12 +1258,8 @@ export function initApiBridge() {
 
     // Approvals view/approve/reject button delegation (cross-module: timesheets/expenses/leave/access)
     document.addEventListener('click', async e => {
-      // `.bridge-view` now lives on the whole row (see ApprovalsPage.jsx), not a
-      // separate button, so a click on Approve/Reject inside that same row would
-      // otherwise also satisfy `closest('.bridge-view[data-module]')` and get treated
-      // as "view" before the approve/reject checks below ever run — excluded here.
       const viewBtn = e.target.closest('.bridge-view[data-module]');
-      if (viewBtn && !e.target.closest('.bridge-approve, .bridge-reject')) {
+      if (viewBtn) {
         const row = state.approvalsAll.find(r => r._mod === viewBtn.dataset.module && String(r.id) === viewBtn.dataset.id);
         if (row) openApprovalView(row);
         return;

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ClipboardCheck, Clock, Receipt, CalendarDays, KeyRound, Check, X } from 'lucide-react';
+import { ClipboardCheck, Clock, Receipt, CalendarDays, KeyRound, Check, X, Eye } from 'lucide-react';
 import useApprovals from './useApprovals.js';
 import StatCard from '../../components/ui/StatCard.jsx';
 import SectionTitle from '../../components/ui/SectionTitle.jsx';
@@ -111,21 +111,7 @@ export default function ApprovalsPage() {
                 || (row.status === 'Pending Finance' && role === 'Finance User'))
             : (permModule ? can(permModule, 'approve') : true);
           return (
-            // The row itself is now the "View" trigger (bridge-view + data-module/data-id
-            // — see bridge/index.js's delegated click listener, which already resolves
-            // `.closest()` from anywhere clicked inside, so this needs no per-element
-            // wiring beyond what the button used to carry). Approve/Reject stay their own
-            // buttons and are explicitly excluded there so clicking them doesn't also
-            // open the view.
-            <div
-              className="approval-item bridge-view"
-              data-module={row._mod}
-              data-id={row.id}
-              key={`${row._mod}-${row.id}`}
-              style={{ cursor: 'pointer', borderRadius: 10 }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'var(--soft)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-            >
+            <div className="approval-item" key={`${row._mod}-${row.id}`}>
               <TypeBadge mod={row._mod} />
               <div className="approval-info">
                 <div className="approval-name">{name}</div>
@@ -134,6 +120,7 @@ export default function ApprovalsPage() {
               <div className="approval-actions">
                 {canAct && <button className="btn btn-success btn-sm bridge-approve" data-module={row._mod} data-id={row.id}><Check size={14} /> Approve</button>}
                 {canAct && <button className="btn btn-danger btn-sm bridge-reject" data-module={row._mod} data-id={row.id}><X size={14} /> Reject</button>}
+                <button className="btn btn-ghost btn-sm bridge-view" data-module={row._mod} data-id={row.id}><Eye size={14} /> View</button>
               </div>
             </div>
           );

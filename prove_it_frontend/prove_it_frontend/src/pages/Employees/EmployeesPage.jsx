@@ -5,9 +5,6 @@ import Badge from '../../components/ui/Badge.jsx';
 import Button from '../../components/ui/Button.jsx';
 import DataTable from '../../components/ui/DataTable.jsx';
 import Dropdown from '../../components/ui/Dropdown.jsx';
-import Modal from '../../components/ui/Modal.jsx';
-import ReadOnlyField from '../../components/ui/ReadOnlyField.jsx';
-import { date } from '../../utils/format.js';
 import { openModal, startCreate, resetFields } from '../../bridge/shared/modals.js';
 import usePermissions from '../../hooks/usePermissions.js';
 
@@ -33,11 +30,6 @@ export default function EmployeesPage() {
   const [dept, setDept] = useState('');
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
-  // The employee currently shown in the read-only View modal (row click) — same pattern
-  // as Clients/Projects/Project Codes/Billing Codes/Service Desk: a separate look-only
-  // surface, not the Edit form (modal-emp, still reachable only from the kebab menu's
-  // Edit item).
-  const [viewingEmployee, setViewingEmployee] = useState(null);
 
   const depts = useMemo(() => [...new Set((Array.isArray(employees) ? employees : []).map(e => e.department).filter(Boolean))].sort(), [employees]);
 
@@ -108,39 +100,9 @@ export default function EmployeesPage() {
           pageId="page-employees"
           canEdit={can('Employees', 'edit')}
           canDelete={can('Employees', 'delete')}
-          actionsAsKebab
-          onRowClick={setViewingEmployee}
           emptyMessage={loading ? 'Loading…' : 'No records found'}
         />
       </div>
-
-      {viewingEmployee && (
-        <Modal title={viewingEmployee.name} onClose={() => setViewingEmployee(null)}>
-          {/* Mirrors modal-emp's own field order (global.css's .form-grid) — Employee
-              ID, Email, Phone, Department, Designation, Joining Date, Role, Billable,
-              Status, PR Manager Access — minus Full Name (already the modal title).
-              Appends Relieving Date, which GET /api/employees does return but the
-              Create form never asks for (it only applies once someone's actually
-              left), the same way other View modals append real fields their own
-              Edit form doesn't cover. */}
-          <div className="form-grid">
-            <ReadOnlyField label="Employee ID" value={viewingEmployee.emp_id} />
-            <ReadOnlyField label="Email" value={viewingEmployee.email} />
-            <ReadOnlyField label="Phone" value={viewingEmployee.phone} />
-            <ReadOnlyField label="Department" value={viewingEmployee.department} />
-            <ReadOnlyField label="Designation" value={viewingEmployee.designation} />
-            <ReadOnlyField label="Joining Date" value={date(viewingEmployee.joining_date)} />
-            <ReadOnlyField label="Role" value={viewingEmployee.role} />
-            <ReadOnlyField label="Billable" value={<Badge status={viewingEmployee.billable ? 'Billable' : 'Non-Billable'} />} />
-            <ReadOnlyField label="Status" value={<Badge status={viewingEmployee.status} />} />
-            <ReadOnlyField
-              label="PR Manager"
-              value={<Badge status={viewingEmployee.pm_access_enabled ? viewingEmployee.pm_sync_status : 'Not Enabled'} />}
-            />
-            <ReadOnlyField label="Relieving Date" value={viewingEmployee.relieving_date ? date(viewingEmployee.relieving_date) : null} />
-          </div>
-        </Modal>
-      )}
     </div>
   );
 }

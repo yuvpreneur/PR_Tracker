@@ -8,9 +8,7 @@ import { X } from 'lucide-react';
 export default function Modal({ title, onClose, children, width = 480 }) {
   return (
     <div
-      // z-[200] matches the legacy .modal-overlay's z-index (global.css) — #topbar sets
-      // an explicit zIndex:100 (AppLayout.jsx), which sat above this modal's old z-50.
-      className="fixed inset-0 z-200 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="card max-h-[90vh] w-full overflow-y-auto" style={{ maxWidth: width, padding: 20 }}>
